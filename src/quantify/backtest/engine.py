@@ -635,7 +635,12 @@ class BacktestEngine:
         for symbol, df in data.items():
             try:
                 result = engine.compute({symbol: df}, required=list(required))
-                enriched[symbol] = result[symbol]
+                # Merge computed features into the original OHLCV DataFrame
+                # so that price columns (open, high, low, close, volume) are
+                # preserved alongside the new feature columns.
+                features_df = result[symbol]
+                merged = df.join(features_df, how="left", rsuffix="_feat")
+                enriched[symbol] = merged
             except Exception as exc:
                 log.warning("Feature computation failed for %s: %s — using raw data", symbol, exc)
                 enriched[symbol] = df
