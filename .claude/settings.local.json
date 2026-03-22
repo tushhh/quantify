@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc:*)",
+      "Bash(python -c \":*)",
+      "Bash(python -m py_compile src/quantify/__init__.py)",
+      "Bash(python -m py_compile src/quantify/config.py)",
+      "Bash(python -m py_compile src/quantify/cli.py)",
+      "Bash(python -m py_compile src/quantify/data/models.py)",
+      "Bash(python -m py_compile src/quantify/strategy/signal.py)",
+      "Bash(find src:*)"
+    ]
+  }
+}
