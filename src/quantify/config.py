@@ -38,7 +38,33 @@ log = logging.getLogger(__name__)
 # Path helpers
 # ---------------------------------------------------------------------------
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]  # src/quantify -> src -> repo root
+def _find_repo_root() -> Path:
+    """
+    Locate the repository root that contains ``config/settings.yaml``.
+
+    Resolution order (first match wins):
+    1. ``QUANTIFY_HOME`` environment variable — explicit override.
+    2. ``parents[2]`` of this file — works in the ``src/`` dev layout
+       (src/quantify/config.py → src → repo root).
+    3. ``Path.cwd()`` — works when installed as a wheel and the process
+       working directory is set to the repo root (e.g. via systemd
+       ``WorkingDirectory``).
+    """
+    # 1. Explicit env override
+    env_home = os.environ.get("QUANTIFY_HOME")
+    if env_home:
+        return Path(env_home).resolve()
+
+    # 2. Dev / editable-install layout: src/quantify/config.py
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "config" / "settings.yaml").exists():
+        return candidate
+
+    # 3. Installed wheel: use CWD (systemd WorkingDirectory)
+    return Path.cwd()
+
+
+_REPO_ROOT = _find_repo_root()
 _CONFIG_DIR = _REPO_ROOT / "config"
 _SETTINGS_PATH = _CONFIG_DIR / "settings.yaml"
 _LOGGING_PATH = _CONFIG_DIR / "logging.yaml"
