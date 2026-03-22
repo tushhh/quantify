@@ -51,7 +51,7 @@ Allocations and parameters are fully configurable in [`config/settings.yaml`](co
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/quantify.git
+git clone https://github.com/tushhh/quantify.git
 cd quantify
 
 # Create a virtual environment
