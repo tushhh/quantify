@@ -361,12 +361,16 @@ def _run_dry_run(strategy_instances, settings) -> None:
     click.echo("Fetching recent market data for signal generation...")
     try:
         from quantify.data.providers.yfinance_provider import YFinanceProvider
+        from quantify.data.features import FeatureEngine
         from quantify.data.universe import get_sp500
 
         provider = YFinanceProvider()
         end_dt = datetime.now(timezone.utc)
         from datetime import timedelta
-        start_dt = end_dt - timedelta(days=365)
+        # Fetch 2 years so that 252-day return features are non-NaN for recent bars.
+        # The cross-sectional momentum strategy requires return_252d, which needs
+        # 252 trading days of history before the last bar.
+        start_dt = end_dt - timedelta(days=730)
 
         universe: list[str] = []
         for inst in strategy_instances:
@@ -374,7 +378,9 @@ def _run_dry_run(strategy_instances, settings) -> None:
                 universe.extend(inst.universe)
         if not universe:
             universe = get_sp500()
-        universe = sorted(set(universe))[:20]  # limit for dry run
+        # Keep the full universe so cross-sectional strategies have enough symbols
+        # for meaningful ranking. Cap at 150 to avoid overly long downloads.
+        universe = sorted(set(universe))[:150]
 
         data = {}
         with click.progressbar(universe, label="Fetching") as bar:
@@ -391,6 +397,29 @@ def _run_dry_run(strategy_instances, settings) -> None:
     if not data:
         click.echo("No data available. Cannot generate signals.")
         return
+
+    # Compute features required by all strategies and merge into OHLCV data
+    required_features: set[str] = set()
+    for inst in strategy_instances:
+        try:
+            required_features.update(inst.get_required_features())
+        except Exception:
+            pass
+
+    if required_features:
+        try:
+            engine = FeatureEngine()
+            features_only = engine.compute(data, required=list(required_features))
+            enriched: dict = {}
+            for sym, raw_df in data.items():
+                feat_df = features_only.get(sym)
+                if feat_df is not None:
+                    enriched[sym] = raw_df.join(feat_df, how="left", rsuffix="_feat")
+                else:
+                    enriched[sym] = raw_df
+            data = enriched
+        except Exception as exc:
+            click.echo(f"  Warning: feature computation failed ({exc}) — signals may be empty", err=True)
 
     click.echo(f"Generating signals from {len(data)} symbols...")
     for strat in strategy_instances:
@@ -444,10 +473,21 @@ def report(
     try:
         from quantify.persistence.database import Database
         db = Database(db_path) if db_path else Database()
-        trades = db.get_trades(
-            start_date=str(start_date) if start_date else None,
-            end_date=str(end_date) if end_date else None,
-        )
+        db.initialize()
+
+        # Build query with optional date filters
+        conditions: list[str] = []
+        params: list[str] = []
+        if start_date:
+            conditions.append("timestamp >= ?")
+            params.append(str(start_date))
+        if end_date:
+            conditions.append("timestamp <= ?")
+            params.append(str(end_date) + "T23:59:59")
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        sql = f"SELECT * FROM trades {where} ORDER BY timestamp ASC"
+        trades = db.fetchall(sql, params if params else None)
     except Exception as exc:
         raise click.ClickException(f"Failed to read trade log: {exc}")
 

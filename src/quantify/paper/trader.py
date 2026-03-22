@@ -760,14 +760,24 @@ class PaperTrader:
         required_features.update(self._vol_regime.get_required_features())
 
         try:
-            featured_data = self._feature_engine.compute(
+            features_only = self._feature_engine.compute(
                 raw_data, required=list(required_features)
             )
+            # Merge features into the original OHLCV DataFrames so that price
+            # columns (open, high, low, close, volume) are preserved alongside
+            # the new feature columns.
+            featured_data: dict = {}
+            for sym, raw_df in raw_data.items():
+                feat_df = features_only.get(sym)
+                if feat_df is not None:
+                    featured_data[sym] = raw_df.join(feat_df, how="left", rsuffix="_feat")
+                else:
+                    featured_data[sym] = raw_df
         except Exception:
             log.exception("_fetch_and_cache_data: feature computation failed — using raw data")
             featured_data = raw_data  # type: ignore[assignment]
 
-        self._market_data_cache = featured_data  # type: ignore[assignment]
+        self._market_data_cache = featured_data
         log.info(
             "_fetch_and_cache_data: cached data for %d symbols with features: %s",
             len(featured_data),
