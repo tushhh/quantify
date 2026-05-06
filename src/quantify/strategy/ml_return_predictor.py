@@ -546,41 +546,61 @@ class MLReturnPredictorStrategy(Strategy):
 
 def _build_model(params: dict[str, Any]) -> Any:
     """
-    Return a fitted-able regressor.
-
-    Preference order:
-      1. LightGBM (``lightgbm.LGBMRegressor``)
-      2. sklearn GradientBoostingRegressor (slower but always available)
-
-    Returns None if neither is available.
+    Return a VotingRegressor ensemble of LightGBM, XGBoost, and CatBoost.
+    Falls back to whichever are available.
     """
+    from sklearn.ensemble import VotingRegressor
+    
+    estimators = []
+    
+    # 1. LightGBM
     try:
-        from lightgbm import LGBMRegressor  # type: ignore[import]
-        return LGBMRegressor(**params)
+        from lightgbm import LGBMRegressor
+        estimators.append(("lgbm", LGBMRegressor(**params)))
     except ImportError:
-        log.warning(
-            "lightgbm not installed — falling back to sklearn "
-            "GradientBoostingRegressor (slower).  "
-            "Install with: pip install lightgbm"
-        )
+        log.warning("LightGBM not found for ensemble.")
 
+    # 2. XGBoost
     try:
-        from sklearn.ensemble import GradientBoostingRegressor  # type: ignore[import]
-        # Map a subset of LightGBM params to sklearn equivalents
-        sklearn_params = {
-            "learning_rate": params.get("learning_rate", 0.05),
+        from xgboost import XGBRegressor
+        xgb_params = {
             "n_estimators": params.get("n_estimators", 200),
+            "learning_rate": params.get("learning_rate", 0.05),
             "max_depth": params.get("max_depth", 5),
-            "subsample": params.get("subsample", 0.8),
-            "random_state": params.get("random_state", 42),
+            "n_jobs": -1,
+            "random_state": 42
         }
-        return GradientBoostingRegressor(**sklearn_params)
+        estimators.append(("xgboost", XGBRegressor(**xgb_params)))
     except ImportError:
-        log.error(
-            "Neither lightgbm nor sklearn is available.  "
-            "Install with: pip install lightgbm  OR  pip install scikit-learn"
-        )
-        return None
+        log.warning("XGBoost not found for ensemble.")
+
+    # 3. CatBoost
+    try:
+        from catboost import CatBoostRegressor
+        cb_params = {
+            "iterations": params.get("n_estimators", 200),
+            "learning_rate": params.get("learning_rate", 0.05),
+            "depth": params.get("max_depth", 5),
+            "verbose": False,
+            "random_seed": 42
+        }
+        estimators.append(("catboost", CatBoostRegressor(**cb_params)))
+    except ImportError:
+        log.warning("CatBoost not found for ensemble.")
+
+    if not estimators:
+        log.error("No ML backends available! Falling back to sklearn.")
+        from sklearn.ensemble import GradientBoostingRegressor
+        return GradientBoostingRegressor(n_estimators=100)
+
+    # Return the weighted ensemble
+    # We give LightGBM slightly more weight as it's the gold standard for finance
+    weights = []
+    for name, _ in estimators:
+        if name == "lgbm": weights.append(1.5)
+        else: weights.append(1.0)
+        
+    return VotingRegressor(estimators=estimators, weights=weights)
 
 
 __all__ = ["MLReturnPredictorStrategy"]

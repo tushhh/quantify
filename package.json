@@ -1,0 +1,14 @@
+{
+  "name": "quantify",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"API,WEB\" --prefix-colors \"cyan,magenta\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "uvicorn api.main:app --reload --port 8000",
+    "dev:web": "npm run dev --prefix web",
+    "install:all": "pip install -r api/requirements.txt && npm install --prefix web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

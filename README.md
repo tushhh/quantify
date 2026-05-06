@@ -33,7 +33,7 @@ Quantify is a modular, research-driven **quantitative trading framework** built 
 | **Cross-Sectional Momentum** | Long top-quintile / short bottom-quintile by 12-1 month returns | 20% |
 | **Pairs Mean Reversion** | Engle-Granger cointegration with z-score entry/exit | 20% |
 | **Quality Value** | Composite rank on value (P/E, P/B, EV/EBITDA) and quality (ROE, ROA, margins) metrics | 20% |
-| **ML Return Predictor** | LightGBM model trained on momentum, volatility, and technical features | 15% |
+| **ML Return Predictor** | **Ensemble Model** (LightGBM + XGBoost + CatBoost) trained on 5 years of historical features | 15% |
 | **Volatility Regime** | VIX-based regime detection that dynamically re-weights the other strategies | 10% |
 
 Allocations and parameters are fully configurable in [`config/settings.yaml`](config/settings.yaml).
@@ -65,9 +65,16 @@ pip install -e ".[dev]"
 
 ### Environment Setup
 
+**Mac/Linux:**
 ```bash
 # Copy the example env file and fill in your Alpaca keys
 cp .env.example .env
+```
+
+**Windows Terminal:**
+```powershell
+# Copy the example env file and fill in your Alpaca keys
+copy .env.example .env
 ```
 
 ```dotenv
@@ -78,13 +85,26 @@ ALPACA_PAPER=true
 
 ### Run a Backtest
 
+**On Mac/Linux:**
 ```bash
+# Note: Date format is YYYY-MM-DD
 quantify backtest \
   --strategy trend_following \
   --start 2022-01-01 \
   --end 2024-01-01 \
   --capital 100000
 ```
+
+**On Windows Terminal (PowerShell / Command Prompt):**
+```powershell
+# Note: Date format is YYYY-MM-DD
+quantify backtest `
+  --strategy trend_following `
+  --start 2022-01-01 `
+  --end 2024-01-01 `
+  --capital 100000
+```
+*(Alternatively, in CMD, replace the backticks ``` ` ``` with carets `^` or run the command on a single line).*
 
 ### Paper Trade (Dry Run)
 
@@ -122,8 +142,10 @@ Options:
 ```
 
 ### `paper-trade`
+  
+> [!TIP]
+> The `ml` strategy now uses an **Ensemble Committee** (Voting Regressor) combining **LightGBM**, **XGBoost**, and **CatBoost**. This provides significantly more stable predictions by averaging the signals of three independent "experts."
 
-```
 Options:
   --strategy NAME  Strategy to run (repeatable). Omit to use all enabled
                    strategies from config.

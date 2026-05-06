@@ -367,10 +367,9 @@ def _run_dry_run(strategy_instances, settings) -> None:
         provider = YFinanceProvider()
         end_dt = datetime.now(timezone.utc)
         from datetime import timedelta
-        # Fetch 2 years so that 252-day return features are non-NaN for recent bars.
-        # The cross-sectional momentum strategy requires return_252d, which needs
-        # 252 trading days of history before the last bar.
-        start_dt = end_dt - timedelta(days=730)
+        # Fetch 5 years to ensure enough history for ML training (504 bars)
+        # after technical indicators (252 bars) are computed.
+        start_dt = end_dt - timedelta(days=1825)
 
         universe: list[str] = []
         for inst in strategy_instances:
