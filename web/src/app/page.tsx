@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Terminal, BarChart2, Zap, Shield, Globe, Activity } from "lucide-react";
+import { ArrowRight, Terminal, BarChart2, Zap, Shield, Globe, Activity, ChevronRight } from "lucide-react";
 
 const FEATURES = [
   {
@@ -38,116 +38,135 @@ const FEATURES = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-black text-[#EDEDED] font-sans selection:bg-white/20">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30">
       {/* ── Navbar ── */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.08] bg-black/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
-              <span className="text-black font-bold text-[10px]">QT</span>
+      <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-black/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+              <span className="text-black font-black text-xs">QT</span>
             </div>
-            <span className="font-semibold text-sm tracking-tight text-white">Quantify</span>
+            <span className="font-bold text-lg tracking-tight">Quantify</span>
           </div>
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="text-sm font-medium text-[#A1A1AA] hover:text-white transition-colors">
+          <div className="flex items-center gap-8">
+            <Link href="/login" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
               Log in
             </Link>
             <Link 
               href="/signup" 
-              className="text-sm font-medium bg-white text-black px-4 py-1.5 rounded-full hover:bg-[#E5E5E5] transition-colors"
+              className="text-sm font-bold bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
-              Start Trading
+              Sign Up
             </Link>
           </div>
         </div>
       </nav>
 
       {/* ── Hero Section ── */}
-      <main className="pt-40 pb-24 px-6 relative overflow-hidden">
-        {/* Subtle grid background */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
-        
-        {/* Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-white/[0.03] rounded-full blur-[100px] pointer-events-none" />
+      <section className="relative pt-40 md:pt-64 pb-20 md:pb-32 px-6 overflow-hidden">
+        {/* Subtle decorative elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-full bg-[radial-gradient(circle_at_50%_-10%,rgba(59,130,246,0.2),transparent_60%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
 
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/[0.02] text-[#A1A1AA] text-xs font-medium mb-8">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            v1.0 is now live in production
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-zinc-400 text-xs font-semibold mb-10 animate-fade-in shadow-xl">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+            Next-gen quantitative engine now live
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-medium tracking-tighter text-white mb-6">
-            Quantitative trading,
+          <h1 className="text-6xl md:text-9xl font-black tracking-tight mb-8 leading-[0.9] bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
+            Trade with
             <br />
-            <span className="text-[#A1A1AA]">democratized.</span>
+            precision.
           </h1>
 
-          <p className="text-lg text-[#A1A1AA] max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-            An institutional-grade trading platform built for retail investors. Deploy machine learning models, backtest strategies, and automate your portfolio execution in seconds.
+          <p className="text-lg md:text-2xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
+            The world&apos;s most advanced algorithmic trading infrastructure. Institutional-grade tools, democratized for everyone.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
               href="/signup" 
-              className="flex items-center gap-2 bg-white text-black font-medium px-6 py-3 rounded-full hover:bg-[#E5E5E5] transition-colors w-full sm:w-auto justify-center"
+              className="group flex items-center gap-2 bg-white text-black font-bold px-8 py-4 rounded-full hover:bg-zinc-200 transition-all w-full sm:w-auto justify-center shadow-2xl"
             >
-              Start Free Trial <ArrowRight size={16} />
+              Start Free Trial <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link 
               href="/backtest" 
-              className="flex items-center gap-2 bg-white/[0.03] border border-white/10 text-white font-medium px-6 py-3 rounded-full hover:bg-white/[0.08] transition-colors w-full sm:w-auto justify-center"
+              className="flex items-center gap-2 bg-zinc-900 border border-white/10 text-white font-bold px-8 py-4 rounded-full hover:bg-zinc-800 transition-all w-full sm:w-auto justify-center"
             >
-              Run Backtest
+              View Backtests
             </Link>
           </div>
         </div>
+      </section>
 
-        {/* ── Mockup / Visual ── */}
-        <div className="max-w-6xl mx-auto mt-24 relative z-10">
-          <div className="rounded-xl border border-white/10 bg-black/50 backdrop-blur-xl shadow-2xl p-2 overflow-hidden ring-1 ring-white/5">
-            <div className="rounded-lg border border-white/10 bg-[#0A0A0A] w-full aspect-[16/9] flex items-center justify-center relative overflow-hidden">
-              {/* Fake Dashboard UI */}
-              <div className="absolute inset-0 p-6 flex flex-col gap-4 opacity-50">
-                <div className="h-8 w-48 rounded bg-white/5" />
-                <div className="flex gap-4">
-                  <div className="h-32 w-1/4 rounded-xl border border-white/5 bg-white/[0.02]" />
-                  <div className="h-32 w-1/4 rounded-xl border border-white/5 bg-white/[0.02]" />
-                  <div className="h-32 w-1/4 rounded-xl border border-white/5 bg-white/[0.02]" />
-                  <div className="h-32 w-1/4 rounded-xl border border-white/5 bg-white/[0.02]" />
-                </div>
-                <div className="flex-1 rounded-xl border border-white/5 bg-[linear-gradient(to_bottom,transparent_0%,rgba(255,255,255,0.02)_100%)] flex items-end p-4">
-                   {/* Fake chart lines */}
-                   <svg viewBox="0 0 100 20" className="w-full h-full preserve-3d" preserveAspectRatio="none">
-                     <path d="M0,20 L10,15 L20,18 L30,10 L40,12 L50,5 L60,8 L70,2 L80,6 L90,1 L100,5" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
-                     <path d="M0,20 L10,18 L20,19 L30,15 L40,16 L50,12 L60,14 L70,10 L80,11 L90,7 L100,8" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
-                   </svg>
-                </div>
-              </div>
+      {/* ── Mockup / Visual ── */}
+      <section className="px-6 pb-48 relative">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+        
+        <div className="max-w-6xl mx-auto relative group">
+          <div className="absolute -inset-px bg-gradient-to-r from-blue-500 to-purple-600 rounded-[2rem] opacity-20 group-hover:opacity-40 blur transition-opacity duration-1000" />
+          <div className="relative rounded-[2rem] border border-white/10 bg-[#050505] p-3 shadow-2xl overflow-hidden">
+            <div className="rounded-2xl border border-white/5 bg-zinc-900/50 aspect-video relative overflow-hidden">
+               {/* Visual abstraction of a dashboard */}
+               <div className="absolute inset-0 p-8 flex flex-col gap-8">
+                 <div className="flex justify-between items-center border-b border-white/5 pb-6">
+                   <div className="h-6 w-48 bg-white/10 rounded-full" />
+                   <div className="flex gap-3">
+                     <div className="h-2 w-2 rounded-full bg-red-500/50" />
+                     <div className="h-2 w-2 rounded-full bg-yellow-500/50" />
+                     <div className="h-2 w-2 rounded-full bg-green-500/50" />
+                   </div>
+                 </div>
+                 <div className="grid grid-cols-4 gap-6">
+                   {[1,2,3,4].map(i => (
+                     <div key={i} className="h-24 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
+                   ))}
+                 </div>
+                 <div className="flex-1 rounded-2xl bg-gradient-to-br from-white/[0.02] to-transparent border border-white/5 relative overflow-hidden group/chart">
+                    <svg viewBox="0 0 100 40" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                      <path d="M0,40 C20,35 40,38 60,15 S80,5 100,10" fill="none" stroke="url(#glow)" strokeWidth="1" className="animate-draw" />
+                      <defs>
+                        <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="100%" stopColor="#8b5cf6" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent" />
+                 </div>
+               </div>
             </div>
           </div>
         </div>
-      </main>
+      </section>
 
-      {/* ── Features ── */}
-      <section className="py-32 px-6 border-t border-white/[0.08] bg-[#0A0A0A]">
+      {/* ── Features Grid ── */}
+      <section className="py-32 px-6 border-t border-white/5">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-16">
-            <h2 className="text-3xl font-medium tracking-tight text-white mb-4">
-              Everything you need to automate.
+          <div className="max-w-2xl mb-24">
+            <h2 className="text-4xl font-bold tracking-tight mb-6">
+              Institutional power.
+              <br />
+              <span className="text-zinc-500">Retail simplicity.</span>
             </h2>
-            <p className="text-[#A1A1AA] max-w-xl">
-              We abstracted away the complex infrastructure so you can focus on building and deploying winning strategies.
+            <p className="text-zinc-400 text-lg leading-relaxed">
+              We&apos;ve condensed millions of dollars in infrastructure into a single, cohesive trading platform.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {FEATURES.map((f, i) => (
-              <div key={i} className="flex flex-col gap-4">
-                <div className="w-10 h-10 rounded-lg border border-white/10 bg-white/[0.03] flex items-center justify-center">
-                  <f.icon size={18} className="text-[#A1A1AA]" />
+              <div key={i} className="group relative">
+                <div className="mb-6 w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-blue-500/50 transition-colors">
+                  <f.icon size={20} className="text-white" />
                 </div>
-                <h3 className="text-lg font-medium text-white">{f.title}</h3>
-                <p className="text-sm text-[#A1A1AA] leading-relaxed font-light">
+                <h3 className="text-xl font-bold mb-3">{f.title}</h3>
+                <p className="text-zinc-400 text-sm leading-relaxed">
                   {f.desc}
                 </p>
               </div>
@@ -156,34 +175,39 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-32 px-6 border-t border-white/[0.08] relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-white/[0.02] rounded-full blur-[120px] pointer-events-none" />
-        
-        <div className="max-w-2xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl font-medium tracking-tight text-white mb-6">
-            Ready to deploy your edge?
+      {/* ── CTA Section ── */}
+      <section className="py-40 px-6 border-t border-white/5 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_70%)]" />
+        <div className="max-w-3xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-8">
+            Deploy your edge today.
           </h2>
-          <p className="text-[#A1A1AA] mb-10 font-light">
-            Join the quantitative revolution. Paper trade today, go live tomorrow.
+          <p className="text-zinc-400 text-lg mb-12">
+            Join thousands of traders using Quantify to navigate the markets.
           </p>
           <Link 
             href="/signup" 
-            className="inline-flex items-center gap-2 bg-white text-black font-medium px-8 py-4 rounded-full hover:bg-[#E5E5E5] transition-colors"
+            className="inline-flex items-center gap-2 bg-white text-black font-black px-10 py-5 rounded-full hover:bg-zinc-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95"
           >
-            Create your account
+            Create Account <ArrowRight size={20} />
           </Link>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="py-8 px-6 border-t border-white/[0.08] text-center md:text-left flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto">
-        <p className="text-[#A1A1AA] text-sm mb-4 md:mb-0">
-          © 2026 Quantify Software. All rights reserved.
-        </p>
-        <p className="text-[#52525B] text-xs">
-          Not financial advice. Execution is simulated.
-        </p>
+      <footer className="py-12 px-6 border-t border-white/5">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+              <span className="text-black font-black text-[10px]">QT</span>
+            </div>
+            <span className="font-bold text-sm tracking-tight">Quantify</span>
+          </div>
+          <div className="flex gap-8 text-sm text-zinc-500">
+            <p>© 2026 Quantify Software</p>
+            <p className="hidden md:block text-zinc-700">Not financial advice.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );
