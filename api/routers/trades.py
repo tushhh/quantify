@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from api.schemas import TrackedTrade, TradeCreate
@@ -16,6 +16,7 @@ log = logging.getLogger("quantify.api.trades")
 @router.post("", response_model=TrackedTrade)
 async def create_trade(
     req: TradeCreate, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db), 
     current_user: DBUser = Depends(get_current_user)
 ):
@@ -36,6 +37,11 @@ async def create_trade(
     db.add(db_trade)
     db.commit()
     db.refresh(db_trade)
+    
+    if current_user.telegram_username:
+        from api.telegram_bot import send_telegram_alert
+        msg = f"✅ TRADE LOGGED: {req.shares} shares of {req.symbol.upper()} at ${req.buy_price}.\n\nQuantify will monitor this position and alert you when to sell on {sell_date.strftime('%Y-%m-%d')}."
+        background_tasks.add_task(send_telegram_alert, current_user.telegram_username, msg)
     
     return TrackedTrade(
         id=str(db_trade.id),

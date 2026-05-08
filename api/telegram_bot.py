@@ -58,6 +58,17 @@ async def check_alerts_loop():
     except Exception as e:
         log.error(f"Error checking alerts: {e}")
 
+async def send_telegram_alert(username: str, message: str):
+    """Instantly send a Telegram alert to a user (Mocked for username limitations)."""
+    if not BOT_TOKEN or not username:
+        return
+        
+    # NOTE: Telegram Bot API requires chat_id, not username. 
+    # For MVP, we log the message. To actually send, you must map username -> chat_id via /start.
+    log.info(f"🚀 INSTANT TELEGRAM ALERT to @{username}: {message}")
+    # bot = Bot(token=BOT_TOKEN)
+    # await bot.send_message(chat_id=chat_id, text=message)
+
 def main():
     if not BOT_TOKEN:
         print("Set TELEGRAM_BOT_TOKEN to run the bot.")

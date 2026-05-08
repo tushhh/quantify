@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -44,7 +44,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 @router.post("/register", response_model=User)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_user = db.query(DBUser).filter(DBUser.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -58,6 +58,12 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    if new_user.telegram_username:
+        from api.telegram_bot import send_telegram_alert
+        msg = f"🎉 Welcome to Quantify, {new_user.username}!\n\nYour Telegram account is now connected to your dashboard. You will receive automated alerts here whenever you log a new trade and when it's time to sell."
+        background_tasks.add_task(send_telegram_alert, new_user.telegram_username, msg)
+        
     return new_user
 
 @router.post("/login", response_model=Token)
