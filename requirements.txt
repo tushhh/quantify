@@ -1,1 +1,2 @@
+-e .
 -r api/requirements.txt
