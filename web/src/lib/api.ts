@@ -3,7 +3,7 @@
  * Falls back to localhost:8000 for local development.
  */
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 type FetchOptions = {
   method?: string;
