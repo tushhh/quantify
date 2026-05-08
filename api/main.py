@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+
+# Bulletproof path injection for Heroku
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
