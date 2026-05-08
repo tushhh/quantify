@@ -67,7 +67,7 @@ Thumbs.db
 *.ipynb
 
 # Quantify-specific
-data/
+/data/
 *.parquet
 *.db
 *.sqlite
