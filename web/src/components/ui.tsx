@@ -89,9 +89,11 @@ export function CardHeader({
 export function Badge({
   children,
   variant = "default",
+  className,
 }: {
   children: React.ReactNode;
   variant?: "default" | "success" | "danger" | "warning" | "blue";
+  className?: string;
 }) {
   return (
     <span
@@ -101,7 +103,7 @@ export function Badge({
         "bg-red-500/15 text-red-400":     variant === "danger",
         "bg-amber-500/15 text-amber-400": variant === "warning",
         "bg-blue-500/15 text-blue-400":   variant === "blue",
-      })}
+      }, className)}
     >
       {children}
     </span>
