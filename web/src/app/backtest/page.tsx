@@ -86,7 +86,7 @@ export default function BacktestPage() {
   const m = backtestResult?.metrics;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col gap-6 animate-fade-in">
+    <div className="max-w-6xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-6 animate-fade-in">
 
       {/* Page title */}
       <div>

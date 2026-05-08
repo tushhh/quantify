@@ -51,7 +51,7 @@ export default function UniversePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col gap-6 animate-fade-in">
+    <div className="max-w-5xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-6 animate-fade-in">
       <div>
         <h1 className="text-xl font-bold text-white">Universe</h1>
         <p className="text-xs text-slate-500 mt-1">

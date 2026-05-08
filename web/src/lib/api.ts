@@ -182,6 +182,7 @@ export const api = {
     login: (data: any) => apiFetch<any>("/api/auth/login", { method: "POST", body: data }),
     register: (data: any) => apiFetch<any>("/api/auth/register", { method: "POST", body: data }),
     me: () => apiFetch<any>("/api/auth/me"),
+    update: (data: any) => apiFetch<any>("/api/auth/update", { method: "PUT", body: data }),
   },
   strategies: {
     list: () => apiFetch<StrategyInfo[]>("/api/strategies"),

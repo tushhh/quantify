@@ -72,3 +72,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=User)
 def get_me(current_user: DBUser = Depends(get_current_user)):
     return current_user
+
+@router.put("/update", response_model=User)
+def update_account(updates: dict, db: Session = Depends(get_db), current_user: DBUser = Depends(get_current_user)):
+    """Update the current user's account settings."""
+    if "telegram_username" in updates:
+        current_user.telegram_username = updates["telegram_username"] or None
+    
+    if "new_password" in updates and updates["new_password"]:
+        new_pw = updates["new_password"]
+        if len(new_pw) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        current_user.hashed_password = pwd_context.hash(new_pw[:72])
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
