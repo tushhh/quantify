@@ -14,12 +14,14 @@ sdist/
 develop-eggs/
 .installed.cfg
 lib/
+!web/src/lib/
 lib64/
 .eggs/
 *.egg-link
 MANIFEST
 
 # Virtual environments
+node_modules/
 .venv/
 venv/
 env/

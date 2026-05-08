@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "heroku": "^11.3.0"
   }
 }
