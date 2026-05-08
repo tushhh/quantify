@@ -23,8 +23,12 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     db = SessionLocal()
-    # Try to find user with this telegram username (case-insensitive or exact match)
-    user = db.query(User).filter(User.telegram_username == telegram_username).first()
+    # Handle the case where user stored username with or without '@'
+    user = db.query(User).filter(
+        (User.telegram_username == telegram_username) | 
+        (User.telegram_username == f"@{telegram_username}")
+    ).first()
+    
     if user:
         user.telegram_chat_id = chat_id
         db.commit()
