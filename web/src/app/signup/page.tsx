@@ -12,6 +12,7 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,12 @@ export default function SignUpPage() {
       // Auto-login
       const res = await api.auth.login({ username: form.username, password: form.password });
       localStorage.setItem("token", res.access_token);
-      router.push("/dashboard");
+      
+      if (form.telegram) {
+        setShowPopup(true);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (e: any) {
       setError(e.message || "Registration failed");
     } finally {
@@ -133,6 +139,48 @@ export default function SignUpPage() {
           </p>
         </div>
       </div>
+
+      {/* Telegram Activation Popup */}
+      {showPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#0e1525] border border-white/10 rounded-2xl shadow-2xl p-8 relative">
+            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Send size={28} className="text-blue-400" />
+            </div>
+            
+            <h2 className="text-2xl font-black text-white text-center mb-3">Activate Alerts</h2>
+            
+            <p className="text-slate-400 text-center text-sm mb-6 leading-relaxed">
+              Your account is created! To receive instant buy/sell alerts, you must connect your device to our Telegram bot.
+            </p>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+              <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
+                <li>Click the button below to open Telegram.</li>
+                <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>
+                <li>Return to the dashboard.</li>
+              </ol>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <a 
+                href="https://t.me/QuantifyAlertbot?start=start" 
+                target="_blank" 
+                rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95"
+              >
+                <Send size={18} /> Open @QuantifyAlertbot
+              </a>
+              <button 
+                onClick={() => router.push("/dashboard")}
+                className="w-full text-slate-500 hover:text-white font-semibold py-3 text-sm transition-colors"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
