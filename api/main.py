@@ -30,12 +30,20 @@ from api.telegram_bot import check_alerts_loop
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start the background task for telegram alerts
+    from api.telegram_bot import start_telegram_bot, stop_telegram_bot
+    
+    # Start telegram bot polling
+    await start_telegram_bot()
+    
+    # Start the background task for telegram alerts (scheduled every hour)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_alerts_loop, 'interval', minutes=60)
     scheduler.start()
+    
     yield
+    
     scheduler.shutdown()
+    await stop_telegram_bot()
 
 # ---------------------------------------------------------------------------
 # Logging

@@ -8,7 +8,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     telegram_username = Column(String, nullable=True)
-
+    telegram_chat_id = Column(String, nullable=True)
 class Trade(Base):
     __tablename__ = "trades"
     id = Column(Integer, primary_key=True, index=True)
