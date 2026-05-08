@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException
 from api.schemas import PredictionResponse, PredictionItem
 from quantify.data.providers.yfinance_provider import YFinanceProvider
 from quantify.data.features import FeatureEngine
-from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 log = logging.getLogger("quantify.api.predict")
@@ -19,7 +18,8 @@ async def get_best_predictions(top_n: int = 5):
         # Use 5 years of data as configured in the CLI
         start_dt = end_dt - timedelta(days=1825)
         
-        # Instantiate strategy (default universe)
+        # Instantiate strategy (lazy-load to save RAM on boot)
+        from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
         strat = MLReturnPredictorStrategy()
         universe = strat.universe
         
