@@ -25,8 +25,8 @@ from api.database import engine
 from api import models
 from api.telegram_bot import check_alerts_loop
 
-# Initialize DB tables
-models.Base.metadata.create_all(bind=engine)
+# Initialize DB tables (Disabled on Heroku to prevent 60-second boot timeout)
+# models.Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
