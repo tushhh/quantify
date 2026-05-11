@@ -290,7 +290,11 @@ def _rsi_14(df: pd.DataFrame) -> pd.Series:
     """14-period Relative Strength Index (0–100)."""
     if _TA_AVAILABLE:
         result = ta.rsi(df["close"], length=14)
-        return result if result is not None else pd.Series(np.nan, index=df.index)
+        if result is None:
+            return pd.Series(np.nan, index=df.index)
+        result = result.reindex(df.index)
+        result.iloc[:14] = np.nan
+        return result
 
     # Manual Wilder RSI
     delta = df["close"].diff()
@@ -299,7 +303,9 @@ def _rsi_14(df: pd.DataFrame) -> pd.Series:
     avg_gain = gain.ewm(com=13, min_periods=14).mean()
     avg_loss = loss.ewm(com=13, min_periods=14).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    return 100.0 - (100.0 / (1.0 + rs))
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    rsi.iloc[:14] = np.nan
+    return rsi
 
 
 # ---------------------------------------------------------------------------

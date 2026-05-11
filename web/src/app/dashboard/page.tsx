@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, Shield, AlertTriangle, Plus, Crosshair, Send, LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
-import { api, PredictionItem, TrackedTrade } from "@/lib/api";
+import { api, type AuthUser, type PredictionItem, type TrackedTrade } from "@/lib/api";
 import { Card, Badge } from "@/components/ui";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{username: string, telegram_username: string} | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [loadingPreds, setLoadingPreds] = useState(false);
@@ -20,34 +20,34 @@ export default function DashboardPage() {
   const [holdStrategy, setHoldStrategy] = useState<"ai" | "custom">("ai");
   const [customHoldDays, setCustomHoldDays] = useState("10");
 
-  useEffect(() => {
-    checkAuth();
+  const loadTrades = useCallback(async () => {
+    try {
+      const data = await api.trades.list();
+      setTrades(data.filter((t) => t.status === "active"));
+    } catch (error) {
+      console.error(error);
+    }
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const u = await api.auth.me();
-      setUser(u);
-      loadTrades();
-    } catch (e) {
-      router.push("/login");
-    } finally {
-      setLoadingAuth(false);
-    }
-  };
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const u = await api.auth.me();
+        setUser(u);
+        void loadTrades();
+      } catch {
+        router.push("/login");
+      } finally {
+        setLoadingAuth(false);
+      }
+    };
+
+    void checkAuth();
+  }, [router, loadTrades]);
 
   const logout = () => {
     localStorage.removeItem("token");
     router.push("/");
-  };
-
-  const loadTrades = async () => {
-    try {
-      const data = await api.trades.list();
-      setTrades(data.filter(t => t.status === "active"));
-    } catch (e) {
-      console.error(e);
-    }
   };
 
   const handlePredict = async () => {

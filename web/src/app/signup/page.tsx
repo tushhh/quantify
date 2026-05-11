@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TrendingUp, Lock, Send, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { TrendingUp, Send, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function SignUpPage() {
@@ -35,8 +35,8 @@ export default function SignUpPage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (e: any) {
-      setError(e.message || "Registration failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setLoading(false);
     }

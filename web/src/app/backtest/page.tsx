@@ -171,7 +171,7 @@ export default function BacktestPage() {
             </Card>
 
             {/* Risk profile */}
-            <Card className="animate-slide-in-left" style={{ animationDelay: "0.1s" }}>
+            <Card className="animate-slide-in-left">
               <CardHeader title="Risk Profile" subtitle="Portfolio limits" />
               {presets.length > 0 ? (
                 <RiskProfileSelector presets={presets} />
@@ -334,9 +334,5 @@ export default function BacktestPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-        {/* ── Left: Configuration panel ─────────────────────────────────── */}
   );
 }

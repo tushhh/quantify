@@ -15,13 +15,6 @@ import { Card, CardHeader } from "@/components/ui";
 
 // ── Formatters ─────────────────────────────────────────────────────────────
 
-const fmt$ = (v: number) =>
-  v >= 1_000_000
-    ? `$${(v / 1_000_000).toFixed(2)}M`
-    : v >= 1_000
-    ? `$${(v / 1_000).toFixed(1)}K`
-    : `$${v.toFixed(0)}`;
-
 const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 
 // ── Custom Tooltip ──────────────────────────────────────────────────────────

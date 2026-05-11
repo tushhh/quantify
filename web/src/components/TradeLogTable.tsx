@@ -8,6 +8,30 @@ import { Badge, Card, CardHeader } from "@/components/ui";
 
 type SortKey = keyof TradeRecord;
 
+function TradeHeaderCell({
+  label,
+  active,
+  ascending,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  ascending: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <th
+      onClick={onClick}
+      className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown size={9} className={clsx(active ? "text-cyan-400" : "text-slate-600", ascending ? "rotate-180" : "")} />
+      </span>
+    </th>
+  );
+}
+
 export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
   const [sortKey, setSortKey]   = useState<SortKey>("exit_date");
   const [sortAsc, setSortAsc]   = useState(false);
@@ -43,18 +67,6 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
     else { setSortKey(k); setSortAsc(false); }
   };
 
-  const Th = ({ k, label }: { k: SortKey; label: string }) => (
-    <th
-      onClick={() => toggleSort(k)}
-      className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
-    >
-      <span className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown size={9} />
-      </span>
-    </th>
-  );
-
   return (
     <Card>
       <CardHeader
@@ -74,14 +86,14 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
         <table className="w-full text-xs min-w-[640px]">
           <thead>
             <tr className="border-b border-[#1e2d4a]">
-              <Th k="symbol" label="Symbol" />
-              <Th k="strategy_name" label="Strategy" />
-              <Th k="side" label="Side" />
-              <Th k="entry_date" label="Entry" />
-              <Th k="exit_date" label="Exit" />
-              <Th k="pnl" label="P&L" />
-              <Th k="return_pct" label="Return" />
-              <Th k="holding_days" label="Days" />
+              <TradeHeaderCell label="Symbol" active={sortKey === "symbol"} ascending={sortAsc} onClick={() => toggleSort("symbol")} />
+              <TradeHeaderCell label="Strategy" active={sortKey === "strategy_name"} ascending={sortAsc} onClick={() => toggleSort("strategy_name")} />
+              <TradeHeaderCell label="Side" active={sortKey === "side"} ascending={sortAsc} onClick={() => toggleSort("side")} />
+              <TradeHeaderCell label="Entry" active={sortKey === "entry_date"} ascending={sortAsc} onClick={() => toggleSort("entry_date")} />
+              <TradeHeaderCell label="Exit" active={sortKey === "exit_date"} ascending={sortAsc} onClick={() => toggleSort("exit_date")} />
+              <TradeHeaderCell label="P&L" active={sortKey === "pnl"} ascending={sortAsc} onClick={() => toggleSort("pnl")} />
+              <TradeHeaderCell label="Return" active={sortKey === "return_pct"} ascending={sortAsc} onClick={() => toggleSort("return_pct")} />
+              <TradeHeaderCell label="Days" active={sortKey === "holding_days"} ascending={sortAsc} onClick={() => toggleSort("holding_days")} />
             </tr>
           </thead>
           <tbody>

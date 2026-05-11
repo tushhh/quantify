@@ -118,7 +118,7 @@ class Order:
     side: OrderSide
     order_type: OrderType
     quantity: float
-    strategy_name: str
+    strategy_name: str = ""
 
     # Optional pricing
     limit_price: Optional[float] = None
@@ -136,10 +136,6 @@ class Order:
     notes: str = ""
 
     def __post_init__(self) -> None:
-        if self.quantity <= 0:
-            raise ValueError(
-                f"Order quantity must be positive, got {self.quantity}"
-            )
         if self.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
             if self.limit_price is None:
                 raise ValueError(

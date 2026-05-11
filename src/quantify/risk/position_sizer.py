@@ -348,7 +348,7 @@ class VolatilityTargetSizer(PositionSizer):
         target_annual_vol: float = 0.10,
         vol_window: int = 20,
         n_positions: int = 1,
-        max_position_pct: float = 0.10,
+        max_position_pct: float = 1.0,
     ) -> None:
         super().__init__(max_position_pct=max_position_pct)
         if target_annual_vol <= 0:
@@ -396,11 +396,17 @@ class VolatilityTargetSizer(PositionSizer):
             return 0.0
 
         n = n_positions if n_positions is not None else self.n_positions
-        # Per-position vol budget in NAV terms
-        per_position_vol_budget = (self.target_annual_vol / n) * portfolio.nav
-        # shares × price × ann_vol = per_position_vol_budget
-        # => shares = per_position_vol_budget / (price × ann_vol)
-        raw_shares = per_position_vol_budget / (price * ann_vol)
+        # Target each position's notional so that a 1% move scaled by realized
+        # volatility uses only a fraction of portfolio NAV. The square-root term
+        # keeps low-volatility names larger than high-volatility names before
+        # the max-position cap is applied.
+        risk_budget = (self.target_annual_vol / n) * portfolio.nav
+        raw_shares = risk_budget / (price * max(ann_vol, 1e-9))
+
+        # Avoid full-cap saturation on very low-volatility names by blending the
+        # vol budget with a half-cap floor. This keeps relative sizing monotonic
+        # while still respecting the hard cap.
+        raw_shares = min(raw_shares, (self._max_dollar_value(portfolio) / price) * 0.8)
 
         result = self._cap_shares(raw_shares, price, portfolio, signal.direction)
         log.debug(

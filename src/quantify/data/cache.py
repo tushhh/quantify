@@ -122,24 +122,37 @@ class ParquetCache:
             start_utc = _ensure_utc(start)
             end_utc = _ensure_utc(end)
 
+            # Trading data is daily, so weekend/holiday gaps at the edges should not
+            # count as uncovered range. Compare against the first/last business day
+            # within the requested interval instead of the literal timestamp bounds.
+            request_days = pd.bdate_range(
+                start=start_utc.normalize(),
+                end=end_utc.normalize(),
+                inclusive="left",
+                tz="UTC",
+            )
+            if len(request_days) == 0:
+                return pd.DataFrame(index=pd.DatetimeIndex([], tz="UTC"))
+            requested_start = request_days[0]
+            requested_end = request_days[-1]
+
             # Ensure index is tz-aware for comparison
             idx = df.index
-            if idx.tzinfo is None:
+            if idx.tz is None:
                 idx = idx.tz_localize("UTC")
                 df.index = idx
 
             cached_start = idx.min()
             cached_end = idx.max()
 
-            # Coverage check: cached range must fully contain [start, end)
-            # We allow a one-day buffer on end because end is exclusive and
-            # daily data typically stops at the last trading day before end.
-            if cached_start > start_utc or cached_end < end_utc - pd.Timedelta(days=1):
+            # Coverage check: cached range must fully contain the business-day
+            # span implied by [start, end).
+            if cached_start > requested_start or cached_end < requested_end:
                 logger.debug(
                     "Cache miss for %s: requested [%s, %s), cached [%s, %s]",
                     symbol,
-                    start_utc.date(),
-                    end_utc.date(),
+                    requested_start.date(),
+                    requested_end.date(),
                     cached_start.date(),
                     cached_end.date(),
                 )

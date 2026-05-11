@@ -22,8 +22,8 @@ export default function LoginPage() {
       const res = await api.auth.login({ username: form.username, password: form.password });
       localStorage.setItem("token", res.access_token);
       router.push("/dashboard");
-    } catch (e: any) {
-      setError(e.message || "Login failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Login failed");
     } finally {
       setLoading(false);
     }

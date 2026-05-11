@@ -144,6 +144,22 @@ export type RiskPreset = {
   strategy_overrides: Record<string, StrategyConfig>;
 };
 
+export type AuthUser = {
+  id: number;
+  username: string;
+  telegram_username: string | null;
+};
+
+export type AuthToken = {
+  access_token: string;
+  token_type: string;
+};
+
+export type AuthUpdateRequest = {
+  telegram_username?: string | null;
+  new_password?: string;
+};
+
 export type TickerInfo = { symbol: string; sector: string; name: string };
 export type UniverseResponse = { tickers: TickerInfo[]; sectors: string[] };
 
@@ -179,10 +195,12 @@ export type TrackedTrade = TradeCreate & {
 
 export const api = {
   auth: {
-    login: (data: any) => apiFetch<any>("/api/auth/login", { method: "POST", body: data }),
-    register: (data: any) => apiFetch<any>("/api/auth/register", { method: "POST", body: data }),
-    me: () => apiFetch<any>("/api/auth/me"),
-    update: (data: any) => apiFetch<any>("/api/auth/update", { method: "PUT", body: data }),
+    login: (data: { username: string; password: string }) =>
+      apiFetch<AuthToken>("/api/auth/login", { method: "POST", body: data }),
+    register: (data: { username: string; password: string; telegram_username?: string | null }) =>
+      apiFetch<AuthUser>("/api/auth/register", { method: "POST", body: data }),
+    me: () => apiFetch<AuthUser>("/api/auth/me"),
+    update: (data: AuthUpdateRequest) => apiFetch<AuthUser>("/api/auth/update", { method: "PUT", body: data }),
   },
   strategies: {
     list: () => apiFetch<StrategyInfo[]>("/api/strategies"),

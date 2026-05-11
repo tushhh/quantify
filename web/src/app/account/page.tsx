@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserCircle, Send, Lock, Check, AlertCircle, LogOut, Shield } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type AuthUser } from "@/lib/api";
 import { Card } from "@/components/ui";
 
 export default function AccountPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{id: number, username: string, telegram_username: string | null} | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -23,20 +23,20 @@ export default function AccountPage() {
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
-    loadUser();
-  }, []);
+    const loadUser = async () => {
+      try {
+        const u = await api.auth.me();
+        setUser(u);
+        setTelegram(u.telegram_username || "");
+      } catch {
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadUser = async () => {
-    try {
-      const u = await api.auth.me();
-      setUser(u);
-      setTelegram(u.telegram_username || "");
-    } catch {
-      router.push("/login");
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadUser();
+  }, [router]);
 
   const handleSaveTelegram = async () => {
     setSaving(true);
@@ -50,8 +50,8 @@ export default function AccountPage() {
         setShowPopup(true);
       }
       setTimeout(() => setSuccess(""), 3000);
-    } catch (e: any) {
-      setError(e.message || "Failed to update");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to update");
     } finally {
       setSaving(false);
     }
@@ -77,8 +77,8 @@ export default function AccountPage() {
       setConfirmPassword("");
       setSuccess("Password changed successfully!");
       setTimeout(() => setSuccess(""), 3000);
-    } catch (e: any) {
-      setError(e.message || "Failed to change password");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to change password");
     } finally {
       setSaving(false);
     }

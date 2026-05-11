@@ -1,214 +1,230 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Terminal, BarChart2, Zap, Shield, Globe, Activity, ChevronRight } from "lucide-react";
+import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, Radar, ShieldCheck, Sparkles } from "lucide-react";
 
 const FEATURES = [
   {
-    icon: Terminal,
-    title: "Algorithmic Precision",
-    desc: "Deploy cross-sectional momentum, mean reversion, and statistical arbitrage strategies with a single click.",
+    icon: ChartCandlestick,
+    title: "Backtest without clutter",
+    desc: "A fast, simplified simulation flow with advanced strategy controls hidden until you need them.",
+  },
+  {
+    icon: BrainCircuit,
+    title: "Strategy engine",
+    desc: "Momentum, mean reversion, quality/value, and ML-return models wired into a single execution path.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Risk first",
+    desc: "Portfolio drawdown, leverage, position sizing, and stop logic stay visible and configurable.",
+  },
+  {
+    icon: Bot,
+    title: "Telegram automation",
+    desc: "The live notifications pipeline keeps working while the rest of the platform evolves.",
   },
   {
     icon: Activity,
-    title: "Ensemble ML Models",
-    desc: "Predict asset returns using CatBoost, LightGBM, and XGBoost models trained on 50+ alpha factors.",
+    title: "Portfolio customization",
+    desc: "Track holdings, holdings periods, and user-specific trade settings in one place.",
   },
   {
-    icon: Shield,
-    title: "Dynamic Risk Control",
-    desc: "Automatically manage drawdowns with volatility-targeted position sizing and sector-neutral constraints.",
+    icon: Radar,
+    title: "Modern dashboard surface",
+    desc: "A bold visual system built around glass panels, gradients, and clear feedback states.",
   },
-  {
-    icon: BarChart2,
-    title: "Institutional Backtesting",
-    desc: "Simulate years of market data in seconds, factoring in bid-ask spreads, slippage, and commission drag.",
-  },
-  {
-    icon: Globe,
-    title: "Live Market Execution",
-    desc: "Transition seamlessly from paper trading to live execution via Alpaca with zero code changes.",
-  },
-  {
-    icon: Zap,
-    title: "Instant Telegram Alerts",
-    desc: "Never miss an exit. Receive automated buy and sell signals directly to your mobile device 24/7.",
-  },
+];
+
+const METRICS = [
+  { label: "Strategies", value: "6" },
+  { label: "Risk presets", value: "3" },
+  { label: "Telegram bot", value: "Live" },
+  { label: "Backtest mode", value: "Simplified" },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30">
-      {/* ── Navbar ── */}
-      <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-black/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-              <span className="text-black font-black text-xs">QT</span>
+    <div className="min-h-screen text-white selection:bg-cyan-400/30">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(0,217,255,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.14),transparent_28%),linear-gradient(135deg,#080b15_0%,#0a1020_45%,#090b13_100%)]" />
+      <div className="fixed inset-0 -z-10 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:72px_72px]" />
+
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-shadow">
+              <Sparkles size={18} className="text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Quantify</span>
-          </div>
-          <div className="flex items-center gap-8">
-            <Link href="/login" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+            <div>
+              <div className="text-sm font-bold tracking-wide">Quantify</div>
+              <div className="text-[10px] text-slate-400">Quant platform rebuilt</div>
+            </div>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-2 text-sm text-slate-300">
+            <Link href="/backtest" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Backtest</Link>
+            <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Portfolio</Link>
+            <Link href="/account" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Account</Link>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-white/5">
               Log in
             </Link>
-            <Link 
-              href="/signup" 
-              className="text-sm font-bold bg-white text-black px-5 py-2 rounded-full hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-            >
-              Sign Up
+            <Link href="/signup" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold gradient-accent text-white hover:opacity-90">
+              Sign up <ArrowRight size={16} />
             </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ── Hero Section ── */}
-      <section className="relative pt-40 md:pt-64 pb-20 md:pb-32 px-6 overflow-hidden">
-        {/* Subtle decorative elements */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-full bg-[radial-gradient(circle_at_50%_-10%,rgba(59,130,246,0.2),transparent_60%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
+      <main className="pt-28 md:pt-32 pb-20">
+        <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-7 animate-fade-in-up">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs text-cyan-200 border-cyan-500/20">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              Modern trading platform, rebuilt
+            </div>
 
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-zinc-400 text-xs font-semibold mb-10 animate-fade-in shadow-xl">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            Next-gen quantitative engine now live
-          </div>
+            <div className="space-y-4">
+              <h1 className="text-5xl md:text-7xl font-black leading-[0.92] tracking-tight">
+                Faster research.
+                <span className="block bg-gradient-to-r from-cyan-300 via-white to-violet-300 bg-clip-text text-transparent">
+                  Cleaner execution.
+                </span>
+              </h1>
+              <p className="max-w-xl text-slate-300 text-lg md:text-xl leading-relaxed">
+                Quantify combines portfolio tracking, Telegram automation, strategy research, and backtesting in a sharper interface with working controls, clearer feedback, and a simplified backtest flow.
+              </p>
+            </div>
 
-          <h1 className="text-6xl md:text-9xl font-black tracking-tight mb-8 leading-[0.9] bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
-            Trade with
-            <br />
-            precision.
-          </h1>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl gradient-accent font-semibold shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover-lift">
+                Open Backtest Lab <ChevronRight size={18} />
+              </Link>
+              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl glass font-semibold hover:border-cyan-500/30 hover:text-white hover-lift">
+                View Portfolio Tools
+              </Link>
+            </div>
 
-          <p className="text-lg md:text-2xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-            The world&apos;s most advanced algorithmic trading infrastructure. Institutional-grade tools, democratized for everyone.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link 
-              href="/signup" 
-              className="group flex items-center gap-2 bg-white text-black font-bold px-8 py-4 rounded-full hover:bg-zinc-200 transition-all w-full sm:w-auto justify-center shadow-2xl"
-            >
-              Start Free Trial <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-            <Link 
-              href="/backtest" 
-              className="flex items-center gap-2 bg-zinc-900 border border-white/10 text-white font-bold px-8 py-4 rounded-full hover:bg-zinc-800 transition-all w-full sm:w-auto justify-center"
-            >
-              View Backtests
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Mockup / Visual ── */}
-      <section className="px-6 pb-48 relative">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
-        
-        <div className="max-w-6xl mx-auto relative group">
-          <div className="absolute -inset-px bg-gradient-to-r from-blue-500 to-purple-600 rounded-[2rem] opacity-20 group-hover:opacity-40 blur transition-opacity duration-1000" />
-          <div className="relative rounded-[2rem] border border-white/10 bg-[#050505] p-3 shadow-2xl overflow-hidden">
-            <div className="rounded-2xl border border-white/5 bg-zinc-900/50 aspect-video relative overflow-hidden">
-               {/* Visual abstraction of a dashboard */}
-               <div className="absolute inset-0 p-8 flex flex-col gap-8">
-                 <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                   <div className="h-6 w-48 bg-white/10 rounded-full" />
-                   <div className="flex gap-3">
-                     <div className="h-2 w-2 rounded-full bg-red-500/50" />
-                     <div className="h-2 w-2 rounded-full bg-yellow-500/50" />
-                     <div className="h-2 w-2 rounded-full bg-green-500/50" />
-                   </div>
-                 </div>
-                 <div className="grid grid-cols-4 gap-6">
-                   {[1,2,3,4].map(i => (
-                     <div key={i} className="h-24 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
-                   ))}
-                 </div>
-                 <div className="flex-1 rounded-2xl bg-gradient-to-br from-white/[0.02] to-transparent border border-white/5 relative overflow-hidden group/chart">
-                    <svg viewBox="0 0 100 40" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                      <path d="M0,40 C20,35 40,38 60,15 S80,5 100,10" fill="none" stroke="url(#glow)" strokeWidth="1" className="animate-draw" />
-                      <defs>
-                        <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#3b82f6" />
-                          <stop offset="100%" stopColor="#8b5cf6" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent" />
-                 </div>
-               </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
+              {METRICS.map((item) => (
+                <div key={item.label} className="glass rounded-2xl p-4">
+                  <div className="text-2xl font-bold text-white">{item.value}</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400 mt-1">{item.label}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── Features Grid ── */}
-      <section className="py-32 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl mb-24">
-            <h2 className="text-4xl font-bold tracking-tight mb-6">
-              Institutional power.
-              <br />
-              <span className="text-zinc-500">Retail simplicity.</span>
-            </h2>
-            <p className="text-zinc-400 text-lg leading-relaxed">
-              We&apos;ve condensed millions of dollars in infrastructure into a single, cohesive trading platform.
+          <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+            <div className="absolute -inset-6 bg-gradient-to-br from-cyan-500/20 via-transparent to-violet-500/20 blur-3xl" />
+            <div className="relative glass-dark rounded-[28px] p-4 md:p-6 border-white/10 shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between mb-4 text-xs text-slate-400">
+                <span>System overview</span>
+                <span className="text-emerald-300">Live + Paper ready</span>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="rounded-2xl glass p-4 min-h-36">
+                  <div className="text-xs text-slate-400">Active modules</div>
+                  <div className="mt-3 space-y-2">
+                    {FEATURES.slice(0, 3).map((feature) => (
+                      <div key={feature.title} className="flex items-center gap-3 text-sm text-slate-200">
+                        <feature.icon size={16} className="text-cyan-300" />
+                        <span>{feature.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl glass p-4 min-h-36 flex flex-col justify-between">
+                  <div>
+                    <div className="text-xs text-slate-400">Backtest mode</div>
+                    <div className="mt-2 text-xl font-semibold">Simple by default</div>
+                    <p className="mt-2 text-sm text-slate-400">
+                      Advanced controls stay collapsed until users intentionally open them.
+                    </p>
+                  </div>
+                  <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full w-[68%] gradient-accent rounded-full" />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 rounded-2xl glass p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-xs text-slate-400">Automation</div>
+                      <div className="text-lg font-semibold">Portfolio alerts + Telegram</div>
+                    </div>
+                    <div className="px-3 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+                      Working
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      "Trade logging",
+                      "Hold reminders",
+                      "Telegram sync",
+                    ].map((item) => (
+                      <div key={item} className="rounded-xl bg-white/5 border border-white/5 p-3 text-xs text-slate-300">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-20 md:mt-28">
+          <div className="flex items-end justify-between gap-6 mb-8">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">What changed</p>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2">A sharper interface for the parts that already work.</h2>
+            </div>
+            <p className="hidden md:block max-w-xl text-sm text-slate-400">
+              The platform now leans into the workflows that matter: portfolio customization, backtesting, and automated alerts.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {FEATURES.map((f, i) => (
-              <div key={i} className="group relative">
-                <div className="mb-6 w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-blue-500/50 transition-colors">
-                  <f.icon size={20} className="text-white" />
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+            {FEATURES.map((feature, index) => (
+              <div key={feature.title} className="glass rounded-2xl p-5 hover-lift animate-fade-in-up" style={{ animationDelay: `${index * 70}ms` }}>
+                <div className="w-11 h-11 rounded-xl gradient-accent flex items-center justify-center mb-4">
+                  <feature.icon size={20} className="text-white" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">{f.title}</h3>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  {f.desc}
-                </p>
+                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── CTA Section ── */}
-      <section className="py-40 px-6 border-t border-white/5 relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_70%)]" />
-        <div className="max-w-3xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-8">
-            Deploy your edge today.
-          </h2>
-          <p className="text-zinc-400 text-lg mb-12">
-            Join thousands of traders using Quantify to navigate the markets.
-          </p>
-          <Link 
-            href="/signup" 
-            className="inline-flex items-center gap-2 bg-white text-black font-black px-10 py-5 rounded-full hover:bg-zinc-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95"
-          >
-            Create Account <ArrowRight size={20} />
-          </Link>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="py-12 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
-              <span className="text-black font-black text-[10px]">QT</span>
+        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-20 md:mt-28">
+          <div className="glass-dark rounded-[32px] p-8 md:p-12 border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-violet-300">Next step</p>
+              <h2 className="text-3xl md:text-5xl font-black mt-3 leading-tight">
+                Start from the homepage, then go straight into backtests or portfolio tools.
+              </h2>
+              <p className="mt-4 text-slate-300 text-base md:text-lg leading-relaxed">
+                The landing page now reflects the new visual direction, and the backtest page exposes advanced controls only when requested.
+              </p>
             </div>
-            <span className="font-bold text-sm tracking-tight">Quantify</span>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl gradient-accent font-semibold hover-lift">
+                Create account <ArrowRight size={18} />
+              </Link>
+              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl glass font-semibold hover:border-cyan-500/30">
+                Log in
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-8 text-sm text-zinc-500">
-            <p>© 2026 Quantify Software</p>
-            <p className="hidden md:block text-zinc-700">Not financial advice.</p>
-          </div>
-        </div>
-      </footer>
+        </section>
+      </main>
     </div>
   );
 }

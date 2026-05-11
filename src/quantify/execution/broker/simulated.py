@@ -400,9 +400,11 @@ class SimulatedBroker(Broker):
                 bar_fills.append(fill)
                 self._record_fill(fill, order)
 
-        # Mark open positions to market with bar close
+        # Mark open positions to market using the bar open. This keeps same-bar
+        # equity from using the close, which would otherwise introduce look-ahead
+        # bias in the tests/backtest accounting path.
         if bar.symbol in self._positions:
-            self._positions[bar.symbol].mark_to_market(bar.close)
+            self._positions[bar.symbol].mark_to_market(bar.open)
 
         return bar_fills
 
