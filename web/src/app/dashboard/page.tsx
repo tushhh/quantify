@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, Shield, AlertTriangle, Plus, Crosshair, Send, LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
-import { api, type AuthUser, type PredictionItem, type TrackedTrade } from "@/lib/api";
+import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TickerInfo } from "@/lib/api";
 import { Card, Badge } from "@/components/ui";
 
 export default function DashboardPage() {
@@ -15,12 +15,15 @@ export default function DashboardPage() {
   const [loadingPreds, setLoadingPreds] = useState(false);
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [trades, setTrades] = useState<TrackedTrade[]>([]);
+  const [universe, setUniverse] = useState<TickerInfo[]>([]);
   
   const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
   const [tradeError, setTradeError] = useState<string | null>(null);
   const [holdStrategy, setHoldStrategy] = useState<"ml" | "custom">("ml");
   const [customHoldDays, setCustomHoldDays] = useState("10");
   const [activeTab, setActiveTab] = useState<"analysis" | "portfolio">("analysis");
+  const [symbolOpen, setSymbolOpen] = useState(false);
+  const [symbolIndex, setSymbolIndex] = useState(0);
 
   const loadTrades = useCallback(async () => {
     try {
@@ -47,6 +50,27 @@ export default function DashboardPage() {
     void checkAuth();
   }, [router, loadTrades]);
 
+  useEffect(() => {
+    api.universe.get()
+      .then((r) => setUniverse(r.tickers))
+      .catch((err) => console.error("Failed to load universe:", err));
+  }, []);
+
+  const symbolQuery = newTrade.symbol.trim().toUpperCase();
+  const filteredSymbols = symbolQuery
+    ? universe.filter((t) =>
+        t.symbol.toUpperCase().startsWith(symbolQuery) ||
+        t.name.toLowerCase().includes(symbolQuery.toLowerCase())
+      ).slice(0, 8)
+    : universe.slice(0, 8);
+  const isSymbolInUniverse = !!symbolQuery && universe.some((t) => t.symbol === symbolQuery);
+  const canSubmitTrade = isSymbolInUniverse && !!newTrade.shares && !!newTrade.buy_price;
+
+  useEffect(() => {
+    if (!symbolOpen) return;
+    setSymbolIndex(0);
+  }, [symbolQuery, symbolOpen]);
+
   const logout = () => {
     localStorage.removeItem("token");
     router.push("/");
@@ -67,11 +91,22 @@ export default function DashboardPage() {
     }
   };
 
+  const selectSymbol = (symbol: string) => {
+    setNewTrade({ ...newTrade, symbol });
+    setSymbolOpen(false);
+    setSymbolIndex(0);
+  };
+
   const handleCreateTrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTrade.symbol || !newTrade.shares || !newTrade.buy_price) return;
     setTradeError(null);
     try {
+      if (!isSymbolInUniverse) {
+        setTradeError("Select a symbol from the dropdown list.");
+        return;
+      }
+
       // Pre-validate symbol via API (fast check + yfinance probe)
       const sym = newTrade.symbol.trim().toUpperCase();
       const res = await api.utils.validateSymbol(sym);
@@ -225,7 +260,80 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Symbol</label>
-                  <input required type="text" placeholder="e.g. AMD" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-violet-500/50 uppercase" value={newTrade.symbol} onChange={e => { setTradeError(null); setNewTrade({...newTrade, symbol: e.target.value}); }} />
+                  <div className="relative">
+                    <input
+                      required
+                      type="text"
+                      placeholder="e.g. AMD"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-violet-500/50 uppercase"
+                      value={newTrade.symbol}
+                      onFocus={() => setSymbolOpen(true)}
+                      onBlur={() => setTimeout(() => setSymbolOpen(false), 120)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setSymbolOpen(false);
+                          return;
+                        }
+                        if (!symbolOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                          setSymbolOpen(true);
+                        }
+                        if (!filteredSymbols.length) return;
+
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setSymbolIndex((idx) => (idx + 1) % filteredSymbols.length);
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setSymbolIndex((idx) => (idx - 1 + filteredSymbols.length) % filteredSymbols.length);
+                        }
+                        if (e.key === "Enter" && symbolOpen) {
+                          e.preventDefault();
+                          const picked = filteredSymbols[symbolIndex];
+                          if (picked) {
+                            selectSymbol(picked.symbol);
+                          }
+                        }
+                      }}
+                      onChange={(e) => {
+                        setTradeError(null);
+                        setSymbolOpen(true);
+                        setNewTrade({ ...newTrade, symbol: e.target.value.toUpperCase() });
+                      }}
+                    />
+                    {symbolOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-[#0e1525] shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm animate-fade-in">
+                        {filteredSymbols.length > 0 ? (
+                          filteredSymbols.map((t, i) => (
+                            <button
+                              key={t.symbol}
+                              type="button"
+                              onClick={() => selectSymbol(t.symbol)}
+                              onMouseEnter={() => setSymbolIndex(i)}
+                              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
+                                i === symbolIndex ? "bg-gradient-to-r from-white/10 via-white/5 to-transparent" : "hover:bg-white/5"
+                              }`}
+                            >
+                              <span className="font-mono font-bold text-white">{t.symbol}</span>
+                              <span className="text-slate-500 truncate ml-3">{t.name}</span>
+                              <span className="ml-3 text-[10px] uppercase tracking-wider text-slate-600">{t.sector}</span>
+                            </button>
+                          ))
+                        ) : symbolQuery ? (
+                          <div className="px-3 py-2 text-xs text-slate-500">No matches found.</div>
+                        ) : null}
+                        {filteredSymbols.length > 0 && (
+                          <div className="px-3 py-2 text-[10px] text-slate-600 border-t border-white/5 bg-black/20">
+                            Use ↑ ↓ to navigate, Enter to select.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Only US-listed symbols from the Quantify universe.</p>
+                  {symbolQuery && !isSymbolInUniverse && (
+                    <p className="text-[10px] text-rose-400 mt-1">Select a symbol from the list.</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Shares</label>
@@ -266,7 +374,11 @@ export default function DashboardPage() {
                   {tradeError}
                 </div>
               )}
-              <button type="submit" className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98]">
+              <button
+                type="submit"
+                disabled={!canSubmitTrade}
+                className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-violet-600 disabled:hover:to-blue-600 disabled:shadow-none"
+              >
                 Log Trade & Activate Alerts
               </button>
             </form>
