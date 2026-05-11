@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, AlertCircle, Info } from "lucide-react";
+import { Play, AlertCircle, Info, ChevronDown, Zap } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { RiskProfileSelector } from "@/components/RiskProfileSelector";
@@ -37,6 +37,7 @@ export default function BacktestPage() {
 
   const abortRef = useRef<AbortController | null>(null);
   const [serverWarning, setServerWarning] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch strategy metadata + presets once
@@ -86,212 +87,256 @@ export default function BacktestPage() {
   const m = backtestResult?.metrics;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-6 animate-fade-in">
-
-      {/* Page title */}
-      <div>
-        <h1 className="text-xl font-bold text-white">Backtest</h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Configure strategies, risk limits, and date range — then run a full historical backtest.
-        </p>
+    <div className="min-h-screen pt-28 pb-24 md:pb-12 animate-fade-in">
+      {/* Gradient background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5" />
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-8">
 
-        {/* ── Left: Configuration panel ─────────────────────────────────── */}
-        <div className="lg:col-span-1 flex flex-col gap-5">
-
-          {/* Basic params */}
-          <Card>
-            <CardHeader title="Parameters" />
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-500 block mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-[#1e2d4a] bg-[#162035] text-sm text-slate-200 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500 block mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-[#1e2d4a] bg-[#162035] text-sm text-slate-200 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">Initial Capital ($)</label>
-                <input
-                  type="number"
-                  value={initialCapital}
-                  min={1000}
-                  max={100_000_000}
-                  step={1000}
-                  onChange={(e) => setInitialCapital(Number(e.target.value))}
-                  className="w-full rounded-lg border border-[#1e2d4a] bg-[#162035] text-sm text-slate-200 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">Benchmark</label>
-                <select
-                  value={benchmark}
-                  onChange={(e) => setBenchmark(e.target.value)}
-                  className="w-full rounded-lg border border-[#1e2d4a] bg-[#162035] text-sm text-slate-200 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                >
-                  <option value="SPY">SPY — S&P 500</option>
-                  <option value="QQQ">QQQ — Nasdaq 100</option>
-                  <option value="IWM">IWM — Russell 2000</option>
-                </select>
-              </div>
+        {/* Header */}
+        <div className="animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg gradient-accent">
+              <Zap size={20} className="text-white" />
             </div>
-          </Card>
-
-          {/* Risk profile */}
-          <Card>
-            <CardHeader title="Risk Profile" subtitle="Set portfolio-level limits" />
-            {presets.length > 0 ? (
-              <RiskProfileSelector presets={presets} />
-            ) : (
-              <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            )}
-          </Card>
-
-          {/* Strategy config */}
-          <Card>
-            <CardHeader title="Strategies" subtitle="Enable, allocate, and tune each strategy" />
-            {strategyInfos.length > 0 ? (
-              <StrategyConfigurator strategies={strategyInfos} />
-            ) : (
-              <div className="space-y-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Run button */}
-          <Button
-            onClick={handleRun}
-            loading={isRunning}
-            variant={isRunning ? "danger" : "primary"}
-            className="w-full py-3 text-sm"
-          >
-            {isRunning ? (
-              <><span className="animate-spin mr-1">⏳</span> Running… (click to cancel)</>
-            ) : (
-              <><Play size={14} /> Run Backtest</>
-            )}
-          </Button>
-
-          {/* Server cold-start hint */}
-          {serverWarning && (
-            <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300">
-              <Info size={14} className="shrink-0 mt-0.5" />
-              <span>
-                The server is waking up from sleep — this can take up to 30 seconds on the first request.
-                Hang tight!
-              </span>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-start gap-2 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+              Backtest Engine
+            </h1>
+          </div>
+          <p className="text-slate-400 text-sm">
+            Run historical simulations with multiple strategies and analyze performance metrics
+          </p>
         </div>
 
-        {/* ── Right: Results panel ──────────────────────────────────────── */}
-        <div className="lg:col-span-2 flex flex-col gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Loading skeleton */}
-          {isRunning && (
-            <div className="flex flex-col gap-4 animate-fade-in">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
-                ))}
-              </div>
-              <Skeleton className="h-80 w-full" />
-              <Skeleton className="h-56 w-full" />
-            </div>
-          )}
+          {/* ── Left: Configuration panel ─────────────────────────────────── */}
+          <div className="lg:col-span-1 flex flex-col gap-4">
 
-          {/* Results */}
-          {backtestResult && m && !isRunning && (
-            <div className="flex flex-col gap-5 animate-fade-in">
-              {/* Metrics grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <MetricCard label="Total Return"      value={pct(m.total_return)}      positive={m.total_return > 0} size="lg" />
-                <MetricCard label="Sharpe Ratio"      value={num(m.sharpe_ratio)}      positive={null} />
-                <MetricCard label="Sortino Ratio"     value={num(m.sortino_ratio)}     positive={null} />
-                <MetricCard label="Max Drawdown"      value={pct(m.max_drawdown * -1)} positive={false} />
-                <MetricCard label="Win Rate"          value={`${(m.win_rate * 100).toFixed(1)}%`} positive={null} />
-                <MetricCard label="Annualised Return" value={pct(m.annualized_return)} positive={m.annualized_return > 0} />
-                <MetricCard label="Calmar Ratio"      value={num(m.calmar_ratio)}      positive={null} />
-                <MetricCard label="Profit Factor"     value={m.profit_factor > 999 ? "∞" : num(m.profit_factor)} positive={null} />
-                <MetricCard label="Total Trades"      value={String(m.total_trades)}   positive={null} sub={`Avg ${m.avg_holding_days}d hold`} />
-              </div>
-
-              {/* Charts */}
-              <EquityCurveChart data={backtestResult.equity_curve} />
-              <DrawdownChart   data={backtestResult.drawdown_curve} />
-
-              {/* Trade log */}
-              {backtestResult.trades.length > 0 && (
-                <TradeLogTable trades={backtestResult.trades} />
-              )}
-
-              {/* Metadata */}
-              <Card>
-                <CardHeader title="Run Metadata" />
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-400">
-                  {Object.entries(backtestResult.metadata).map(([k, v]) => {
-                    if (Array.isArray(v)) return null;
-                    return (
-                      <div key={k}>
-                        <span className="text-slate-600 block capitalize">{k.replace(/_/g, " ")}</span>
-                        <span className="font-mono text-slate-300">{String(v)}</span>
-                      </div>
-                    );
-                  })}
+            {/* Basic parameters - Always visible */}
+            <Card className="animate-slide-in-left">
+              <CardHeader title="Configuration" subtitle="Quick setup" />
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-slate-600 block">Signals generated</span>
-                    <span className="font-mono text-slate-300">{backtestResult.signals_count}</span>
+                    <label className="text-xs text-slate-400 block mb-1.5">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1.5">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                    />
                   </div>
                 </div>
-              </Card>
-            </div>
-          )}
 
-          {/* Empty state */}
-          {!backtestResult && !isRunning && !error && (
-            <div className="flex flex-col items-center justify-center h-80 gap-4 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-[#0e1525] border border-[#1e2d4a] flex items-center justify-center">
-                <Play size={28} className="text-blue-500/60" />
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1.5">Initial Capital ($)</label>
+                  <input
+                    type="number"
+                    value={initialCapital}
+                    min={1000}
+                    max={100_000_000}
+                    step={1000}
+                    onChange={(e) => setInitialCapital(Number(e.target.value))}
+                    className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1.5">Benchmark</label>
+                  <select
+                    value={benchmark}
+                    onChange={(e) => setBenchmark(e.target.value)}
+                    className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                  >
+                    <option value="SPY">SPY — S&P 500</option>
+                    <option value="QQQ">QQQ — Nasdaq 100</option>
+                    <option value="IWM">IWM — Russell 2000</option>
+                  </select>
+                </div>
               </div>
-              <p className="text-slate-500 text-sm max-w-xs">
-                Configure your risk profile and strategies on the left, then click{" "}
-                <span className="text-blue-400">Run Backtest</span> to see results here.
-              </p>
-            </div>
-          )}
+            </Card>
+
+            {/* Risk profile */}
+            <Card className="animate-slide-in-left" style={{ animationDelay: "0.1s" }}>
+              <CardHeader title="Risk Profile" subtitle="Portfolio limits" />
+              {presets.length > 0 ? (
+                <RiskProfileSelector presets={presets} />
+              ) : (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              )}
+            </Card>
+
+            {/* Advanced toggle */}
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between px-4 py-3 rounded-lg glass hover:border-cyan-500/50 text-sm font-medium text-slate-300 hover:text-white transition-all"
+            >
+              <span className="flex items-center gap-2">
+                {showAdvanced ? (
+                  <Zap size={16} className="text-cyan-400" />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+                Advanced Settings
+              </span>
+              {showAdvanced && <span className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded">Open</span>}
+            </button>
+
+            {/* Advanced section - Collapsible */}
+            {showAdvanced && (
+              <div className="animate-fade-in-up space-y-4">
+                <Card>
+                  <CardHeader title="Strategies" subtitle="Enable & allocate" />
+                  {strategyInfos.length > 0 ? (
+                    <StrategyConfigurator strategies={strategyInfos} />
+                  ) : (
+                    <div className="space-y-2">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            {/* Run button */}
+            <Button
+              onClick={handleRun}
+              loading={isRunning}
+              variant={isRunning ? "danger" : "primary"}
+              className="w-full py-3 text-sm font-bold"
+            >
+              {isRunning ? (
+                <><span className="animate-spin">⏳</span> Running… (click to cancel)</>
+              ) : (
+                <><Play size={16} /> Run Backtest</>
+              )}
+            </Button>
+
+            {/* Alerts */}
+            {serverWarning && (
+              <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300 animate-fade-in">
+                <Info size={14} className="shrink-0 mt-0.5" />
+                <span>Server is waking up from sleep — this can take up to 30 seconds.</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-300 animate-fade-in">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Right: Results panel ──────────────────────────────────────── */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+
+            {/* Loading skeleton */}
+            {isRunning && (
+              <div className="flex flex-col gap-4 animate-fade-in-up">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 w-full" />
+                  ))}
+                </div>
+                <Skeleton className="h-80 w-full rounded-lg" />
+                <Skeleton className="h-56 w-full rounded-lg" />
+              </div>
+            )}
+
+            {/* Results */}
+            {backtestResult && m && !isRunning && (
+              <div className="flex flex-col gap-6 animate-fade-in-up">
+                {/* Success banner */}
+                <div className="px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs text-emerald-300 font-medium">Backtest completed successfully</span>
+                </div>
+
+                {/* Metrics grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <MetricCard label="Total Return"      value={pct(m.total_return)}      positive={m.total_return > 0} size="lg" />
+                  <MetricCard label="Sharpe Ratio"      value={num(m.sharpe_ratio)}      positive={null} />
+                  <MetricCard label="Sortino Ratio"     value={num(m.sortino_ratio)}     positive={null} />
+                  <MetricCard label="Max Drawdown"      value={pct(m.max_drawdown * -1)} positive={false} />
+                  <MetricCard label="Win Rate"          value={`${(m.win_rate * 100).toFixed(1)}%`} positive={null} />
+                  <MetricCard label="Ann. Return"       value={pct(m.annualized_return)} positive={m.annualized_return > 0} />
+                  <MetricCard label="Calmar Ratio"      value={num(m.calmar_ratio)}      positive={null} />
+                  <MetricCard label="Profit Factor"     value={m.profit_factor > 999 ? "∞" : num(m.profit_factor)} positive={null} />
+                  <MetricCard label="Total Trades"      value={String(m.total_trades)}   positive={null} sub={`${m.avg_holding_days}d avg`} />
+                </div>
+
+                {/* Charts */}
+                <EquityCurveChart data={backtestResult.equity_curve} />
+                <DrawdownChart data={backtestResult.drawdown_curve} />
+
+                {/* Trade log */}
+                {backtestResult.trades.length > 0 && (
+                  <TradeLogTable trades={backtestResult.trades} />
+                )}
+
+                {/* Metadata */}
+                <Card>
+                  <CardHeader title="Run Metadata" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-400">
+                    {Object.entries(backtestResult.metadata).map(([k, v]) => {
+                      if (Array.isArray(v)) return null;
+                      return (
+                        <div key={k}>
+                          <span className="text-slate-600 block capitalize">{k.replace(/_/g, " ")}</span>
+                          <span className="font-mono text-slate-300">{String(v)}</span>
+                        </div>
+                      );
+                    })}
+                    <div>
+                      <span className="text-slate-600 block">Signals generated</span>
+                      <span className="font-mono text-slate-300">{backtestResult.signals_count}</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!backtestResult && !isRunning && !error && (
+              <div className="flex flex-col items-center justify-center h-96 gap-4 text-center">
+                <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
+                  <Play size={40} className="text-cyan-500/60" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm font-medium">Ready to backtest</p>
+                  <p className="text-slate-500 text-xs max-w-xs mt-1">
+                    Configure parameters, then click <span className="text-cyan-400">Run Backtest</span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+        {/* ── Left: Configuration panel ─────────────────────────────────── */}
   );
 }

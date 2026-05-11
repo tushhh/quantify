@@ -44,20 +44,20 @@ export function StrategyConfigurator({ strategies }: Props) {
           <div
             key={info.name}
             className={clsx(
-              "rounded-xl border transition-all overflow-hidden",
+              "rounded-lg glass transition-all overflow-hidden",
               cfg.enabled
-                ? "border-[#1e2d4a] bg-[#0e1525]"
-                : "border-[#111c2f] bg-[#08101d] opacity-60"
+                ? "border-cyan-500/30"
+                : "border-slate-700/30 opacity-50"
             )}
           >
             {/* Header row */}
-            <div className="flex items-center gap-3 p-3">
+            <div className="flex items-center gap-3 p-3 hover:bg-cyan-500/5 transition-colors">
               {/* Enable toggle */}
               <button
                 onClick={() => setStrategy(info.name, { enabled: !cfg.enabled })}
                 className={clsx(
                   "w-9 h-5 rounded-full transition-colors shrink-0 relative",
-                  cfg.enabled ? "bg-blue-600" : "bg-[#1e2d4a]"
+                  cfg.enabled ? "bg-cyan-600" : "bg-slate-700"
                 )}
                 aria-label={cfg.enabled ? "Disable" : "Enable"}
               >
@@ -77,7 +77,7 @@ export function StrategyConfigurator({ strategies }: Props) {
 
               {/* Allocation */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono text-blue-400">
+                <span className="text-xs font-mono text-cyan-400">
                   {(cfg.allocation * 100).toFixed(0)}%
                 </span>
                 <button
@@ -92,7 +92,7 @@ export function StrategyConfigurator({ strategies }: Props) {
 
             {/* Expanded params */}
             {isOpen && cfg.enabled && (
-              <div className="px-4 pb-4 pt-1 flex flex-col gap-3 border-t border-[#1e2d4a]">
+              <div className="px-4 pb-4 pt-1 flex flex-col gap-3 border-t border-slate-700/30">
                 {/* Allocation slider */}
                 <Slider
                   label="Allocation"
@@ -118,7 +118,7 @@ export function StrategyConfigurator({ strategies }: Props) {
                           }
                           className={clsx(
                             "w-8 h-4 rounded-full transition-colors relative",
-                            currentVal ? "bg-blue-600" : "bg-[#1e2d4a]"
+                            currentVal ? "bg-cyan-600" : "bg-slate-700"
                           )}
                         >
                           <span
@@ -148,8 +148,8 @@ export function StrategyConfigurator({ strategies }: Props) {
                               className={clsx(
                                 "px-2.5 py-1 rounded text-[10px] font-semibold border transition-all",
                                 currentVal === opt
-                                  ? "bg-blue-600 border-blue-500 text-white"
-                                  : "bg-[#162035] border-[#1e2d4a] text-slate-400 hover:text-white"
+                                  ? "bg-cyan-600 border-cyan-500 text-white"
+                                  : "bg-slate-700/30 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600"
                               )}
                             >
                               {opt}

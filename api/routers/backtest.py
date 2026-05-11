@@ -12,6 +12,7 @@ import logging
 import math
 import queue
 import threading
+import time
 from datetime import date
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -32,45 +33,98 @@ router = APIRouter(prefix="/backtest", tags=["backtest"])
 log = logging.getLogger("quantify.api.backtest")
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+MAX_RETRIES = 3
+RETRY_BACKOFF_FACTOR = 2  # exponential backoff: 2s, 4s, 8s
+REQUEST_TIMEOUT = 120  # 2 minutes max per request
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
-    """Download OHLCV data from yfinance for all tickers."""
+def _fetch_data_with_retry(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
+    """Download OHLCV data from yfinance with exponential backoff retry."""
     symbols = " ".join(tickers)
-    try:
-        raw = yf.download(
-            symbols,
-            start=str(start),
-            end=str(end),
-            auto_adjust=True,
-            progress=False,
-            group_by="ticker" if len(tickers) > 1 else "column",
-            threads=True,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Data download failed: {exc}") from exc
+    last_exc = None
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            log.info(f"Fetching data (attempt {attempt + 1}/{MAX_RETRIES}): {len(tickers)} tickers from {start} to {end}")
+            raw = yf.download(
+                symbols,
+                start=str(start),
+                end=str(end),
+                auto_adjust=True,
+                progress=False,
+                group_by="ticker" if len(tickers) > 1 else "column",
+                threads=True,
+                timeout=30,  # 30s timeout per yfinance call
+            )
+            
+            if raw is None or (isinstance(raw, pd.DataFrame) and raw.empty):
+                raise ValueError("yfinance returned empty data")
+            
+            log.info(f"Data fetch successful on attempt {attempt + 1}")
+            return _process_raw_data(raw, tickers)
+            
+        except Exception as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES - 1:
+                wait_time = RETRY_BACKOFF_FACTOR ** attempt
+                log.warning(f"Data fetch failed (attempt {attempt + 1}): {exc}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                log.error(f"Data fetch failed after {MAX_RETRIES} attempts: {exc}")
+    
+    # All retries exhausted
+    raise HTTPException(
+        status_code=502,
+        detail=f"Failed to fetch market data after {MAX_RETRIES} retries. The data provider may be temporarily unavailable. Error: {str(last_exc)}"
+    ) from last_exc
 
+
+def _process_raw_data(raw: pd.DataFrame | dict, tickers: list[str]) -> Dict[str, pd.DataFrame]:
+    """Process raw yfinance data into standardized format."""
     result: Dict[str, pd.DataFrame] = {}
-
+    
     if len(tickers) == 1:
         sym = tickers[0]
-        df = raw.copy()
-        df.columns = [c.lower() for c in df.columns]
-        df = df.dropna()
-        if not df.empty:
-            result[sym] = df
+        try:
+            df = raw.copy() if isinstance(raw, pd.DataFrame) else raw
+            df.columns = [c.lower() for c in df.columns]
+            df = df.dropna()
+            if not df.empty and len(df) > 5:  # Need minimum bars
+                result[sym] = df
+            else:
+                log.warning(f"Insufficient data for {sym}: {len(df)} bars")
+        except Exception as e:
+            log.warning(f"Failed to process {sym}: {e}")
     else:
         for sym in tickers:
             try:
                 df = raw[sym].copy()
                 df.columns = [c.lower() for c in df.columns]
                 df = df.dropna()
-                if not df.empty:
+                if not df.empty and len(df) > 5:  # Need minimum bars
                     result[sym] = df
-            except Exception:
-                pass
+                else:
+                    log.warning(f"Insufficient data for {sym}: {len(df) if not df.empty else 0} bars")
+            except Exception as e:
+                log.debug(f"Skipping {sym}: {e}")
+    
+    return result
 
+
+def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
+    """Download OHLCV data from yfinance (with retry logic)."""
+    result = _fetch_data_with_retry(tickers, start, end)
+    if not result:
+        raise HTTPException(
+            status_code=502,
+            detail="No valid market data was retrieved for any tickers. Check dates and ticker symbols."
+        )
     return result
 
 
@@ -111,21 +165,36 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
     }
 
     instances = []
+    failed_strategies = []
+    
     for name, cls in STRATEGY_MAP.items():
         cfg = req.strategies.get(name)
         enabled = cfg.enabled if cfg else DEFAULT_ENABLED[name]
         if not enabled:
+            log.debug(f"Strategy {name} is disabled")
             continue
         allocation = cfg.allocation if cfg else DEFAULT_ALLOCATION[name]
         extra_params = cfg.params if cfg else {}
         try:
+            log.info(f"Instantiating {name} with allocation {allocation*100:.0f}% and params: {extra_params}")
             instance = cls(allocation=allocation, **extra_params)
             instances.append(instance)
+            log.info(f"Successfully instantiated {name}")
         except Exception as exc:
-            log.warning("Failed to instantiate %s: %s", name, exc)
+            failed_strategies.append((name, str(exc)))
+            log.warning(f"Failed to instantiate {name}: {exc}")
 
     if not instances:
-        raise HTTPException(status_code=400, detail="No strategies enabled in request")
+        detail = "No strategies could be instantiated. "
+        if failed_strategies:
+            detail += "Errors: " + "; ".join([f"{n}: {e}" for n, e in failed_strategies])
+        else:
+            detail += "No strategies enabled in request"
+        raise HTTPException(status_code=400, detail=detail)
+    
+    if failed_strategies:
+        log.warning(f"Some strategies failed to instantiate: {failed_strategies}. Proceeding with {len(instances)} strategies.")
+    
     return instances
 
 
@@ -228,18 +297,22 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         "XOM", "CVX", "WMT", "PG", "KO", req.benchmark,
     ]
     tickers = list(dict.fromkeys(req.universe or default_universe))  # deduplicate, preserve order
+    log.info(f"Universe: {len(tickers)} tickers")
 
     # ── Fetch data ────────────────────────────────────────────────────────
-    log.info("Downloading data for %d tickers…", len(tickers))
+    log.info("Step 1/5: Downloading market data for %d tickers…", len(tickers))
     data = _fetch_data(tickers, req.start_date, req.end_date)
-    if not data:
-        raise HTTPException(status_code=502, detail="No market data returned for the given universe/dates")
+    log.info(f"Successfully fetched data for {len(data)} tickers: {list(data.keys())}")
 
     # ── Build engine components ────────────────────────────────────────────
+    log.info("Step 2/5: Instantiating strategies…")
     strategies = _build_strategy_instances(req)
+    log.info(f"Strategies loaded: {[s.name for s in strategies]}")
+    
     cost_model = _build_cost_model(req)
     position_sizer = _build_position_sizer(req)
     risk_manager = _build_risk_manager(req)
+    log.info("Step 3/5: Risk, cost, and sizing models configured")
 
     engine = BacktestEngine(
         strategies=strategies,
@@ -253,9 +326,14 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
     )
 
     # ── Run ───────────────────────────────────────────────────────────────
-    log.info("Running backtest engine…")
-    result = engine.run(data)
-    log.info("Backtest complete: %s", result)
+    log.info("Step 4/5: Running backtest engine (this may take a minute)…")
+    try:
+        result = engine.run(data)
+    except Exception as exc:
+        log.error(f"Backtest engine failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Backtest execution failed: {str(exc)}") from exc
+    
+    log.info(f"Backtest complete: {result.total_trades} trades, {result.total_return*100:.2f}% return")
 
     # ── Build benchmark series ─────────────────────────────────────────────
     benchmark_series: Optional[pd.Series] = None
@@ -266,6 +344,7 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         benchmark_series = bval
 
     # ── Metrics ───────────────────────────────────────────────────────────
+    log.info("Step 5/5: Computing metrics and serializing results…")
     metrics = BacktestMetrics(
         total_return=round(result.total_return, 6),
         annualized_return=round(result.annualized_return, 6),

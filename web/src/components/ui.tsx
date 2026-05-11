@@ -29,11 +29,11 @@ export function MetricCard({
   return (
     <div
       className={clsx(
-        "rounded-xl border border-[#1e2d4a] bg-[#0e1525] p-4 flex flex-col gap-1 animate-fade-in",
+        "rounded-xl glass hover-lift p-4 flex flex-col gap-1 animate-fade-in",
         className
       )}
     >
-      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
+      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{label}</p>
       <p
         className={clsx(
           "font-bold tabular-nums",
@@ -57,7 +57,7 @@ export function Card({ children, className }: SectionProps) {
   return (
     <div
       className={clsx(
-        "rounded-xl border border-[#1e2d4a] bg-[#0e1525] p-5",
+        "rounded-lg glass p-5",
         className
       )}
     >
@@ -135,9 +135,9 @@ export function Button({
       className={clsx(
         "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed",
         {
-          "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95":
+          "gradient-accent hover-lift text-white shadow-lg shadow-cyan-500/20 active:scale-95 hover:shadow-lg hover:shadow-cyan-500/40":
             variant === "primary",
-          "bg-[#162035] hover:bg-[#1e2d4a] text-slate-300 border border-[#1e2d4a]":
+          "glass hover:border-cyan-500/30 text-slate-300 hover:text-white":
             variant === "secondary",
           "hover:bg-white/5 text-slate-400 hover:text-white":
             variant === "ghost",
@@ -184,7 +184,7 @@ export function Slider({
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
         <label className="text-xs text-slate-400">{label}</label>
-        <span className="text-xs font-mono font-semibold text-blue-400">{display}</span>
+        <span className="text-xs font-mono font-semibold text-cyan-400">{display}</span>
       </div>
       <input
         type="range"
@@ -193,7 +193,7 @@ export function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full bg-[#1e2d4a] accent-blue-500 cursor-pointer"
+        className="w-full h-1.5 rounded-full bg-slate-700/40 accent-cyan-400 cursor-pointer"
       />
     </div>
   );

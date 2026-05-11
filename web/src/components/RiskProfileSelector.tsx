@@ -7,14 +7,14 @@ import { Slider } from "@/components/ui";
 
 const PRESET_COLORS: Record<string, string> = {
   conservative: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
-  moderate:     "text-blue-400   border-blue-500/40   bg-blue-500/10",
+  moderate:     "text-cyan-400   border-cyan-500/40   bg-cyan-500/10",
   aggressive:   "text-amber-400  border-amber-500/40  bg-amber-500/10",
   custom:       "text-slate-400  border-slate-500/40  bg-slate-500/10",
 };
 
 const SELECTED_GLOW: Record<string, string> = {
   conservative: "ring-1 ring-emerald-500/50",
-  moderate:     "ring-1 ring-blue-500/50",
+  moderate:     "ring-1 ring-cyan-500/50",
   aggressive:   "ring-1 ring-amber-500/50",
   custom:       "ring-1 ring-slate-500/50",
 };
@@ -58,7 +58,7 @@ export function RiskProfileSelector({ presets }: Props) {
       </div>
 
       {/* Fine-tune sliders (always visible) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-[#1e2d4a] bg-[#0e1525]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg glass">
         <Slider
           label="Max Portfolio Drawdown"
           value={risk.max_portfolio_drawdown}
