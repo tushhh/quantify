@@ -291,6 +291,9 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
     )
 
     # ── Universe ──────────────────────────────────────────────────────────
+    # Note: benchmark symbol is included in the universe for data fetching,
+    # but is excluded from strategy signal generation and only used for performance
+    # comparison metrics.
     default_universe = [
         "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA",
         "JPM", "BAC", "GS", "V", "MA", "UNH", "JNJ", "PFE",

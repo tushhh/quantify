@@ -25,12 +25,13 @@ from api.database import engine
 from api import models
 from api.telegram_bot import check_alerts_loop
 
-# Initialize DB tables (Disabled on Heroku to prevent 60-second boot timeout)
-# models.Base.metadata.create_all(bind=engine)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from api.telegram_bot import start_telegram_bot, stop_telegram_bot
+    
+    # Initialize DB tables only if they don't exist. SQLAlchemy's checkfirst=True
+    # (default) makes this a no-op on existing schema, so it's safe to call at startup.
+    models.Base.metadata.create_all(bind=engine)
     
     # Start telegram bot polling
     await start_telegram_bot()

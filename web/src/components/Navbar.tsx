@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TrendingUp, BarChart2, Globe, Zap, UserCircle } from "lucide-react";
+import { TrendingUp, BarChart2, Globe, Zap, UserCircle, Menu, X } from "lucide-react";
 import clsx from "clsx";
+import { useState } from "react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: Zap },
@@ -14,6 +15,7 @@ const NAV = [
 
 export function Navbar() {
   const path = usePathname();
+  const [open, setOpen] = useState(false);
 
   return (
     <>
@@ -60,22 +62,47 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* ── Mobile bottom nav ─────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 flex items-center justify-around border-t border-white/8 bg-[rgba(255,255,255,0.02)] backdrop-blur-md">
-        {[...NAV, { href: "/account", label: "Account", icon: UserCircle }].map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={clsx(
-              "flex flex-col items-center gap-1 px-4 py-1 rounded-lg transition-all",
-              path === href ? "text-blue-400" : "text-slate-500"
-            )}
-          >
-            <Icon size={18} />
-            <span className="text-[10px] font-medium">{label}</span>
-          </Link>
-        ))}
-      </nav>
+      {/* ── Mobile top bar with hamburger ─────────────────── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 flex items-center px-4 justify-between bg-[rgba(255,255,255,0.02)] backdrop-blur-md border-b border-white/6">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-secondary)] flex items-center justify-center shadow-sm">
+            <TrendingUp size={16} className="text-white" />
+          </span>
+          <span className="font-bold text-sm">Quantify</span>
+        </Link>
+        <button aria-label="Open menu" onClick={() => setOpen(true)} className="p-2 rounded-md bg-transparent">
+          <Menu size={20} className="text-slate-300" />
+        </button>
+      </div>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="fixed inset-0 z-60">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <div className="absolute top-0 right-0 h-full w-72 glass p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-secondary)] flex items-center justify-center shadow-sm">
+                  <TrendingUp size={16} className="text-white" />
+                </span>
+                <span className="font-bold">Quantify</span>
+              </div>
+              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded-md">
+                <X size={18} className="text-slate-300" />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-3">
+              {NAV.map(({ href, label }) => (
+                <Link key={href} href={href} onClick={() => setOpen(false)} className="py-2 text-lg text-slate-100">{label}</Link>
+              ))}
+              <Link href="/account" onClick={() => setOpen(false)} className="py-2 text-lg text-slate-100">Account</Link>
+            </nav>
+            <div className="mt-6">
+              <Link href="/signup" onClick={() => setOpen(false)} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-accent)] text-[#02121a]">Sign up</Link>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

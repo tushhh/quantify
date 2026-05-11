@@ -661,7 +661,9 @@ def get_sizer(name: str, **kwargs: Any) -> PositionSizer:
     name:
         Sizer name as configured in ``settings.yaml``.
     **kwargs:
-        Passed verbatim to the sizer constructor.
+        Passed verbatim to the sizer constructor. For ``half_kelly``, if not
+        provided, sensible defaults are used: win_rate=0.55, avg_win=0.02,
+        avg_loss=0.01.
 
     Raises
     ------
@@ -680,6 +682,13 @@ def get_sizer(name: str, **kwargs: Any) -> PositionSizer:
         raise ValueError(
             f"Unknown sizer '{name}'. Available: {', '.join(registry)}"
         )
+    
+    # For HalfKellySizer, provide sensible defaults if not supplied
+    if key == "half_kelly":
+        kwargs.setdefault("win_rate", 0.55)
+        kwargs.setdefault("avg_win", 0.02)
+        kwargs.setdefault("avg_loss", 0.01)
+    
     return cls(**kwargs)
 
 

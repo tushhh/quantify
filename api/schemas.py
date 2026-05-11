@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -56,13 +56,11 @@ class BacktestRequest(BaseModel):
     benchmark: str = Field("SPY", description="Benchmark ticker for comparison")
     universe: Optional[List[str]] = Field(None, description="Override stock universe (tickers)")
 
-    @field_validator("end_date")
-    @classmethod
-    def end_after_start(cls, v: date, info: Any) -> date:
-        start = info.data.get("start_date")
-        if start and v <= start:
+    @model_validator(mode="after")
+    def end_after_start(self) -> "BacktestRequest":
+        if self.end_date <= self.start_date:
             raise ValueError("end_date must be after start_date")
-        return v
+        return self
 
 
 class TradeRecord(BaseModel):
@@ -178,6 +176,11 @@ class User(BaseModel):
     class Config:
         from_attributes = True
 
+class UserUpdate(BaseModel):
+    """Schema for updating user account settings."""
+    telegram_username: Optional[str] = None
+    new_password: Optional[str] = None
+
 # ---------------------------------------------------------------------------
 # Prediction & Trade Tracking
 # ---------------------------------------------------------------------------
@@ -199,7 +202,7 @@ class TradeCreate(BaseModel):
     hold_days: int
 
 class TrackedTrade(TradeCreate):
-    id: str
+    id: int
     created_at: str
     sell_date: str
     status: str

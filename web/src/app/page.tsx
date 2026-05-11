@@ -57,9 +57,9 @@ export default function LandingPage() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-black leading-[0.92] tracking-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
                 Faster research.
-                <span className="block bg-gradient-to-r from-cyan-300 via-white to-violet-300 bg-clip-text text-transparent">
+                <span className="block bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-secondary)]">
                   Cleaner execution.
                 </span>
               </h1>

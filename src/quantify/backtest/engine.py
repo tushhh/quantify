@@ -428,6 +428,26 @@ class BacktestEngine:
                         "Strategy %s failed on %s: %s", strat.name, current_date, exc
                     )
 
+            # Apply volatility regime adjustment if available
+            regime_strategy = None
+            for strat in self.strategies:
+                if strat.__class__.__name__ == "VolatilityRegimeStrategy":
+                    regime_strategy = strat
+                    break
+            
+            if regime_strategy is not None and strategy_signals:
+                try:
+                    strategy_signals = regime_strategy.adjust_signals(strategy_signals)
+                    log.debug(
+                        "VolatilityRegimeStrategy adjusted %d signal(s) on %s",
+                        len(strategy_signals), current_date,
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "VolatilityRegimeStrategy.adjust_signals failed on %s: %s",
+                        current_date, exc,
+                    )
+
             # Combine stop signals with strategy signals
             all_signals = stop_signals + strategy_signals
 

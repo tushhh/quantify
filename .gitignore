@@ -88,3 +88,6 @@ secrets.json
 
 # Build artifacts
 *.whl
+
+# Database initialization script with credentials
+create_tables.py

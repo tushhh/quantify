@@ -172,7 +172,7 @@ export default function AccountPage() {
           Change Password
         </h2>
         <p className="text-sm text-slate-500 mb-5">
-          Update your account password. Must be at least 6 characters.
+          Update your account password. Must be at least 6 characters (max 72 for security).
         </p>
 
         <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
@@ -181,6 +181,7 @@ export default function AccountPage() {
             <input
               required
               type="password"
+              maxLength={72}
               placeholder="Enter new password"
               className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all"
               value={newPassword}
@@ -192,6 +193,7 @@ export default function AccountPage() {
             <input
               required
               type="password"
+              maxLength={72}
               placeholder="Confirm new password"
               className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all"
               value={confirmPassword}
