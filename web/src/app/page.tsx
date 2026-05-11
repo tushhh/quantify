@@ -45,44 +45,14 @@ const METRICS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen text-white selection:bg-cyan-400/30">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(0,217,255,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.14),transparent_28%),linear-gradient(135deg,#080b15_0%,#0a1020_45%,#090b13_100%)]" />
-      <div className="fixed inset-0 -z-10 opacity-30 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:72px_72px]" />
+    <div className="min-h-screen text-white selection:bg-cyan-400/30 relative">
+      <div className="mesh-animated -z-10" />
 
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-slate-950/60 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-shadow">
-              <Sparkles size={18} className="text-white" />
-            </div>
-            <div>
-              <div className="text-sm font-bold tracking-wide">Quantify</div>
-              <div className="text-[10px] text-slate-400">Quant platform rebuilt</div>
-            </div>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-2 text-sm text-slate-300">
-            <Link href="/backtest" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Backtest</Link>
-            <Link href="/dashboard" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Portfolio</Link>
-            <Link href="/account" className="px-3 py-2 rounded-lg hover:bg-white/5 hover:text-white">Account</Link>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-white/5">
-              Log in
-            </Link>
-            <Link href="/signup" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold gradient-accent text-white hover:opacity-90">
-              Sign up <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="pt-28 md:pt-32 pb-20">
+      <main className="pt-24 md:pt-28 pb-20">
         <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-7 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-xs text-cyan-200 border-cyan-500/20">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
               Modern trading platform, rebuilt
             </div>
 
@@ -99,21 +69,23 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl gradient-accent font-semibold shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover-lift">
+              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent)] text-[#02121a] font-semibold shadow-lg hover:shadow-[0_12px_40px_rgba(0,212,255,0.12)]">
                 Open Backtest Lab <ChevronRight size={18} />
               </Link>
-              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl glass font-semibold hover:border-cyan-500/30 hover:text-white hover-lift">
+              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-[var(--color-accent)] text-[var(--color-accent)] font-semibold hover:bg-[var(--color-accent)] hover:text-[#02121a]">
                 View Portfolio Tools
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
-              {METRICS.map((item) => (
-                <div key={item.label} className="glass rounded-2xl p-4">
-                  <div className="text-2xl font-bold text-white">{item.value}</div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400 mt-1">{item.label}</div>
-                </div>
-              ))}
+            <div className="pt-6">
+              <div className="glass rounded-2xl p-1 stats-row">
+                {METRICS.map((item, i) => (
+                  <div key={item.label} className={`stat-card ${i < METRICS.length - 1 ? 'border-r border-white/6' : ''}`}>
+                    <div className="stat-value">{item.value}</div>
+                    <div className="stat-label mt-1">{item.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -189,7 +161,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {FEATURES.map((feature, index) => (
               <div key={feature.title} className="glass rounded-2xl p-5 hover-lift animate-fade-in-up" style={{ animationDelay: `${index * 70}ms` }}>
                 <div className="w-11 h-11 rounded-xl gradient-accent flex items-center justify-center mb-4">
@@ -203,7 +175,7 @@ export default function LandingPage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 md:px-6 mt-20 md:mt-28">
-          <div className="glass-dark rounded-[32px] p-8 md:p-12 border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+          <div className="glass-dark rounded-[32px] p-8 md:p-12 border-white/10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 cta-glow">
             <div className="max-w-2xl">
               <p className="text-xs uppercase tracking-[0.22em] text-violet-300">Next step</p>
               <h2 className="text-3xl md:text-5xl font-black mt-3 leading-tight">
