@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from quantify.execution.order import Fill, OrderSide, Position
@@ -79,7 +79,7 @@ class Portfolio:
 
         # Equity curve: list of (timestamp, equity) tuples
         self._equity_curve: list[tuple[datetime, float]] = [
-            (datetime.utcnow(), initial_capital)
+            (datetime.now(timezone.utc), initial_capital)
         ]
 
         # Daily P&L tracking
@@ -147,9 +147,9 @@ class Portfolio:
             dict are left at their last known price.
         timestamp:
             Bar timestamp for the equity curve entry.  Defaults to
-            ``datetime.utcnow()``.
+            ``datetime.now(timezone.utc)``.
         """
-        ts = timestamp or datetime.utcnow()
+        ts = timestamp or datetime.now(timezone.utc)
 
         for symbol, price in prices.items():
             if symbol in self._positions:

@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -172,9 +172,8 @@ class User(BaseModel):
     id: int
     username: str
     telegram_username: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 class UserUpdate(BaseModel):
     """Schema for updating user account settings."""
@@ -209,5 +208,4 @@ class TrackedTrade(TradeCreate):
     current_strength: Optional[float] = None
     alert: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

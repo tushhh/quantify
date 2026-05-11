@@ -17,7 +17,7 @@ from __future__ import annotations
 import enum
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -101,7 +101,7 @@ class Order:
     id:
         UUID string, auto-generated if not provided.
     created_at:
-        When the order was created.  Defaults to ``datetime.utcnow()``.
+        When the order was created.  Defaults to ``datetime.now(timezone.utc)``.
     filled_at:
         When the order was fully filled.  ``None`` until then.
     filled_price:
@@ -128,7 +128,7 @@ class Order:
     # Lifecycle state — mutated by the order manager / broker adapter
     status: OrderStatus = field(default=OrderStatus.PENDING)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     filled_at: Optional[datetime] = None
     filled_price: Optional[float] = None
     filled_quantity: float = 0.0

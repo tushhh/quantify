@@ -104,6 +104,9 @@ class Strategy(ABC):
     #: How frequently to re-run signal generation.
     rebalance_frequency: str = "daily"  # "daily" | "weekly" | "monthly"
 
+    #: Optional portfolio allocation weight (0.0–1.0) supplied by callers.
+    allocation: float = 0.0
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------

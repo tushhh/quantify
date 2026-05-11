@@ -177,7 +177,8 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         extra_params = cfg.params if cfg else {}
         try:
             log.info(f"Instantiating {name} with allocation {allocation*100:.0f}% and params: {extra_params}")
-            instance = cls(allocation=allocation, **extra_params)
+            instance = cls(**extra_params)
+            setattr(instance, "allocation", allocation)
             instances.append(instance)
             log.info(f"Successfully instantiated {name}")
         except Exception as exc:
@@ -224,11 +225,10 @@ def _build_position_sizer(req: BacktestRequest):
 def _build_risk_manager(req: BacktestRequest):
     from quantify.risk.portfolio_risk import PortfolioRiskManager
     return PortfolioRiskManager(
-        max_portfolio_drawdown=req.risk.max_portfolio_drawdown,
+        max_drawdown=req.risk.max_portfolio_drawdown,
         max_gross_leverage=req.risk.max_gross_leverage,
-        max_single_position=req.risk.max_single_position,
         max_sector_exposure=req.risk.max_sector_exposure,
-        daily_loss_limit=req.risk.daily_loss_limit,
+        max_daily_loss=req.risk.daily_loss_limit,
     )
 
 
@@ -336,7 +336,11 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         log.error(f"Backtest engine failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Backtest execution failed: {str(exc)}") from exc
     
-    log.info(f"Backtest complete: {result.total_trades} trades, {result.total_return*100:.2f}% return")
+    log.info(
+        "Backtest complete: %d trades, %.2f%% return",
+        len(result.trades),
+        result.total_return * 100,
+    )
 
     # ── Build benchmark series ─────────────────────────────────────────────
     benchmark_series: Optional[pd.Series] = None
