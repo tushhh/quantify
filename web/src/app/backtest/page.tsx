@@ -50,6 +50,15 @@ export default function BacktestPage() {
     }
   }, [strategyInfos.length, presets.length, setStrategyInfos, setPresets]);
 
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
   const handleRun = async () => {
     if (isRunning) {
       abortRef.current?.abort();

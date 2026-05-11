@@ -38,7 +38,11 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 async def check_alerts_loop():
-    """Background check for trades that need selling (managed by APScheduler)."""
+    """Background check for trades that need selling (managed by APScheduler).
+    
+    Sends an alert once per trade when its hold period expires, preventing
+    duplicate notifications via the alerted_at timestamp.
+    """
     if not BOT_TOKEN:
         return
         
@@ -47,7 +51,11 @@ async def check_alerts_loop():
     try:
         db = SessionLocal()
         now = datetime.now(timezone.utc)
-        active_trades = db.query(Trade).filter(Trade.status == "active").all()
+        # Only process active trades that have not yet been alerted
+        active_trades = db.query(Trade).filter(
+            Trade.status == "active",
+            Trade.alerted_at == None
+        ).all()
         
         for trade in active_trades:
             user = db.query(User).filter(User.id == trade.user_id).first()
@@ -60,7 +68,10 @@ async def check_alerts_loop():
                 log.info(f"Sending alert to chat {user.telegram_chat_id}: {msg}")
                 try:
                     await bot.send_message(chat_id=user.telegram_chat_id, text=msg)
-                    # Mark trade as alerted or closed so we don't spam. For MVP, we'll just log.
+                    # Mark trade as alerted so we don't send duplicate alerts
+                    trade.alerted_at = now
+                    db.commit()
+                    log.info(f"Alert recorded for trade {trade.id} at {now}")
                 except Exception as e:
                     log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
         

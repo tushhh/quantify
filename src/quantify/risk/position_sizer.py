@@ -403,11 +403,8 @@ class VolatilityTargetSizer(PositionSizer):
         risk_budget = (self.target_annual_vol / n) * portfolio.nav
         raw_shares = risk_budget / (price * max(ann_vol, 1e-9))
 
-        # Avoid full-cap saturation on very low-volatility names by blending the
-        # vol budget with a half-cap floor. This keeps relative sizing monotonic
-        # while still respecting the hard cap.
-        raw_shares = min(raw_shares, (self._max_dollar_value(portfolio) / price) * 0.8)
-
+        # Apply the hard position cap via _cap_shares (single point of truth).
+        # Do not pre-apply a separate min() here to avoid double-capping.
         result = self._cap_shares(raw_shares, price, portfolio, signal.direction)
         log.debug(
             "VolatilityTargetSizer: %s nav=%.2f ann_vol=%.4f n=%d price=%.4f → %.0f shares",

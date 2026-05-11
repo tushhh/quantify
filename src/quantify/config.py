@@ -391,11 +391,16 @@ def _build_singleton() -> Settings:
 
 try:
     settings: Settings = _build_singleton()
-except Exception:
-    # Re-expose as a callable so callers can load lazily:
-    #   from quantify.config import load_settings
-    #   settings = load_settings()
-    settings = None  # type: ignore[assignment]
+except Exception as exc:
+    # Re-raise so callers know immediately about config errors. Do NOT silently
+    # set to None as it leads to confusing AttributeError later.
+    log.critical(
+        "Failed to load settings from %s: %s", _SETTINGS_PATH, exc, exc_info=True
+    )
+    raise RuntimeError(
+        f"Configuration load failed: {exc}. Ensure {_SETTINGS_PATH} exists "
+        "and is valid YAML."
+    ) from exc
 
 
 __all__ = [

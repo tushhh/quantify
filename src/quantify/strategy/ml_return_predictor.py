@@ -173,6 +173,7 @@ class MLReturnPredictorStrategy(Strategy):
         # Model state
         self._model: Any = None
         self._feature_importances: Optional[dict[str, float]] = None
+        self._model_backends: list[str] = []
         self._last_train_date: Optional[datetime] = None
         self._last_rebalance_date: Optional[datetime] = None
         self._signal_cache: list[Signal] = []
@@ -195,6 +196,7 @@ class MLReturnPredictorStrategy(Strategy):
         """Reset model state at session start."""
         self._model = None
         self._feature_importances = None
+        self._model_backends = []
         self._last_train_date = None
         self._last_rebalance_date = None
         self._signal_cache = []
@@ -348,7 +350,7 @@ class MLReturnPredictorStrategy(Strategy):
             self.name, len(X), len(self.features),
         )
 
-        model = _build_model(self.lgbm_params)
+        model, backends = _build_model(self.lgbm_params)
         if model is None:
             log.error("%s: no ML backend available (LightGBM or sklearn)", self.name)
             return
@@ -362,6 +364,7 @@ class MLReturnPredictorStrategy(Strategy):
                 return
 
         self._model = model
+        self._model_backends = backends
 
         # Extract feature importances
         try:
@@ -387,6 +390,7 @@ class MLReturnPredictorStrategy(Strategy):
         # Use the current time so we know when the last retrain happened
         self._last_train_date = datetime.now(timezone.utc)
         log.info("%s: model training complete", self.name)
+        log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
 
     # ------------------------------------------------------------------
     # Prediction
@@ -483,6 +487,7 @@ class MLReturnPredictorStrategy(Strategy):
                     else None
                 ),
                 "n_predictions": len(predictions),
+                "model_backends": list(self._model_backends),
             }
             if fi_meta is not None:
                 meta["feature_importance_top10"] = fi_meta
@@ -544,21 +549,23 @@ class MLReturnPredictorStrategy(Strategy):
 # ---------------------------------------------------------------------------
 
 
-def _build_model(params: dict[str, Any]) -> Any:
+def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     """
-    Return a VotingRegressor ensemble of LightGBM, XGBoost, and CatBoost.
-    Falls back to whichever are available.
+    Return a VotingRegressor ensemble of LightGBM, XGBoost, and CatBoost,
+    plus a list of backend names actually used.
     """
     from sklearn.ensemble import VotingRegressor
     
-    estimators = []
+    estimators: list[tuple[str, Any]] = []
+    backends: list[str] = []
     
     # 1. LightGBM
     try:
         from lightgbm import LGBMRegressor
         estimators.append(("lgbm", LGBMRegressor(**params)))
+        backends.append("lgbm")
     except ImportError:
-        log.warning("LightGBM not found for ensemble.")
+        log.error("LightGBM not found for ensemble.")
 
     # 2. XGBoost
     try:
@@ -571,8 +578,9 @@ def _build_model(params: dict[str, Any]) -> Any:
             "random_state": 42
         }
         estimators.append(("xgboost", XGBRegressor(**xgb_params)))
+        backends.append("xgboost")
     except ImportError:
-        log.warning("XGBoost not found for ensemble.")
+        log.error("XGBoost not found for ensemble.")
 
     # 3. CatBoost
     try:
@@ -585,13 +593,14 @@ def _build_model(params: dict[str, Any]) -> Any:
             "random_seed": 42
         }
         estimators.append(("catboost", CatBoostRegressor(**cb_params)))
+        backends.append("catboost")
     except ImportError:
-        log.warning("CatBoost not found for ensemble.")
+        log.error("CatBoost not found for ensemble.")
 
     if not estimators:
         log.error("No ML backends available! Falling back to sklearn.")
         from sklearn.ensemble import GradientBoostingRegressor
-        return GradientBoostingRegressor(n_estimators=100)
+        return GradientBoostingRegressor(n_estimators=100), ["sklearn_fallback"]
 
     # Return the weighted ensemble
     # We give LightGBM slightly more weight as it's the gold standard for finance
@@ -600,7 +609,7 @@ def _build_model(params: dict[str, Any]) -> Any:
         if name == "lgbm": weights.append(1.5)
         else: weights.append(1.0)
         
-    return VotingRegressor(estimators=estimators, weights=weights)
+    return VotingRegressor(estimators=estimators, weights=weights), backends
 
 
 __all__ = ["MLReturnPredictorStrategy"]

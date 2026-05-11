@@ -34,7 +34,7 @@ export default function DashboardPage() {
       try {
         const u = await api.auth.me();
         setUser(u);
-        void loadTrades();
+        loadTrades().catch((err) => console.error("Failed to load trades:", err));
       } catch {
         router.push("/login");
       } finally {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCloseTrade = async (id: string) => {
+  const handleCloseTrade = async (id: number) => {
     try {
       await api.trades.close(id);
       loadTrades();

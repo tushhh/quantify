@@ -304,6 +304,9 @@ class BacktestEngine:
         if len(trading_dates) == 0:
             raise ValueError("No trading dates found in data after filtering")
 
+        # Pre-compute date index to avoid O(n) lookups in the main loop
+        date_index = {date: idx for idx, date in enumerate(trading_dates)}
+
         log.info(
             "BacktestEngine.run: %d trading days from %s to %s",
             len(trading_dates), trading_dates[0], trading_dates[-1],
@@ -403,7 +406,7 @@ class BacktestEngine:
             # ---- 4. Generate strategy signals ----
             strategy_signals: list[Signal] = []
             for strat in self.strategies:
-                if not self._should_rebalance(strat, current_date, trading_dates):
+                if not self._should_rebalance(strat, current_date, trading_dates, date_index):
                     continue
                 try:
                     window_data = self._slice_lookback(data, current_date, strat.lookback_days)
@@ -745,8 +748,20 @@ class BacktestEngine:
         strategy: Strategy,
         current_date: date,
         all_dates: list[date],
+        date_index: dict[date, int],
     ) -> bool:
-        """Return True if this strategy should generate signals today."""
+        """Return True if this strategy should generate signals today.
+        
+        Parameters
+        ----------
+        strategy:
+            The strategy to check.
+        current_date:
+            The current trading date.
+        date_index:
+            Pre-computed mapping from date to index in trading dates list.
+            Avoids O(n) list.index() calls inside the main loop.
+        """
         freq = strategy.rebalance_frequency
         if freq == "daily":
             return True
@@ -755,15 +770,15 @@ class BacktestEngine:
             if current_date.weekday() == 0:
                 return True
             # If Monday is not a trading day, use the first available day
-            idx = all_dates.index(current_date)
-            if idx == 0:
+            idx = date_index.get(current_date, -1)
+            if idx <= 0:
                 return True
             prev = all_dates[idx - 1]
             return prev.isocalendar()[1] != current_date.isocalendar()[1]
         if freq == "monthly":
             # First trading day of the month
-            idx = all_dates.index(current_date)
-            if idx == 0:
+            idx = date_index.get(current_date, -1)
+            if idx <= 0:
                 return True
             prev = all_dates[idx - 1]
             return prev.month != current_date.month or prev.year != current_date.year

@@ -17,7 +17,9 @@ export function StrategyConfigurator({ strategies }: Props) {
     .filter((c) => c.enabled)
     .reduce((s, c) => s + c.allocation, 0);
 
-  const allocationWarning = Math.abs(totalAllocation - 1) > 0.02;
+  const enabledCount = Object.values(configs).filter((c) => c.enabled).length;
+
+  const allocationWarning = enabledCount > 0 && Math.abs(totalAllocation - 1) > 0.02;
 
   return (
     <div className="flex flex-col gap-2">

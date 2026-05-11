@@ -183,7 +183,7 @@ export type TradeCreate = {
 };
 
 export type TrackedTrade = TradeCreate & {
-  id: string;
+  id: number;
   created_at: string;
   sell_date: string;
   status: string;
@@ -225,7 +225,7 @@ export const api = {
   trades: {
     create: (req: TradeCreate) => apiFetch<TrackedTrade>("/api/trades", { method: "POST", body: req }),
     list: () => apiFetch<TrackedTrade[]>("/api/trades"),
-    close: (id: string) => apiFetch<{status: string}>(`/api/trades/${id}`, { method: "DELETE" }),
+    close: (id: number) => apiFetch<{status: string}>(`/api/trades/${id}`, { method: "DELETE" }),
   },
   health: () => apiFetch<{ status: string }>("/health"),
 };

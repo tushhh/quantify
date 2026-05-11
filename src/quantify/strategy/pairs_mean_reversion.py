@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -180,6 +180,8 @@ class PairsMeanReversionStrategy(Strategy):
         # Strategy state
         self._pair_states: dict[str, PairState] = {}  # key = "A_B"
         self._formation_complete: bool = False
+        self._last_formation_date: Optional[date] = None
+        self._rerun_formation_interval: str = "monthly"  # "weekly", "monthly", or "never"
 
         log.info(
             "PairsMeanReversionStrategy initialised: %d candidate pairs, "
@@ -199,6 +201,7 @@ class PairsMeanReversionStrategy(Strategy):
         """Reset formation state at the start of each session."""
         self._pair_states = {}
         self._formation_complete = False
+        self._last_formation_date = None
         log.info("%s: formation state reset on start", self.name)
 
     def generate_signals(self, data: dict[str, pd.DataFrame]) -> list[Signal]:
@@ -223,9 +226,27 @@ class PairsMeanReversionStrategy(Strategy):
 
         timestamp = self._latest_timestamp(data)
 
-        # ---- Formation: find cointegrated pairs ----
+        # ---- Formation: find cointegrated pairs (run once, then re-run periodically) ----
+        should_rerun_formation = False
         if not self._formation_complete:
+            should_rerun_formation = True
+        elif self._last_formation_date is not None:
+            # Check if we should re-run formation based on the interval
+            current_date = timestamp.date()
+            if self._rerun_formation_interval == "weekly":
+                should_rerun_formation = (
+                    current_date.isocalendar()[1] != self._last_formation_date.isocalendar()[1]
+                )
+            elif self._rerun_formation_interval == "monthly":
+                should_rerun_formation = (
+                    current_date.month != self._last_formation_date.month
+                    or current_date.year != self._last_formation_date.year
+                )
+            # else "never" or unknown interval: don't re-run
+        
+        if should_rerun_formation:
             self._run_formation(data)
+            self._last_formation_date = timestamp.date()
 
         if not self._pair_states:
             log.warning("%s: no cointegrated pairs found after formation", self.name)

@@ -20,3 +20,4 @@ class Trade(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     sell_date = Column(DateTime)
     status = Column(String, default="active")
+    alerted_at = Column(DateTime, nullable=True, default=None)  # Timestamp when alert was sent
