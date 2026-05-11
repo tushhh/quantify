@@ -70,6 +70,7 @@ function StrategyCard({ info }: { info: StrategyInfo }) {
 export default function StrategiesPage() {
   const [strategies, setStrategies] = useState<StrategyInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"overview" | "params">("overview");
 
   useEffect(() => {
     api.strategies.list()
@@ -86,16 +87,69 @@ export default function StrategiesPage() {
         </p>
       </div>
 
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setView("overview")}
+          className={clsx(
+            "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
+            view === "overview"
+              ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
+              : "border-white/10 text-slate-400 hover:text-white"
+          )}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("params")}
+          className={clsx(
+            "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
+            view === "params"
+              ? "bg-violet-500/20 border-violet-400/40 text-violet-200"
+              : "border-white/10 text-slate-400 hover:text-white"
+          )}
+        >
+          Parameters
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
-      ) : (
+      ) : view === "overview" ? (
         <div className="flex flex-col gap-3">
           {strategies.map((s) => (
             <StrategyCard key={s.name} info={s} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {strategies.map((s) => (
+            <div key={s.name} className="rounded-xl border border-[#1e2d4a] bg-[#0e1525] p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-white">{s.label}</p>
+                <span className="text-xs text-slate-500">{(s.default_allocation * 100).toFixed(0)}% default</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {s.params.map((p) => (
+                  <div key={p.key} className="flex flex-col gap-0.5 p-3 rounded-lg bg-[#070b14] border border-[#1e2d4a]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-300">{p.label}</span>
+                      <Badge variant="blue">{p.type}</Badge>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-mono">
+                      default: {String(p.default)}
+                      {p.min !== undefined && p.max !== undefined && ` | range: ${p.min}–${p.max}`}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{p.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

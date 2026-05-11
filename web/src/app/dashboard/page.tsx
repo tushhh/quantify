@@ -17,8 +17,10 @@ export default function DashboardPage() {
   const [trades, setTrades] = useState<TrackedTrade[]>([]);
   
   const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
-  const [holdStrategy, setHoldStrategy] = useState<"ai" | "custom">("ai");
+  const [tradeError, setTradeError] = useState<string | null>(null);
+  const [holdStrategy, setHoldStrategy] = useState<"ml" | "custom">("ml");
   const [customHoldDays, setCustomHoldDays] = useState("10");
+  const [activeTab, setActiveTab] = useState<"analysis" | "portfolio">("analysis");
 
   const loadTrades = useCallback(async () => {
     try {
@@ -68,17 +70,27 @@ export default function DashboardPage() {
   const handleCreateTrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTrade.symbol || !newTrade.shares || !newTrade.buy_price) return;
+    setTradeError(null);
     try {
+      // Pre-validate symbol via API (fast check + yfinance probe)
+      const sym = newTrade.symbol.trim().toUpperCase();
+      const res = await api.utils.validateSymbol(sym);
+      if (!res.valid) {
+        setTradeError(res.reason ? `Invalid symbol: ${res.reason}` : "Symbol is not a US-listed equity");
+        return;
+      }
+
       await api.trades.create({
-        symbol: newTrade.symbol,
+        symbol: sym,
         shares: parseFloat(newTrade.shares),
         buy_price: parseFloat(newTrade.buy_price),
-        hold_days: holdStrategy === "ai" ? 5 : parseInt(customHoldDays)
+        hold_days: holdStrategy === "ml" ? 5 : parseInt(customHoldDays),
       });
       setNewTrade({ symbol: "", shares: "", buy_price: "" });
       loadTrades();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
+      setTradeError(e instanceof Error ? e.message : "Failed to log trade");
     }
   };
 
@@ -132,20 +144,37 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("analysis")}
+          className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all ${activeTab === "analysis" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" : "border-white/10 text-slate-400 hover:text-white"}`}
+        >
+          ML Analysis
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("portfolio")}
+          className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all ${activeTab === "portfolio" ? "bg-violet-500/20 border-violet-400/40 text-violet-200" : "border-white/10 text-slate-400 hover:text-white"}`}
+        >
+          Portfolio
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         
         {/* ML Prediction Engine */}
-        <div className="flex flex-col gap-4">
+        <div className={`flex flex-col gap-4 ${activeTab !== "analysis" ? "hidden xl:flex" : ""}`}>
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black flex items-center gap-2 text-white">
-              <Crosshair className="text-blue-400" /> AI Predictions
+              <Crosshair className="text-blue-400" /> ML Analysis
             </h2>
             <button 
               onClick={handlePredict}
               disabled={loadingPreds}
               className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:shadow-blue-500/30 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
             >
-              {loadingPreds ? "Analyzing..." : "Run AI Analysis"}
+              {loadingPreds ? "Analyzing..." : "Run ML Analysis"}
             </button>
           </div>
           
@@ -153,7 +182,7 @@ export default function DashboardPage() {
             {predictions.length === 0 && !loadingPreds ? (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3">
                 <Zap size={48} className="opacity-20" />
-                <p className="text-center px-8">Run analysis to see today&apos;s top algorithmically chosen stocks.</p>
+                <p className="text-center px-8">Run ML analysis to see today&apos;s top algorithmically chosen stocks.</p>
               </div>
             ) : loadingPreds ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-4">
@@ -182,7 +211,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Trade Manager */}
-        <div className="flex flex-col gap-4">
+        <div className={`flex flex-col gap-4 ${activeTab !== "portfolio" ? "hidden xl:flex" : ""}`}>
           <h2 className="text-2xl font-black flex items-center gap-2 text-white">
             <Shield className="text-violet-400" /> Active Portfolio
           </h2>
@@ -196,7 +225,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Symbol</label>
-                  <input required type="text" placeholder="e.g. AMD" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-violet-500/50 uppercase" value={newTrade.symbol} onChange={e => setNewTrade({...newTrade, symbol: e.target.value})} />
+                  <input required type="text" placeholder="e.g. AMD" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white outline-none focus:border-violet-500/50 uppercase" value={newTrade.symbol} onChange={e => { setTradeError(null); setNewTrade({...newTrade, symbol: e.target.value}); }} />
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Shares</label>
@@ -212,10 +241,10 @@ export default function DashboardPage() {
               <div className="p-4 rounded-xl border border-white/5 bg-black/20 flex flex-col gap-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Holding Strategy</p>
                 
-                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${holdStrategy === "ai" ? "bg-violet-500/10 border-violet-500/30" : "border-white/5 hover:border-white/10"}`}>
-                  <input type="radio" name="strategy" className="mt-1 accent-violet-500" checked={holdStrategy === "ai"} onChange={() => setHoldStrategy("ai")} />
+                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${holdStrategy === "ml" ? "bg-violet-500/10 border-violet-500/30" : "border-white/5 hover:border-white/10"}`}>
+                  <input type="radio" name="strategy" className="mt-1 accent-violet-500" checked={holdStrategy === "ml"} onChange={() => setHoldStrategy("ml")} />
                   <div>
-                    <p className="text-sm font-bold text-white">Follow AI Advice (5 Days)</p>
+                    <p className="text-sm font-bold text-white">Follow ML Advice (5 Days)</p>
                     <p className="text-xs text-slate-500 mt-0.5">The model predicts maximum returns on a 5-day horizon. We will alert you when it&apos;s time to sell.</p>
                   </div>
                 </label>
@@ -232,6 +261,11 @@ export default function DashboardPage() {
                 </label>
               </div>
 
+              {tradeError && (
+                <div className="text-sm text-rose-400 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 mb-2">
+                  {tradeError}
+                </div>
+              )}
               <button type="submit" className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98]">
                 Log Trade & Activate Alerts
               </button>

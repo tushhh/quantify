@@ -63,7 +63,7 @@ export default function SignUpPage() {
           </div>
 
           <h1 className="text-2xl font-black text-center text-white mb-1">Create Your Account</h1>
-          <p className="text-center text-slate-500 text-sm mb-8">Start trading with AI-powered predictions</p>
+          <p className="text-center text-slate-500 text-sm mb-8">Start trading with ML-powered predictions</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
@@ -151,14 +151,14 @@ export default function SignUpPage() {
             <h2 className="text-2xl font-black text-white text-center mb-3">Activate Alerts</h2>
             
             <p className="text-slate-400 text-center text-sm mb-6 leading-relaxed">
-              Your account is created! To receive instant buy/sell alerts, you must connect your device to our Telegram bot.
+              Your account is created! To receive instant buy/sell alerts, connect your Telegram account to the Quantify bot.
             </p>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
               <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
-                <li>Click the button below to open Telegram.</li>
-                <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>
-                <li>Return to the dashboard.</li>
+                <li>Open Telegram using the button below.</li>
+                <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> in the bot chat.</li>
+                <li>Return to the dashboard to confirm the connection.</li>
               </ol>
             </div>
 

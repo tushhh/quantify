@@ -112,6 +112,21 @@ quantify backtest `
 quantify paper-trade --strategy momentum --dry-run
 ```
 
+### Portfolio Symbol Validation
+
+When logging trades in the dashboard, Quantify validates that the ticker exists
+and is a US-listed equity. The API exposes a lightweight validator at:
+
+```
+GET /api/utils/validate_symbol?symbol=AMD
+```
+
+Response:
+
+```
+{ "valid": true, "exchange": "NASDAQ" }
+```
+
 ---
 
 ## CLI Reference

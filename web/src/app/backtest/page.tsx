@@ -139,6 +139,7 @@ export default function BacktestPage() {
                       onChange={(e) => setStartDate(e.target.value)}
                       className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
                     />
+                    <p className="text-[10px] text-slate-500 mt-1">First day included in the simulation.</p>
                   </div>
                   <div>
                     <label className="text-xs text-slate-400 block mb-1.5">End Date</label>
@@ -148,6 +149,7 @@ export default function BacktestPage() {
                       onChange={(e) => setEndDate(e.target.value)}
                       className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
                     />
+                    <p className="text-[10px] text-slate-500 mt-1">Last day included in the simulation.</p>
                   </div>
                 </div>
 
@@ -162,6 +164,7 @@ export default function BacktestPage() {
                     onChange={(e) => setInitialCapital(Number(e.target.value))}
                     className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">Starting cash balance used for all portfolio sizing.</p>
                 </div>
 
                 <div>
@@ -175,6 +178,7 @@ export default function BacktestPage() {
                     <option value="QQQ">QQQ — Nasdaq 100</option>
                     <option value="IWM">IWM — Russell 2000</option>
                   </select>
+                  <p className="text-[10px] text-slate-500 mt-1">Used for comparison only. Not traded by strategies.</p>
                 </div>
               </div>
             </Card>
@@ -203,10 +207,14 @@ export default function BacktestPage() {
                 ) : (
                   <ChevronDown size={16} />
                 )}
-                Advanced Settings
+                Advanced Options
               </span>
               {showAdvanced && <span className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded">Open</span>}
             </button>
+
+            <p className="text-[11px] text-slate-500 px-1">
+              Keep basic controls visible unless you need strategy overrides, custom allocations, or advanced risk settings.
+            </p>
 
             {/* Advanced section - Collapsible */}
             {showAdvanced && (

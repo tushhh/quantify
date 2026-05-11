@@ -25,6 +25,7 @@ export default function UniversePage() {
   const [filter, setFilter]       = useState<string>("All");
   const [search, setSearch]       = useState("");
   const [loading, setLoading]     = useState(true);
+  const [view, setView]           = useState<"sectors" | "list">("sectors");
 
   useEffect(() => {
     api.universe.get()
@@ -57,6 +58,33 @@ export default function UniversePage() {
         <p className="text-xs text-slate-500 mt-1">
           Stock universe used in backtesting — {tickers.length} tickers across {sectors.length - 1} sectors.
         </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setView("sectors")}
+          className={clsx(
+            "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
+            view === "sectors"
+              ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
+              : "border-white/10 text-slate-400 hover:text-white"
+          )}
+        >
+          By Sector
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("list")}
+          className={clsx(
+            "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
+            view === "list"
+              ? "bg-violet-500/20 border-violet-400/40 text-violet-200"
+              : "border-white/10 text-slate-400 hover:text-white"
+          )}
+        >
+          All Tickers
+        </button>
       </div>
 
       {/* Filters */}
@@ -98,7 +126,7 @@ export default function UniversePage() {
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : (
+      ) : view === "sectors" ? (
         <div className="flex flex-col gap-6">
           {Object.entries(bySector).map(([sector, items]) => (
             <div key={sector}>
@@ -134,6 +162,26 @@ export default function UniversePage() {
               No tickers match your filters
             </div>
           )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-[#1e2d4a] bg-[#0e1525] overflow-hidden">
+          <div className="grid grid-cols-3 px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-[#1e2d4a]">
+            <span>Symbol</span>
+            <span>Company</span>
+            <span className="text-right">Sector</span>
+          </div>
+          <div className="max-h-[520px] overflow-y-auto">
+            {visible.map((t) => (
+              <div key={t.symbol} className="grid grid-cols-3 px-4 py-3 text-xs border-b border-white/5 hover:bg-white/[0.02]">
+                <span className="font-mono text-white">{t.symbol}</span>
+                <span className="text-slate-400 line-clamp-1">{t.name}</span>
+                <span className="text-right text-slate-500">{t.sector}</span>
+              </div>
+            ))}
+            {visible.length === 0 && (
+              <div className="text-center py-10 text-slate-600 text-sm">No tickers match your filters</div>
+            )}
+          </div>
         </div>
       )}
     </div>

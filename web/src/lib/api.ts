@@ -215,6 +215,9 @@ export const api = {
       apiFetch<UniverseResponse>(`/api/universe${sector ? `?sector=${encodeURIComponent(sector)}` : ""}`),
     sectors: () => apiFetch<string[]>("/api/universe/sectors"),
   },
+  utils: {
+    validateSymbol: (symbol: string) => apiFetch<{ valid: boolean; reason?: string; exchange?: string }>(`/api/utils/validate_symbol?symbol=${encodeURIComponent(symbol)}`),
+  },
   backtest: {
     run: (req: BacktestRequest, signal?: AbortSignal) =>
       apiFetch<BacktestResponse>("/api/backtest", { method: "POST", body: req, signal }),

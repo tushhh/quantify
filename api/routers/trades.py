@@ -9,6 +9,7 @@ from api.schemas import TrackedTrade, TradeCreate
 from api.database import get_db
 from api.models import Trade as DBTrade, User as DBUser
 from api.routers.auth import get_current_user
+from api.routers import utils as utils_router
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 log = logging.getLogger("quantify.api.trades")
@@ -23,6 +24,14 @@ async def create_trade(
     """Log a new trade to track for the current user."""
     created_at = datetime.now(timezone.utc)
     sell_date = created_at + timedelta(days=req.hold_days)
+    # Validate symbol exists and is a US-listed equity
+    sym = req.symbol.strip().upper()
+    try:
+        valid, meta = utils_router._is_us_equity(sym)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Symbol validation failed")
+    if not valid:
+        raise HTTPException(status_code=400, detail=f"Invalid symbol or not US-listed: {sym} ({meta})")
     
     db_trade = DBTrade(
         user_id=current_user.id,
@@ -44,7 +53,7 @@ async def create_trade(
         background_tasks.add_task(send_telegram_alert, current_user.telegram_username, msg)
     
     return TrackedTrade(
-        id=str(db_trade.id),
+        id=db_trade.id,
         symbol=db_trade.symbol,
         shares=db_trade.shares,
         buy_price=db_trade.buy_price,
@@ -73,7 +82,7 @@ async def list_trades(
                 alert = "Sell date approaching (within 24h)"
                 
         res.append(TrackedTrade(
-            id=str(t.id),
+            id=t.id,
             symbol=t.symbol,
             shares=t.shares,
             buy_price=t.buy_price,

@@ -6,10 +6,10 @@ import { Navbar } from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Quantify — AI-Powered Trading Platform",
+  title: "Quantify — ML-Powered Trading Platform",
   description:
-    "Trade smarter with AI-driven intelligence. 6 production-grade strategies, ensemble machine learning predictions, and automated Telegram alerts.",
-  keywords: ["quantitative trading", "AI trading", "backtesting", "algorithmic trading", "machine learning"],
+    "Trade smarter with machine learning intelligence. 6 production-grade strategies, ensemble ML predictions, and automated Telegram alerts.",
+  keywords: ["quantitative trading", "machine learning trading", "backtesting", "algorithmic trading", "ML analysis"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

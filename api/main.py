@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from api.routers import backtest, risk, strategies, universe, predict, trades, auth
+from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils
 from api.database import engine
 from api import models
 from api.telegram_bot import check_alerts_loop
@@ -95,6 +95,7 @@ app.include_router(universe.router, prefix="/api")
 app.include_router(risk.router, prefix="/api")
 app.include_router(predict.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
+app.include_router(utils.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

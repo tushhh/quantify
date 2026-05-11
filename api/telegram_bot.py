@@ -23,19 +23,31 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     db = SessionLocal()
-    # Handle the case where user stored username with or without '@'
-    user = db.query(User).filter(
-        (User.telegram_username == telegram_username) | 
-        (User.telegram_username == f"@{telegram_username}")
-    ).first()
-    
-    if user:
-        user.telegram_chat_id = chat_id
-        db.commit()
-        await update.message.reply_text(f"✅ Welcome to Quantify, @{telegram_username}! Your device is now connected. You will receive automated buy/sell alerts here.")
-    else:
-        await update.message.reply_text(f"❌ I couldn't find your username (@{telegram_username}) in Quantify. Please go to your Account Settings on the dashboard and enter your exact Telegram username, then come back here and type /start again.")
-    db.close()
+    try:
+        # Handle the case where user stored username with or without '@'
+        user = db.query(User).filter(
+            (User.telegram_username == telegram_username) |
+            (User.telegram_username == f"@{telegram_username}")
+        ).first()
+
+        if user:
+            user.telegram_chat_id = chat_id
+            db.commit()
+            await update.message.reply_text(
+                f"✅ Welcome to Quantify, @{telegram_username}! Your device is now connected. You will receive automated buy/sell alerts here."
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ I couldn't find your username (@{telegram_username}) in Quantify. Please go to your Account Settings on the dashboard and enter your exact Telegram username, then come back here and type /start again."
+            )
+    except Exception as exc:
+        db.rollback()
+        log.exception("Failed to link Telegram chat for @%s: %s", telegram_username, exc)
+        await update.message.reply_text(
+            "⚠️ I could not connect your Telegram account right now. Please try /start again in a moment."
+        )
+    finally:
+        db.close()
 
 async def check_alerts_loop():
     """Background check for trades that need selling (managed by APScheduler).
@@ -48,8 +60,8 @@ async def check_alerts_loop():
         
     bot = Bot(token=BOT_TOKEN)
     
+    db = SessionLocal()
     try:
-        db = SessionLocal()
         now = datetime.now(timezone.utc)
         # Only process active trades that have not yet been alerted
         active_trades = db.query(Trade).filter(
@@ -75,9 +87,11 @@ async def check_alerts_loop():
                 except Exception as e:
                     log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
         
-        db.close()
     except Exception as e:
-        log.error(f"Error checking alerts: {e}")
+        db.rollback()
+        log.exception("Error checking alerts: %s", e)
+    finally:
+        db.close()
 
 async def send_telegram_alert(username: str, message: str):
     """Instantly send a Telegram alert to a user using their saved chat_id."""
@@ -85,18 +99,20 @@ async def send_telegram_alert(username: str, message: str):
         return
         
     db = SessionLocal()
-    user = db.query(User).filter(User.telegram_username == username).first()
-    db.close()
-    
-    if user and user.telegram_chat_id:
-        try:
-            bot = Bot(token=BOT_TOKEN)
-            await bot.send_message(chat_id=user.telegram_chat_id, text=message)
-            log.info(f"🚀 INSTANT TELEGRAM ALERT sent to @{username}")
-        except Exception as e:
-            log.error(f"Failed to send instant alert to @{username}: {e}")
-    else:
-        log.warning(f"Could not send instant alert to @{username}: No chat_id found. They need to /start the bot.")
+    try:
+        user = db.query(User).filter(User.telegram_username == username).first()
+
+        if user and user.telegram_chat_id:
+            try:
+                bot = Bot(token=BOT_TOKEN)
+                await bot.send_message(chat_id=user.telegram_chat_id, text=message)
+                log.info(f"🚀 INSTANT TELEGRAM ALERT sent to @{username}")
+            except Exception:
+                log.exception("Failed to send instant alert to @%s", username)
+        else:
+            log.warning(f"Could not send instant alert to @{username}: No chat_id found. They need to /start the bot.")
+    finally:
+        db.close()
 
 # Global bot application instance
 telegram_app = None
