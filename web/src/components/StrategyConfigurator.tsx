@@ -61,6 +61,8 @@ export function StrategyConfigurator({ strategies }: Props) {
                   "w-9 h-5 rounded-full transition-colors shrink-0 relative",
                   cfg.enabled ? "bg-cyan-600" : "bg-slate-700"
                 )}
+                role="switch"
+                aria-checked={cfg.enabled}
                 aria-label={cfg.enabled ? "Disable" : "Enable"}
               >
                 <span
@@ -86,6 +88,8 @@ export function StrategyConfigurator({ strategies }: Props) {
                   onClick={() => setExpanded(isOpen ? null : info.name)}
                   className="text-slate-500 hover:text-white transition-colors"
                   disabled={!cfg.enabled}
+                  aria-label={isOpen ? "Collapse settings" : "Expand settings"}
+                  aria-expanded={isOpen}
                 >
                   {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
@@ -122,6 +126,9 @@ export function StrategyConfigurator({ strategies }: Props) {
                             "w-8 h-4 rounded-full transition-colors relative",
                             currentVal ? "bg-cyan-600" : "bg-slate-700"
                           )}
+                          role="switch"
+                          aria-checked={currentVal as boolean}
+                          aria-label={p.label}
                         >
                           <span
                             className={clsx(
