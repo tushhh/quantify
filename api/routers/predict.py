@@ -65,4 +65,4 @@ async def get_best_predictions(top_n: int = 5):
         )
     except Exception as e:
         log.exception("Prediction failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal server error occurred during prediction.")
