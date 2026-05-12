@@ -48,18 +48,18 @@ export function StrategyConfigurator({ strategies }: Props) {
             className={clsx(
               "rounded-lg glass transition-all overflow-hidden",
               cfg.enabled
-                ? "border-cyan-500/30"
+                ? "border-blue-500/30"
                 : "border-slate-700/30 opacity-50"
             )}
           >
             {/* Header row */}
-            <div className="flex items-center gap-3 p-3 hover:bg-cyan-500/5 transition-colors">
+            <div className="flex items-center gap-3 p-3 hover:bg-blue-500/5 transition-colors">
               {/* Enable toggle */}
               <button
                 onClick={() => setStrategy(info.name, { enabled: !cfg.enabled })}
                 className={clsx(
                   "w-9 h-5 rounded-full transition-colors shrink-0 relative",
-                  cfg.enabled ? "bg-cyan-600" : "bg-slate-700"
+                  cfg.enabled ? "bg-blue-600" : "bg-slate-700"
                 )}
                 aria-label={cfg.enabled ? "Disable" : "Enable"}
               >
@@ -79,7 +79,7 @@ export function StrategyConfigurator({ strategies }: Props) {
 
               {/* Allocation */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono text-cyan-400">
+                <span className="text-xs font-mono text-blue-400">
                   {(cfg.allocation * 100).toFixed(0)}%
                 </span>
                 <button
@@ -120,7 +120,7 @@ export function StrategyConfigurator({ strategies }: Props) {
                           }
                           className={clsx(
                             "w-8 h-4 rounded-full transition-colors relative",
-                            currentVal ? "bg-cyan-600" : "bg-slate-700"
+                            currentVal ? "bg-blue-600" : "bg-slate-700"
                           )}
                         >
                           <span
@@ -150,7 +150,7 @@ export function StrategyConfigurator({ strategies }: Props) {
                               className={clsx(
                                 "px-2.5 py-1 rounded text-[10px] font-semibold border transition-all",
                                 currentVal === opt
-                                  ? "bg-cyan-600 border-cyan-500 text-white"
+                                  ? "bg-blue-600 border-blue-500 text-white"
                                   : "bg-slate-700/30 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600"
                               )}
                             >

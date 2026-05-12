@@ -26,7 +26,7 @@ function TradeHeaderCell({
     >
       <span className="flex items-center gap-1">
         {label}
-        <ArrowUpDown size={9} className={clsx(active ? "text-cyan-400" : "text-slate-600", ascending ? "rotate-180" : "")} />
+        <ArrowUpDown size={9} className={clsx(active ? "text-blue-400" : "text-slate-600", ascending ? "rotate-180" : "")} />
       </span>
     </th>
   );

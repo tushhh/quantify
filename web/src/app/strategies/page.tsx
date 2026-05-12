@@ -9,7 +9,7 @@ import { Card, Skeleton, Badge } from "@/components/ui";
 
 const STRATEGY_COLORS: Record<string, string> = {
   trend_following:          "text-blue-400   bg-blue-500/10   border-blue-500/30",
-  cross_sectional_momentum: "text-violet-400 bg-violet-500/10 border-violet-500/30",
+  cross_sectional_momentum: "text-purple-400 bg-purple-500/10 border-purple-500/30",
   pairs_mean_reversion:     "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
   quality_value:            "text-amber-400  bg-amber-500/10  border-amber-500/30",
   ml_return_predictor:      "text-rose-400   bg-rose-500/10   border-rose-500/30",
@@ -106,7 +106,7 @@ export default function StrategiesPage() {
           className={clsx(
             "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
             view === "params"
-              ? "bg-violet-500/20 border-violet-400/40 text-violet-200"
+              ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
               : "border-white/10 text-slate-400 hover:text-white"
           )}
         >
