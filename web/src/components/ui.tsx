@@ -190,7 +190,6 @@ export function Slider({
       </div>
       <input
         id={id}
-        aria-valuetext={display}
         type="range"
         min={min}
         max={max}
