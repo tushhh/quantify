@@ -19,8 +19,8 @@ export default function DashboardPage() {
   
   const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
   const [tradeError, setTradeError] = useState<string | null>(null);
-  const [holdStrategy, setHoldStrategy] = useState<"ml" | "custom">("ml");
-  const [customHoldDays, setCustomHoldDays] = useState("10");
+  const [holdUnit, setHoldUnit] = useState<"days" | "months" | "years">("days");
+  const [holdValue, setHoldValue] = useState("10");
   const [activeTab, setActiveTab] = useState<"analysis" | "portfolio">("analysis");
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [symbolIndex, setSymbolIndex] = useState(0);
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       ).slice(0, 8)
     : universe.slice(0, 8);
   const isSymbolInUniverse = !!symbolQuery && universe.some((t) => t.symbol === symbolQuery);
-  const canSubmitTrade = isSymbolInUniverse && !!newTrade.shares && !!newTrade.buy_price;
+  const canSubmitTrade = isSymbolInUniverse && !!newTrade.shares && !!newTrade.buy_price && !!holdValue;
 
   useEffect(() => {
     if (!symbolOpen) return;
@@ -115,11 +115,18 @@ export default function DashboardPage() {
         return;
       }
 
+      const holdInt = parseInt(holdValue);
+      if (!Number.isFinite(holdInt) || holdInt <= 0) {
+        setTradeError("Enter a valid holding duration.");
+        return;
+      }
+
       await api.trades.create({
         symbol: sym,
         shares: parseFloat(newTrade.shares),
         buy_price: parseFloat(newTrade.buy_price),
-        hold_days: holdStrategy === "ml" ? 5 : parseInt(customHoldDays),
+        hold_unit: holdUnit,
+        hold_value: holdInt,
       });
       setNewTrade({ symbol: "", shares: "", buy_price: "" });
       loadTrades();
@@ -345,28 +352,39 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Holding Strategy */}
+              {/* Holding Duration */}
               <div className="p-4 rounded-xl border border-white/5 bg-black/20 flex flex-col gap-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Holding Strategy</p>
-                
-                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${holdStrategy === "ml" ? "bg-blue-500/10 border-blue-500/30" : "border-white/5 hover:border-white/10"}`}>
-                  <input type="radio" name="strategy" className="mt-1 accent-blue-500" checked={holdStrategy === "ml"} onChange={() => setHoldStrategy("ml")} />
-                  <div>
-                    <p className="text-sm font-bold text-white">Follow ML Advice (5 Days)</p>
-                    <p className="text-xs text-slate-500 mt-0.5">The model predicts maximum returns on a 5-day horizon. We will alert you when it&apos;s time to sell.</p>
-                  </div>
-                </label>
-
-                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${holdStrategy === "custom" ? "bg-blue-500/10 border-blue-500/30" : "border-white/5 hover:border-white/10"}`}>
-                  <input type="radio" name="strategy" className="mt-1 accent-blue-500" checked={holdStrategy === "custom"} onChange={() => setHoldStrategy("custom")} />
-                  <div className="w-full">
-                    <p className="text-sm font-bold text-white">Custom Duration</p>
-                    <p className="text-xs text-slate-500 mt-0.5 mb-2">Set your own holding period.</p>
-                    {holdStrategy === "custom" && (
-                      <input type="number" min="1" className="w-full max-w-[150px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white outline-none focus:border-blue-500/50 text-sm" value={customHoldDays} onChange={e => setCustomHoldDays(e.target.value)} />
-                    )}
-                  </div>
-                </label>
+                <p className="text-xs font-semibold text-slate-500 uppercase">Holding Duration</p>
+                <div className="flex flex-wrap gap-2">
+                  {(["days", "months", "years"] as const).map((unit) => (
+                    <label
+                      key={unit}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs uppercase tracking-wider font-semibold cursor-pointer transition-all ${
+                        holdUnit === unit ? "bg-blue-500/10 border-blue-500/30 text-blue-200" : "border-white/10 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="hold_unit"
+                        className="accent-blue-500"
+                        checked={holdUnit === unit}
+                        onChange={() => setHoldUnit(unit)}
+                      />
+                      {unit}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full max-w-[180px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500/50 text-sm"
+                    value={holdValue}
+                    onChange={(e) => setHoldValue(e.target.value)}
+                  />
+                  <span className="text-xs text-slate-500">Duration length</span>
+                </div>
+                <p className="text-xs text-slate-500">We will monitor the position against your selected horizon and alert if the outlook turns negative.</p>
               </div>
 
               {tradeError && (
@@ -413,8 +431,9 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-[11px] text-slate-600 font-mono uppercase tracking-widest">
+                  <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap justify-between gap-2 text-[11px] text-slate-600 font-mono uppercase tracking-widest">
                     <span>In: {new Date(t.created_at).toLocaleDateString()}</span>
+                    <span>Hold: {t.hold_value ?? t.hold_days} {t.hold_unit ?? "days"}</span>
                     <span className="text-blue-400">Target Out: {new Date(t.sell_date).toLocaleDateString()}</span>
                   </div>
                 </Card>

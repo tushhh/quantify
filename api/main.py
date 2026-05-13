@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils
-from api.database import engine
+from api.database import engine, ensure_trade_columns
 from api import models
 from api.telegram_bot import check_alerts_loop
 
@@ -32,13 +32,14 @@ async def lifespan(app: FastAPI):
     # Initialize DB tables only if they don't exist. SQLAlchemy's checkfirst=True
     # (default) makes this a no-op on existing schema, so it's safe to call at startup.
     models.Base.metadata.create_all(bind=engine)
+    ensure_trade_columns()
     
     # Start telegram bot polling
     await start_telegram_bot()
     
-    # Start the background task for telegram alerts (scheduled every hour)
+    # Start the background task for telegram alerts (scheduled every 3 hours)
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_alerts_loop, 'interval', minutes=60)
+    scheduler.add_job(check_alerts_loop, 'interval', hours=3)
     scheduler.start()
     
     yield

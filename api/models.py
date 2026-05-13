@@ -17,7 +17,13 @@ class Trade(Base):
     shares = Column(Float)
     buy_price = Column(Float)
     hold_days = Column(Integer)
+    hold_unit = Column(String, default="days")
+    hold_value = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     sell_date = Column(DateTime)
     status = Column(String, default="active")
     alerted_at = Column(DateTime, nullable=True, default=None)  # Timestamp when alert was sent
+    last_health_check_at = Column(DateTime, nullable=True, default=None)
+    last_health_strength = Column(Float, nullable=True, default=None)
+    last_health_reason = Column(String, nullable=True, default=None)
+    last_health_alert_at = Column(DateTime, nullable=True, default=None)

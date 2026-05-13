@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from sqlalchemy.orm import Session
 from api.database import SessionLocal
 from api.models import User, Trade
+from api.hold_health import evaluate_hold_health, hold_days_from_unit
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("telegram_bot")
@@ -63,11 +64,19 @@ async def check_alerts_loop():
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        # Only process active trades that have not yet been alerted
-        active_trades = db.query(Trade).filter(
-            Trade.status == "active",
-            Trade.alerted_at == None
-        ).all()
+        # Process all active trades (hold alerts are de-duplicated per trade)
+        active_trades = db.query(Trade).filter(Trade.status == "active").all()
+
+        horizon_days: dict[str, int] = {}
+        symbols: list[str] = []
+        for trade in active_trades:
+            symbols.append(trade.symbol)
+            if trade.hold_unit and trade.hold_value:
+                horizon_days[trade.symbol] = hold_days_from_unit(trade.hold_value, trade.hold_unit)
+            else:
+                horizon_days[trade.symbol] = trade.hold_days
+
+        health_results = evaluate_hold_health(symbols, horizon_days, now=now)
         
         for trade in active_trades:
             user = db.query(User).filter(User.id == trade.user_id).first()
@@ -75,7 +84,7 @@ async def check_alerts_loop():
                 continue
             
             # Check condition: duration ended
-            if now >= trade.sell_date.replace(tzinfo=timezone.utc):
+            if now >= trade.sell_date.replace(tzinfo=timezone.utc) and trade.alerted_at is None:
                 msg = f"🚨 ALERT: Your holding duration for {trade.shares} shares of {trade.symbol} has ended!\n\nIt is time to SELL and secure your position."
                 log.info(f"Sending alert to chat {user.telegram_chat_id}: {msg}")
                 try:
@@ -86,6 +95,29 @@ async def check_alerts_loop():
                     log.info(f"Alert recorded for trade {trade.id} at {now}")
                 except Exception as e:
                     log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
+                continue
+
+            health = health_results.get(trade.symbol)
+            if health:
+                prev_strength = trade.last_health_strength
+                trade.last_health_check_at = now
+                trade.last_health_strength = health.strength
+                trade.last_health_reason = health.reason_text
+
+                if health.strength < 0 and (prev_strength is None or prev_strength >= 0):
+                    msg = (
+                        f"🚨 SELL ALERT: {trade.symbol}\n"
+                        f"Reason: {health.reason_text}\n"
+                        f"Health score: {health.strength:+.2f} (horizon {health.horizon_days}d)"
+                    )
+                    log.info(f"Sending alert to chat {user.telegram_chat_id}: {msg}")
+                    try:
+                        await bot.send_message(chat_id=user.telegram_chat_id, text=msg)
+                        trade.last_health_alert_at = now
+                    except Exception as e:
+                        log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
+
+                db.commit()
         
     except Exception as e:
         db.rollback()
