@@ -45,7 +45,7 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#070b14]">
       {/* Background effects */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-b from-blue-600/10 via-violet-600/8 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-slate-900 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md">
         {/* Back to home */}
@@ -54,10 +54,10 @@ export default function SignUpPage() {
           Back to home
         </Link>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-sm p-8 shadow-2xl shadow-black/40">
+        <div className="rounded-2xl bg-white/[0.02] backdrop-blur-sm p-8 shadow-2xl shadow-black/40">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <TrendingUp size={28} className="text-white" />
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function SignUpPage() {
                 type="text"
                 autoComplete="username"
                 placeholder="Choose a username"
-                className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+                className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
               />
@@ -87,7 +87,7 @@ export default function SignUpPage() {
                   type={showPw ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Create a password"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all pr-12"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all pr-12"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
@@ -109,7 +109,7 @@ export default function SignUpPage() {
               <input
                 type="text"
                 placeholder="@yourusername"
-                className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+                className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
                 value={form.telegram}
                 onChange={(e) => setForm({ ...form, telegram: e.target.value })}
               />
@@ -125,7 +125,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:shadow-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:hover:shadow-none"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
@@ -143,7 +143,7 @@ export default function SignUpPage() {
       {/* Telegram Activation Popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#0e1525] border border-white/10 rounded-2xl shadow-2xl p-8 relative">
+          <div className="w-full max-w-md bg-[#0e1525] rounded-2xl shadow-2xl p-8 relative">
             <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Send size={28} className="text-blue-400" />
             </div>
@@ -154,7 +154,7 @@ export default function SignUpPage() {
               Your account is created! To receive instant buy/sell alerts, connect your Telegram account to the Quantify bot.
             </p>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-6">
               <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
                 <li>Open Telegram using the button below.</li>
                 <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> in the bot chat.</li>
@@ -167,7 +167,7 @@ export default function SignUpPage() {
                 href="https://t.me/QuantifyAlertbot?start=start" 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95"
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
               >
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>

@@ -133,15 +133,15 @@ export function Button({
       onClick={onClick}
       disabled={disabled || loading}
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
         {
-          "gradient-accent hover-lift text-white shadow-lg shadow-cyan-500/20 active:scale-95 hover:shadow-lg hover:shadow-cyan-500/40":
+          "bg-blue-600 hover:bg-blue-700 text-white shadow-sm":
             variant === "primary",
-          "glass hover:border-cyan-500/30 text-slate-300 hover:text-white":
+          "bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 shadow-sm":
             variant === "secondary",
-          "hover:bg-white/5 text-slate-400 hover:text-white":
+          "hover:bg-slate-800 text-slate-300 hover:text-white":
             variant === "ghost",
-          "bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/20":
+          "bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20":
             variant === "danger",
         },
         className
@@ -184,7 +184,7 @@ export function Slider({
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
         <label className="text-xs text-slate-400">{label}</label>
-        <span className="text-xs font-mono font-semibold text-cyan-400">{display}</span>
+        <span className="text-xs font-mono font-semibold text-blue-400">{display}</span>
       </div>
       <input
         type="range"
@@ -193,7 +193,7 @@ export function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full bg-slate-700/40 accent-cyan-400 cursor-pointer"
+        className="w-full h-1.5 rounded-full bg-slate-700 accent-blue-500 cursor-pointer"
       />
     </div>
   );

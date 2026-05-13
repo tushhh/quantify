@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#070b14]">
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-b from-violet-600/10 via-blue-600/8 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-slate-900 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors mb-8">
@@ -39,9 +39,9 @@ export default function LoginPage() {
           Back to home
         </Link>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-sm p-8 shadow-2xl shadow-black/40">
+        <div className="rounded-2xl bg-white/[0.02] backdrop-blur-sm p-8 shadow-2xl shadow-black/40">
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <TrendingUp size={28} className="text-white" />
             </div>
           </div>
@@ -57,7 +57,7 @@ export default function LoginPage() {
                 type="text"
                 autoComplete="username"
                 placeholder="Enter your username"
-                className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all"
+                className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
               />
@@ -71,7 +71,7 @@ export default function LoginPage() {
                   type={showPw ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your password"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all pr-12"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all pr-12"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
@@ -94,7 +94,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98] disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50"
             >
               {loading ? "Logging in..." : "Log In"}
             </button>

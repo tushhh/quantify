@@ -2,18 +2,18 @@
 
 :root{
   --font-sans: 'Inter', 'system-ui', sans-serif;
-  --color-bg: #080c14;
-  --color-indiglow: #1a0a3b;
-  --color-surface: rgba(255,255,255,0.04);
-  --color-surface-2: rgba(255,255,255,0.03);
-  --color-border: rgba(255,255,255,0.08);
-  --color-accent: #00d4ff;
-  --color-accent-secondary: #7c3aed;
-  --color-accent-glow: rgba(0,212,255,0.18);
+  --color-bg: #0f172a;
+  --color-indiglow: transparent;
+  --color-surface: #1e293b;
+  --color-surface-2: #334155;
+  --color-border: #334155;
+  --color-accent: #3b82f6;
+  --color-accent-secondary: #2563eb;
+  --color-accent-glow: transparent;
   --color-success: #10b981;
-  --color-danger: #ff4757;
-  --color-warning: #ffa502;
-  --color-text: #e6eef6;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-text: #f8fafc;
   --color-muted: #94a3b8;
 }
 
@@ -36,20 +36,13 @@ html {
 body {
   min-height: 100vh;
   background-color: var(--color-bg);
-  background-image: radial-gradient(600px 280px at 50% 6%, var(--color-indiglow), transparent 30%), linear-gradient(180deg, rgba(2,6,23,0.6), rgba(4,6,12,1));
   background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle animated mesh */
+/* removed animated mesh */
 .mesh-animated {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle at 20% 10%, rgba(0,212,255,0.03), transparent 10%), repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 72px);
-  opacity: 0.45;
-  mix-blend-mode: screen;
-  animation: shimmer 20s linear infinite;
+  display: none;
 }
 
 /* Scrollbar */
@@ -58,34 +51,31 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--color-accent); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-accent-secondary); }
 
-/* Glass morphism utilities */
+/* Replaced Glass morphism utilities */
 .glass {
-  backdrop-filter: blur(16px);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
 .glass-dark {
-  backdrop-filter: blur(18px);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-  border: 1px solid rgba(255,255,255,0.06);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .gradient-accent {
-  background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-secondary) 100%);
+  background: var(--color-accent);
 }
 
 .gradient-accent-light {
-  background: linear-gradient(135deg, rgba(0, 217, 255, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 /* Recharts overrides */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: rgba(10, 14, 26, 0.8) !important;
-  border: 1px solid var(--color-accent) !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 8px !important;
-  backdrop-filter: blur(10px) !important;
 }
 .recharts-cartesian-grid line { stroke: var(--color-border) !important; opacity: 0.3 !important; }
 .recharts-cartesian-axis-line { stroke: var(--color-border) !important; opacity: 0.3 !important; }
@@ -213,17 +203,17 @@ button, a, input, select, textarea {
 /* Focus states */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
 /* Utility classes */
 .text-glow {
-  text-shadow: 0 0 12px var(--color-accent-glow);
+  text-shadow: none;
 }
 
 .hover-lift {
@@ -232,18 +222,17 @@ button:focus-visible {
 
 .hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(0, 212, 255, 0.12);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 /* Stats row */
 .stats-row { display: flex; gap: 1px; align-items: stretch; }
 .stat-card { flex: 1; padding: 14px; text-align: left; }
-.stat-value { font-size: 1.4rem; font-weight: 800; color: var(--color-accent); }
+.stat-value { font-size: 1.4rem; font-weight: 800; color: var(--color-text); }
 .stat-label { font-size: 0.675rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--color-muted); }
 
 /* CTA glow section */
-.cta-glow { position: relative; overflow: visible; }
-.cta-glow::before { content: ''; position: absolute; inset: -40% -10% auto -10%; height: 360px; background: radial-gradient(closest-side, rgba(0,212,255,0.12), rgba(124,58,237,0.08), transparent 60%); filter: blur(48px); z-index: -1; }
+.cta-glow { position: relative; overflow: hidden; }
 
 /* responsive tweaks */
 @media (max-width: 640px) {

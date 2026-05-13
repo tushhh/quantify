@@ -99,9 +99,9 @@ export default function BacktestPage() {
     <div className="min-h-screen pt-28 pb-24 md:pb-12 animate-fade-in">
       {/* Gradient background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5" />
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-slate-900" />
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-slate-900 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 flex flex-col gap-8">
@@ -109,10 +109,10 @@ export default function BacktestPage() {
         {/* Header */}
         <div className="animate-fade-in-up">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg gradient-accent">
+            <div className="p-2 rounded-lg bg-blue-600">
               <Zap size={20} className="text-white" />
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-slate-100">
               Backtest Engine
             </h1>
           </div>
@@ -137,7 +137,7 @@ export default function BacktestPage() {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:ring-blue-500 focus:ring-1"
                     />
                     <p className="text-[10px] text-slate-500 mt-1">First day included in the simulation.</p>
                   </div>
@@ -147,7 +147,7 @@ export default function BacktestPage() {
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                      className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:ring-blue-500 focus:ring-1"
                     />
                     <p className="text-[10px] text-slate-500 mt-1">Last day included in the simulation.</p>
                   </div>
@@ -162,7 +162,7 @@ export default function BacktestPage() {
                     max={100_000_000}
                     step={1000}
                     onChange={(e) => setInitialCapital(Number(e.target.value))}
-                    className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                    className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:ring-blue-500 focus:ring-1"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">Starting cash balance used for all portfolio sizing.</p>
                 </div>
@@ -172,7 +172,7 @@ export default function BacktestPage() {
                   <select
                     value={benchmark}
                     onChange={(e) => setBenchmark(e.target.value)}
-                    className="w-full rounded-lg glass px-3 py-2 text-xs text-white focus:ring-cyan-500 focus:ring-1"
+                    className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-xs text-white focus:ring-blue-500 focus:ring-1"
                   >
                     <option value="SPY">SPY — S&P 500</option>
                     <option value="QQQ">QQQ — Nasdaq 100</option>
@@ -199,17 +199,17 @@ export default function BacktestPage() {
             {/* Advanced toggle */}
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between px-4 py-3 rounded-lg glass hover:border-cyan-500/50 text-sm font-medium text-slate-300 hover:text-white transition-all"
+              className="flex items-center justify-between px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 hover:border-blue-500/50 text-sm font-medium text-slate-300 hover:text-white transition-all"
             >
               <span className="flex items-center gap-2">
                 {showAdvanced ? (
-                  <Zap size={16} className="text-cyan-400" />
+                  <Zap size={16} className="text-blue-400" />
                 ) : (
                   <ChevronDown size={16} />
                 )}
                 Advanced Options
               </span>
-              {showAdvanced && <span className="text-xs bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded">Open</span>}
+              {showAdvanced && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Open</span>}
             </button>
 
             <p className="text-[11px] text-slate-500 px-1">
@@ -336,13 +336,13 @@ export default function BacktestPage() {
             {/* Empty state */}
             {!backtestResult && !isRunning && !error && (
               <div className="flex flex-col items-center justify-center h-96 gap-4 text-center">
-                <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
-                  <Play size={40} className="text-cyan-500/60" />
+                <div className="w-20 h-20 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center">
+                  <Play size={40} className="text-blue-500/60" />
                 </div>
                 <div>
                   <p className="text-slate-400 text-sm font-medium">Ready to backtest</p>
                   <p className="text-slate-500 text-xs max-w-xs mt-1">
-                    Configure parameters, then click <span className="text-cyan-400">Run Backtest</span>
+                    Configure parameters, then click <span className="text-blue-400">Run Backtest</span>
                   </p>
                 </div>
               </div>
