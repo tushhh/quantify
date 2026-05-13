@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { useId } from "react";
 
 type MetricCardProps = {
   label: string;
@@ -180,13 +181,15 @@ export function Slider({
   format?: (v: number) => string;
 }) {
   const display = format ? format(value) : String(value);
+  const id = useId();
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
-        <label className="text-xs text-slate-400">{label}</label>
+        <label htmlFor={id} className="text-xs text-slate-400">{label}</label>
         <span className="text-xs font-mono font-semibold text-cyan-400">{display}</span>
       </div>
       <input
+        id={id}
         type="range"
         min={min}
         max={max}
