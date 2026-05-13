@@ -84,8 +84,10 @@ export function StrategyConfigurator({ strategies }: Props) {
                 </span>
                 <button
                   onClick={() => setExpanded(isOpen ? null : info.name)}
-                  className="text-slate-500 hover:text-white transition-colors"
+                  className="text-slate-500 hover:text-white transition-colors rounded focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none"
                   disabled={!cfg.enabled}
+                  aria-expanded={isOpen}
+                  aria-label={isOpen ? `Collapse ${info.label} settings` : `Expand ${info.label} settings`}
                 >
                   {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
