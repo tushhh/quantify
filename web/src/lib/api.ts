@@ -179,7 +179,9 @@ export type TradeCreate = {
   symbol: string;
   shares: number;
   buy_price: number;
-  hold_days: number;
+  hold_days?: number;
+  hold_unit?: "days" | "months" | "years";
+  hold_value?: number;
 };
 
 export type TrackedTrade = TradeCreate & {
@@ -188,6 +190,7 @@ export type TrackedTrade = TradeCreate & {
   sell_date: string;
   status: string;
   current_strength?: number;
+  last_health_reason?: string;
   alert?: string;
 };
 

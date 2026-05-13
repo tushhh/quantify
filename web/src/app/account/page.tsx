@@ -120,7 +120,7 @@ export default function AccountPage() {
       {/* Profile Card */}
       <Card className="bg-white/[0.02] border-white/5 p-6">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <UserCircle className="text-white" size={32} />
           </div>
           <div>
@@ -144,14 +144,14 @@ export default function AccountPage() {
           <input
             type="text"
             placeholder="@yourusername"
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
             value={telegram}
             onChange={(e) => setTelegram(e.target.value)}
           />
           <button
             onClick={handleSaveTelegram}
             disabled={saving}
-            className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold px-6 py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-blue-500/20 active:scale-95 disabled:opacity-50 shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 shrink-0"
           >
             {saving ? "Saving..." : "Save"}
           </button>
@@ -168,7 +168,7 @@ export default function AccountPage() {
       {/* Change Password */}
       <Card className="bg-white/[0.02] border-white/5 p-6">
         <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <Lock size={18} className="text-violet-400" />
+          <Lock size={18} className="text-blue-400" />
           Change Password
         </h2>
         <p className="text-sm text-slate-500 mb-5">
@@ -183,7 +183,7 @@ export default function AccountPage() {
               type="password"
               maxLength={72}
               placeholder="Enter new password"
-              className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all"
+              className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
@@ -195,7 +195,7 @@ export default function AccountPage() {
               type="password"
               maxLength={72}
               placeholder="Confirm new password"
-              className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-all"
+              className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
@@ -203,7 +203,7 @@ export default function AccountPage() {
           <button
             type="submit"
             disabled={saving || !newPassword || !confirmPassword}
-            className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-violet-500/20 active:scale-[0.98] disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
           >
             {saving ? "Updating..." : "Update Password"}
           </button>
@@ -231,7 +231,7 @@ export default function AccountPage() {
       {/* Telegram Activation Popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#0e1525] border border-white/10 rounded-2xl shadow-2xl p-8 relative text-center">
+          <div className="w-full max-w-md bg-[#0e1525] rounded-2xl shadow-2xl p-8 relative text-center">
             <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Send size={28} className="text-blue-400" />
             </div>
@@ -242,7 +242,7 @@ export default function AccountPage() {
               To receive instant buy/sell alerts, you must connect your device to our Telegram bot.
             </p>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-left">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-6 text-left">
               <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
                 <li>Click the button below to open Telegram.</li>
                 <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>
@@ -255,7 +255,7 @@ export default function AccountPage() {
                 href="https://t.me/QuantifyAlertbot?start=start" 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95"
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
               >
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>

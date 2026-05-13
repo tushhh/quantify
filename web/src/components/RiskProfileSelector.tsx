@@ -58,7 +58,7 @@ export function RiskProfileSelector({ presets }: Props) {
       </div>
 
       {/* Fine-tune sliders (always visible) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg glass">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-slate-800 border border-slate-700">
         <Slider
           label="Max Portfolio Drawdown"
           value={risk.max_portfolio_drawdown}

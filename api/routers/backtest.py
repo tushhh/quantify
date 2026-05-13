@@ -81,7 +81,7 @@ def _fetch_data_with_retry(tickers: list[str], start: date, end: date) -> Dict[s
     # All retries exhausted
     raise HTTPException(
         status_code=502,
-        detail=f"Failed to fetch market data after {MAX_RETRIES} retries. The data provider may be temporarily unavailable. Error: {str(last_exc)}"
+        detail=f"Failed to fetch market data after {MAX_RETRIES} retries. The data provider may be temporarily unavailable."
     ) from last_exc
 
 
@@ -175,6 +175,11 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
             continue
         allocation = cfg.allocation if cfg else DEFAULT_ALLOCATION[name]
         extra_params = cfg.params if cfg else {}
+
+        # Ensure allocation and enabled are not in extra_params
+        extra_params.pop("allocation", None)
+        extra_params.pop("enabled", None)
+
         try:
             log.info(f"Instantiating {name} with allocation {allocation*100:.0f}% and params: {extra_params}")
             instance = cls(**extra_params)
@@ -334,7 +339,7 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         result = engine.run(data)
     except Exception as exc:
         log.error(f"Backtest engine failed: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Backtest execution failed: {str(exc)}") from exc
+        raise HTTPException(status_code=500, detail="An internal server error occurred during backtest execution.") from exc
     
     log.info(
         "Backtest complete: %d trades, %.2f%% return",
@@ -427,7 +432,7 @@ async def run_backtest(req: BacktestRequest) -> BacktestResponse:
         raise
     except Exception as exc:
         log.exception("Unhandled error during backtest")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="An unhandled internal server error occurred.") from exc
     return response
 
 

@@ -79,7 +79,7 @@ export default function UniversePage() {
           className={clsx(
             "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all",
             view === "list"
-              ? "bg-violet-500/20 border-violet-400/40 text-violet-200"
+              ? "bg-slate-700 border-slate-600 text-white"
               : "border-white/10 text-slate-400 hover:text-white"
           )}
         >

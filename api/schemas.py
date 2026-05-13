@@ -198,7 +198,9 @@ class TradeCreate(BaseModel):
     symbol: str
     shares: float
     buy_price: float
-    hold_days: int
+    hold_days: Optional[int] = None
+    hold_unit: Optional[str] = None
+    hold_value: Optional[int] = None
 
 class TrackedTrade(TradeCreate):
     id: int
@@ -206,6 +208,9 @@ class TrackedTrade(TradeCreate):
     sell_date: str
     status: str
     current_strength: Optional[float] = None
+    hold_unit: Optional[str] = None
+    hold_value: Optional[int] = None
+    last_health_reason: Optional[str] = None
     alert: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

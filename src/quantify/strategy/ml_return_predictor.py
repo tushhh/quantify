@@ -368,21 +368,33 @@ class MLReturnPredictorStrategy(Strategy):
 
         # Extract feature importances
         try:
-            importances = model.feature_importances_
-            self._feature_importances = {
-                feat: float(imp)
-                for feat, imp in zip(self.features, importances)
-            }
-            top5 = sorted(
-                self._feature_importances.items(),
-                key=lambda kv: kv[1],
-                reverse=True,
-            )[:5]
-            log.info(
-                "%s: top-5 feature importances: %s",
-                self.name,
-                ", ".join(f"{k}={v:.3f}" for k, v in top5),
-            )
+            # VotingRegressor doesn't have feature_importances_, try getting it from LightGBM
+            if hasattr(model, "estimators_"):
+                lgbm_model = next((est for name, est in model.estimators if name == "lgbm"), None)
+                if lgbm_model and hasattr(lgbm_model, "feature_importances_"):
+                    importances = lgbm_model.feature_importances_
+                else:
+                    importances = None
+            else:
+                importances = getattr(model, "feature_importances_", None)
+
+            if importances is not None:
+                self._feature_importances = {
+                    feat: float(imp)
+                    for feat, imp in zip(self.features, importances)
+                }
+                top5 = sorted(
+                    self._feature_importances.items(),
+                    key=lambda kv: kv[1],
+                    reverse=True,
+                )[:5]
+                log.info(
+                    "%s: top-5 feature importances: %s",
+                    self.name,
+                    ", ".join(f"{k}={v:.3f}" for k, v in top5),
+                )
+            else:
+                self._feature_importances = None
         except AttributeError:
             self._feature_importances = None
 
