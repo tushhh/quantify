@@ -125,26 +125,43 @@ async def check_alerts_loop():
     finally:
         db.close()
 
-async def send_telegram_alert(username: str, message: str):
-    """Instantly send a Telegram alert to a user using their saved chat_id."""
+def send_telegram_alert(username: str, message: str):
+    """Instantly send a Telegram alert to a user using their saved chat_id.
+    
+    This runs in a background task, so it's synchronous (uses asyncio.run).
+    """
     if not BOT_TOKEN or not username:
+        log.warning(f"Cannot send alert to @{username}: BOT_TOKEN not set or username missing")
         return
         
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.telegram_username == username).first()
+        user = db.query(User).filter(
+            (User.telegram_username == username) |
+            (User.telegram_username == f"@{username}")
+        ).first()
 
-        if user and user.telegram_chat_id:
-            try:
-                bot = Bot(token=BOT_TOKEN)
-                await bot.send_message(chat_id=user.telegram_chat_id, text=message)
-                log.info(f"🚀 INSTANT TELEGRAM ALERT sent to @{username}")
-            except Exception:
-                log.exception("Failed to send instant alert to @%s", username)
-        else:
-            log.warning(f"Could not send instant alert to @{username}: No chat_id found. They need to /start the bot.")
+        if not user:
+            log.warning(f"User @{username} not found in database")
+            return
+            
+        if not user.telegram_chat_id:
+            log.warning(f"No chat_id for @{username}. User needs to /start the bot first.")
+            return
+        
+        try:
+            # Run async function synchronously in the background task
+            asyncio.run(_send_message_async(user.telegram_chat_id, message))
+            log.info(f"✅ Telegram alert sent to @{username} (chat_id: {user.telegram_chat_id})")
+        except Exception as e:
+            log.error(f"❌ Failed to send Telegram alert to @{username}: {e}")
     finally:
         db.close()
+
+async def _send_message_async(chat_id: str, message: str):
+    """Helper to send a message asynchronously."""
+    bot = Bot(token=BOT_TOKEN)
+    await bot.send_message(chat_id=chat_id, text=message)
 
 # Global bot application instance
 telegram_app = None
