@@ -38,8 +38,16 @@ async def lifespan(app: FastAPI):
     models.Base.metadata.create_all(bind=engine)
     ensure_trade_columns()
     
-    # Start telegram bot polling
-    await start_telegram_bot()
+    # Only run telegram bot on worker dyno, not web dyno (prevents polling conflicts on Heroku)
+    dyno_type = os.getenv("DYNO", "local")
+    is_web_dyno = dyno_type.startswith("web.")
+    
+    if not is_web_dyno:
+        log.info(f"Starting Telegram bot polling on dyno: {dyno_type}")
+        # Start telegram bot polling
+        await start_telegram_bot()
+    else:
+        log.info("Skipping Telegram bot polling on web dyno (Heroku). Run on worker dyno instead.")
     
     # Start the background task for telegram alerts (scheduled every 3 hours)
     scheduler = AsyncIOScheduler()
@@ -49,7 +57,8 @@ async def lifespan(app: FastAPI):
     yield
     
     scheduler.shutdown()
-    await stop_telegram_bot()
+    if not is_web_dyno:
+        await stop_telegram_bot()
 
 # ---------------------------------------------------------------------------
 # Logging

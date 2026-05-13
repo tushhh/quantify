@@ -1,6 +1,9 @@
 import os
+import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+log = logging.getLogger("quantify.api.database")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/quantify.db")
 
@@ -22,6 +25,7 @@ Base = declarative_base()
 def ensure_trade_columns() -> None:
     """Ensure optional trade columns exist for hold health tracking."""
     ddl = [
+        "ALTER TABLE trades ADD COLUMN IF NOT EXISTS alerted_at TIMESTAMP",
         "ALTER TABLE trades ADD COLUMN IF NOT EXISTS hold_unit VARCHAR(16) DEFAULT 'days'",
         "ALTER TABLE trades ADD COLUMN IF NOT EXISTS hold_value INTEGER DEFAULT 0",
         "ALTER TABLE trades ADD COLUMN IF NOT EXISTS last_health_check_at TIMESTAMP",
@@ -32,10 +36,14 @@ def ensure_trade_columns() -> None:
     try:
         with engine.begin() as conn:
             for stmt in ddl:
-                conn.execute(text(stmt))
-    except Exception:
-        # Fail quietly for unsupported backends; migrations may be handled externally.
-        pass
+                try:
+                    conn.execute(text(stmt))
+                    log.info(f"✅ Migration executed: {stmt[:60]}...")
+                except Exception as e:
+                    log.warning(f"Migration statement failed (may already exist): {stmt[:60]}... | Error: {e}")
+        log.info("✅ All trade columns verified/created successfully")
+    except Exception as e:
+        log.error(f"❌ Failed to run trade migrations: {e}")
 
 def get_db():
     db = SessionLocal()
