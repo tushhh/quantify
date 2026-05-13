@@ -74,6 +74,7 @@ Thumbs.db
 *.sqlite3
 logs/
 *.log
+catboost_info/
 
 # Secrets
 .env
