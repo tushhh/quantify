@@ -231,7 +231,7 @@ export default function AccountPage() {
       {/* Telegram Activation Popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#0e1525] rounded-2xl shadow-2xl p-8 relative text-center">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative text-center">
             <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Send size={28} className="text-blue-400" />
             </div>

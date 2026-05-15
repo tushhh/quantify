@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { TrendingUp, BarChart2, Globe, Zap, Menu, X, LogOut, UserCircle } from "lucide-react";
+import { TrendingUp, BarChart2, Globe, Zap, Menu, X, LogOut, UserCircle, LayoutDashboard } from "lucide-react";
 import clsx from "clsx";
 import { useState, useEffect } from "react";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: Zap },
+  { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
   { href: "/backtest",   label: "Backtest",   icon: TrendingUp },
   { href: "/strategies", label: "Strategies", icon: BarChart2 },
   { href: "/universe",   label: "Universe",   icon: Globe },
@@ -31,117 +31,169 @@ export function Navbar() {
 
   return (
     <>
-      {/* ── Desktop top nav ───────────────────────────────── */}
-      <nav className="hidden md:flex sticky top-0 left-0 right-0 z-50 h-14 items-center px-6 gap-8 border-b border-slate-700 bg-slate-900/90 backdrop-blur-md">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm group-hover:bg-blue-500 transition-colors">
-            <TrendingUp size={16} className="text-white" />
+      {/* ── Desktop nav ─────────────────────────────────────── */}
+      <nav className="hidden md:flex sticky top-0 left-0 right-0 z-50 h-14 items-center px-5 gap-6 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md">
+
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group mr-2">
+          <span className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/40 group-hover:opacity-90 transition-opacity">
+            <TrendingUp size={15} className="text-white" />
           </span>
-          <span className="font-bold tracking-tight text-slate-100 text-sm">Quantify</span>
+          <span className="font-bold tracking-tight text-white text-sm">Quantify</span>
         </Link>
 
         {/* Links */}
-        <div className="flex items-center gap-3 uppercase tracking-widest text-xs">
-          {NAV.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={clsx(
-                "px-3 py-1 rounded-md font-medium transition-all",
-                path === href
-                  ? "text-blue-400 border-b-2 border-blue-500"
-                  : "text-slate-400 hover:text-blue-400"
-              )}
-            >
-              {label}
-            </Link>
-          ))}
+        <div className="flex items-center gap-1">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const active = path === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={clsx(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all",
+                  active
+                    ? "bg-blue-500/15 text-blue-300 border border-blue-500/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                )}
+              >
+                <Icon size={12} />
+                {label}
+              </Link>
+            );
+          })}
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-[10px] text-slate-400 px-2.5 py-1 rounded-full border border-slate-700">
+          {/* Status indicator */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[10px] text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Paper Trading
-          </span>
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
 
           {loggedIn ? (
             <>
               <Link
                 href="/account"
-                className="flex items-center gap-1.5 text-sm text-slate-300 hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition-all"
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/[0.04] transition-all"
               >
-                <UserCircle size={15} />
+                <UserCircle size={14} />
                 Account
               </Link>
               <button
                 onClick={logout}
-                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-rose-400 px-3 py-1.5 rounded-md hover:bg-rose-500/10 transition-all"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-all"
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" className="text-sm text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition-all">
+              <Link href="/login" className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg transition-all">
                 Log in
               </Link>
               <Link
                 href="/signup"
-                className="ml-2 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold gradient-accent text-white shadow-sm shadow-blue-900/30 hover:opacity-90 transition-opacity"
               >
-                Sign up
+                Sign up <Zap size={11} />
               </Link>
             </>
           )}
         </div>
       </nav>
 
-      {/* ── Mobile top bar with hamburger ─────────────────── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 flex items-center px-4 justify-between bg-slate-900/90 backdrop-blur-md border-b border-slate-700">
+      {/* ── Mobile top bar ───────────────────────────────────── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 flex items-center px-4 justify-between bg-[var(--bg)]/95 backdrop-blur-md border-b border-[var(--border)]">
         <Link href="/" className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-            <TrendingUp size={16} className="text-white" />
+          <span className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
+            <TrendingUp size={15} className="text-white" />
           </span>
-          <span className="font-bold text-sm text-slate-100">Quantify</span>
+          <span className="font-bold text-sm text-white">Quantify</span>
         </Link>
-        <button aria-label="Open menu" onClick={() => setOpen(true)} className="p-2 rounded-md text-slate-300">
+        <button
+          aria-label="Open menu"
+          onClick={() => setOpen(true)}
+          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all"
+        >
           <Menu size={20} />
         </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* ── Mobile drawer ────────────────────────────────────── */}
       {open && (
         <div className="fixed inset-0 z-60">
-          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="absolute top-0 right-0 h-full w-72 bg-slate-800 border-l border-slate-700 p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-                  <TrendingUp size={16} className="text-white" />
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute top-0 right-0 h-full w-72 bg-[var(--surface)] border-l border-[var(--border)] p-6 shadow-2xl animate-slide-in-right">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
+                  <TrendingUp size={15} className="text-white" />
                 </span>
-                <span className="font-bold text-slate-100">Quantify</span>
+                <span className="font-bold text-white">Quantify</span>
               </div>
-              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2 rounded-md text-slate-400 hover:text-slate-200">
+              <button
+                aria-label="Close menu"
+                onClick={() => setOpen(false)}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.05] transition-all"
+              >
                 <X size={18} />
               </button>
             </div>
-            <nav className="flex flex-col gap-3">
-              {NAV.map(({ href, label }) => (
-                <Link key={href} href={href} onClick={() => setOpen(false)} className="py-2 text-lg text-slate-300 hover:text-blue-400">
-                  {label}
-                </Link>
-              ))}
+
+            <nav className="flex flex-col gap-1">
+              {NAV.map(({ href, label, icon: Icon }) => {
+                const active = path === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className={clsx(
+                      "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
+                      active
+                        ? "bg-blue-500/15 text-blue-300 border border-blue-500/20"
+                        : "text-slate-400 hover:text-white hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                );
+              })}
+
+              <div className="my-3 border-t border-[var(--border)]" />
+
               {loggedIn ? (
                 <>
-                  <Link href="/account" onClick={() => setOpen(false)} className="py-2 text-lg text-slate-300 hover:text-blue-400">Account</Link>
-                  <button onClick={() => { setOpen(false); logout(); }} className="py-2 text-lg text-rose-400 text-left">Logout</button>
+                  <Link
+                    href="/account"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/[0.04] transition-all"
+                  >
+                    <UserCircle size={16} />
+                    Account
+                  </Link>
+                  <button
+                    onClick={() => { setOpen(false); logout(); }}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all text-left"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
                 </>
               ) : (
                 <>
-                  <Link href="/login" onClick={() => setOpen(false)} className="py-2 text-lg text-slate-300 hover:text-blue-400">Log in</Link>
-                  <Link href="/signup" onClick={() => setOpen(false)} className="py-2 text-lg text-slate-300 hover:text-blue-400">Sign up</Link>
+                  <Link href="/login" onClick={() => setOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-white/[0.04] transition-all">
+                    Log in
+                  </Link>
+                  <Link href="/signup" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-semibold gradient-accent text-white mt-1">
+                    Sign up <Zap size={12} />
+                  </Link>
                 </>
               )}
             </nav>
