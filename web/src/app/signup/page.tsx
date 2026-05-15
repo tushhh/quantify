@@ -43,9 +43,8 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#070b14]">
-      {/* Background effects */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-slate-900 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md">
         {/* Back to home */}
@@ -54,7 +53,7 @@ export default function SignUpPage() {
           Back to home
         </Link>
 
-        <div className="rounded-2xl bg-white/[0.02] backdrop-blur-sm p-8 shadow-2xl shadow-black/40">
+        <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-8 shadow-2xl shadow-black/40">
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
@@ -143,7 +142,7 @@ export default function SignUpPage() {
       {/* Telegram Activation Popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[#0e1525] rounded-2xl shadow-2xl p-8 relative">
+          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative">
             <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Send size={28} className="text-blue-400" />
             </div>

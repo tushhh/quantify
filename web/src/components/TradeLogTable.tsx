@@ -8,7 +8,7 @@ import { Badge, Card, CardHeader } from "@/components/ui";
 
 type SortKey = keyof TradeRecord;
 
-function TradeHeaderCell({
+function HeaderCell({
   label,
   active,
   ascending,
@@ -22,21 +22,27 @@ function TradeHeaderCell({
   return (
     <th
       onClick={onClick}
-      className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
+      className="text-left px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-300 transition-colors select-none"
     >
       <span className="flex items-center gap-1">
         {label}
-        <ArrowUpDown size={9} className={clsx(active ? "text-blue-400" : "text-slate-600", ascending ? "rotate-180" : "")} />
+        <ArrowUpDown
+          size={8}
+          className={clsx(
+            active ? "text-blue-400" : "text-slate-700",
+            ascending ? "rotate-180" : ""
+          )}
+        />
       </span>
     </th>
   );
 }
 
 export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
-  const [sortKey, setSortKey]   = useState<SortKey>("exit_date");
-  const [sortAsc, setSortAsc]   = useState(false);
-  const [search, setSearch]     = useState("");
-  const [page, setPage]         = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>("exit_date");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [search, setSearch]   = useState("");
+  const [page, setPage]       = useState(0);
   const PAGE_SIZE = 15;
 
   const filtered = useMemo(
@@ -59,7 +65,7 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
     });
   }, [filtered, sortKey, sortAsc]);
 
-  const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const paged      = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
 
   const toggleSort = (k: SortKey) => {
@@ -69,31 +75,28 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
 
   return (
     <Card>
-      <CardHeader
-        title={`Trade Log`}
-        subtitle={`${filtered.length} of ${trades.length} trades`}
-      >
+      <CardHeader title="Trade Log" subtitle={`${filtered.length} of ${trades.length} trades`}>
         <input
           type="text"
           placeholder="Search symbol / strategy…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          className="text-xs rounded-lg border border-[#1e2d4a] bg-[#162035] text-slate-300 px-3 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+          className="text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] text-slate-300 placeholder-[var(--text-dim)] px-3 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-500/40 transition-all"
         />
       </CardHeader>
 
       <div className="overflow-x-auto -mx-1">
-        <table className="w-full text-xs min-w-[640px]">
+        <table className="w-full text-xs min-w-[600px]">
           <thead>
-            <tr className="border-b border-[#1e2d4a]">
-              <TradeHeaderCell label="Symbol" active={sortKey === "symbol"} ascending={sortAsc} onClick={() => toggleSort("symbol")} />
-              <TradeHeaderCell label="Strategy" active={sortKey === "strategy_name"} ascending={sortAsc} onClick={() => toggleSort("strategy_name")} />
-              <TradeHeaderCell label="Side" active={sortKey === "side"} ascending={sortAsc} onClick={() => toggleSort("side")} />
-              <TradeHeaderCell label="Entry" active={sortKey === "entry_date"} ascending={sortAsc} onClick={() => toggleSort("entry_date")} />
-              <TradeHeaderCell label="Exit" active={sortKey === "exit_date"} ascending={sortAsc} onClick={() => toggleSort("exit_date")} />
-              <TradeHeaderCell label="P&L" active={sortKey === "pnl"} ascending={sortAsc} onClick={() => toggleSort("pnl")} />
-              <TradeHeaderCell label="Return" active={sortKey === "return_pct"} ascending={sortAsc} onClick={() => toggleSort("return_pct")} />
-              <TradeHeaderCell label="Days" active={sortKey === "holding_days"} ascending={sortAsc} onClick={() => toggleSort("holding_days")} />
+            <tr className="border-b border-[var(--border)]">
+              <HeaderCell label="Symbol"   active={sortKey === "symbol"}        ascending={sortAsc} onClick={() => toggleSort("symbol")} />
+              <HeaderCell label="Strategy" active={sortKey === "strategy_name"} ascending={sortAsc} onClick={() => toggleSort("strategy_name")} />
+              <HeaderCell label="Side"     active={sortKey === "side"}          ascending={sortAsc} onClick={() => toggleSort("side")} />
+              <HeaderCell label="Entry"    active={sortKey === "entry_date"}    ascending={sortAsc} onClick={() => toggleSort("entry_date")} />
+              <HeaderCell label="Exit"     active={sortKey === "exit_date"}     ascending={sortAsc} onClick={() => toggleSort("exit_date")} />
+              <HeaderCell label="P&L"      active={sortKey === "pnl"}           ascending={sortAsc} onClick={() => toggleSort("pnl")} />
+              <HeaderCell label="Return"   active={sortKey === "return_pct"}    ascending={sortAsc} onClick={() => toggleSort("return_pct")} />
+              <HeaderCell label="Days"     active={sortKey === "holding_days"}  ascending={sortAsc} onClick={() => toggleSort("holding_days")} />
             </tr>
           </thead>
           <tbody>
@@ -102,36 +105,30 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
               return (
                 <tr
                   key={i}
-                  className="border-b border-[#1e2d4a]/50 hover:bg-white/[0.02] transition-colors"
+                  className="border-b border-[var(--border)]/50 hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="px-3 py-2 font-mono font-bold text-white">{t.symbol}</td>
-                  <td className="px-3 py-2 text-slate-400 capitalize">
+                  <td className="px-3 py-2.5 font-mono font-bold text-white">{t.symbol}</td>
+                  <td className="px-3 py-2.5 text-slate-400 capitalize text-[11px]">
                     {t.strategy_name.replace(/_/g, " ")}
                   </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={t.side === "long" ? "success" : "danger"}>
-                      {t.side}
-                    </Badge>
+                  <td className="px-3 py-2.5">
+                    <Badge variant={t.side === "long" ? "success" : "danger"}>{t.side}</Badge>
                   </td>
-                  <td className="px-3 py-2 text-slate-400 font-mono">
-                    {t.entry_date ?? "–"}
-                  </td>
-                  <td className="px-3 py-2 text-slate-400 font-mono">
-                    {t.exit_date ?? "–"}
-                  </td>
-                  <td className={clsx("px-3 py-2 font-mono font-semibold", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className="px-3 py-2.5 text-slate-500 font-mono">{t.entry_date ?? "–"}</td>
+                  <td className="px-3 py-2.5 text-slate-500 font-mono">{t.exit_date ?? "–"}</td>
+                  <td className={clsx("px-3 py-2.5 font-mono font-semibold tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
                     {isWin ? "+" : ""}${t.pnl.toFixed(2)}
                   </td>
-                  <td className={clsx("px-3 py-2 font-mono", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className={clsx("px-3 py-2.5 font-mono tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
                     {(t.return_pct * 100).toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2 text-slate-400">{t.holding_days}d</td>
+                  <td className="px-3 py-2.5 text-slate-500">{t.holding_days}d</td>
                 </tr>
               );
             })}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-slate-600">
+                <td colSpan={8} className="px-3 py-10 text-center text-slate-600">
                   No trades found
                 </td>
               </tr>
@@ -140,26 +137,23 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
         </table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-slate-500">
-            Page {page + 1} of {totalPages}
-          </span>
-          <div className="flex gap-1">
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border)]">
+          <span className="text-xs text-slate-500">Page {page + 1} of {totalPages}</span>
+          <div className="flex gap-1.5">
             <button
               disabled={page === 0}
               onClick={() => setPage(page - 1)}
-              className="px-2.5 py-1 rounded text-xs border border-[#1e2d4a] text-slate-400 disabled:opacity-40 hover:text-white transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] text-slate-400 disabled:opacity-30 hover:text-white hover:border-[var(--border-bright)] transition-all"
             >
-              ‹ Prev
+              ← Prev
             </button>
             <button
               disabled={page >= totalPages - 1}
               onClick={() => setPage(page + 1)}
-              className="px-2.5 py-1 rounded text-xs border border-[#1e2d4a] text-slate-400 disabled:opacity-40 hover:text-white transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] text-slate-400 disabled:opacity-30 hover:text-white hover:border-[var(--border-bright)] transition-all"
             >
-              Next ›
+              Next →
             </button>
           </div>
         </div>
