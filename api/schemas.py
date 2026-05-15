@@ -208,6 +208,7 @@ class TrackedTrade(TradeCreate):
     sell_date: str
     status: str
     current_strength: Optional[float] = None
+    current_price: Optional[float] = None
     hold_unit: Optional[str] = None
     hold_value: Optional[int] = None
     last_health_reason: Optional[str] = None

@@ -8,7 +8,13 @@
       "Bash(python -m py_compile src/quantify/cli.py)",
       "Bash(python -m py_compile src/quantify/data/models.py)",
       "Bash(python -m py_compile src/quantify/strategy/signal.py)",
-      "Bash(find src:*)"
+      "Bash(find src:*)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\tusha\\\\Desktop\\\\Quantify\" -Force | Select-Object Name, @{Label='Type';Expression={if\\($_.PSIsContainer\\){'Directory'}else{'File'}}} | Format-Table)",
+      "Bash(Get-ChildItem *)",
+      "Bash(python -c \"import sys; print\\(f'Python {sys.version_info.major}.{sys.version_info.minor}'\\)\")",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) or print\\(f'OK: {f}'\\) for f in ['api/main.py','api/routers/backtest.py','api/routers/predict.py','api/routers/utils.py','api/routers/trades.py','api/telegram_bot.py','api/schemas.py']]\")",
+      "Bash(python -c ' *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

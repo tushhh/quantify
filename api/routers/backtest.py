@@ -425,7 +425,7 @@ async def run_backtest(req: BacktestRequest) -> BacktestResponse:
     Accepts strategy configs, date range, capital, risk profile, and cost model.
     Returns equity curve, drawdown, per-trade log, and aggregate metrics.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         response = await loop.run_in_executor(None, _run_backtest_sync, req)
     except HTTPException:
@@ -441,22 +441,24 @@ async def stream_progress(job_id: str = "default") -> StreamingResponse:
     """
     SSE endpoint – clients subscribe before posting /api/backtest
     to receive live progress messages.
-    (Simple implementation: polls a shared queue per job_id.)
     """
     q: queue.Queue[str] = queue.Queue()
     _progress_queues[job_id] = q
+    loop = asyncio.get_running_loop()
 
     async def _generate() -> AsyncGenerator[str, None]:
-        while True:
-            try:
-                msg = q.get(timeout=30)
-                if msg == "__done__":
-                    yield "data: done\n\n"
-                    break
-                yield f"data: {msg}\n\n"
-            except queue.Empty:
-                yield ": keep-alive\n\n"
-            await asyncio.sleep(0)
+        try:
+            while True:
+                try:
+                    msg = await loop.run_in_executor(None, lambda: q.get(timeout=25))
+                    if msg == "__done__":
+                        yield "data: done\n\n"
+                        break
+                    yield f"data: {msg}\n\n"
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+        finally:
+            _progress_queues.pop(job_id, None)
 
     return StreamingResponse(
         _generate(),
