@@ -61,7 +61,9 @@ export function StrategyConfigurator({ strategies }: Props) {
                   "w-9 h-5 rounded-full transition-colors shrink-0 relative",
                   cfg.enabled ? "bg-blue-600" : "bg-slate-700"
                 )}
-                aria-label={cfg.enabled ? "Disable" : "Enable"}
+                aria-label={`${cfg.enabled ? "Disable" : "Enable"} ${info.label}`}
+                aria-pressed={cfg.enabled}
+                role="switch"
               >
                 <span
                   className={clsx(
