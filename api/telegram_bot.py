@@ -84,7 +84,8 @@ async def check_alerts_loop():
                 continue
             
             # Check condition: duration ended
-            if now >= trade.sell_date.replace(tzinfo=timezone.utc) and trade.alerted_at is None:
+            sell_utc = trade.sell_date if trade.sell_date.tzinfo else trade.sell_date.replace(tzinfo=timezone.utc)
+            if now >= sell_utc and trade.alerted_at is None:
                 msg = f"🚨 ALERT: Your holding duration for {trade.shares} shares of {trade.symbol} has ended!\n\nIt is time to SELL and secure your position."
                 log.info(f"Sending alert to chat {user.telegram_chat_id}: {msg}")
                 try:

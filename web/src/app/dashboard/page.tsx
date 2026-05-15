@@ -2,10 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Shield, AlertTriangle, Plus, Crosshair, Send, LogOut, UserCircle } from "lucide-react";
+import {
+  Zap, Shield, AlertTriangle, Plus, Crosshair, Send,
+  LogOut, UserCircle, RefreshCw, TrendingUp, TrendingDown,
+} from "lucide-react";
 import Link from "next/link";
 import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TickerInfo } from "@/lib/api";
 import { Card, Badge } from "@/components/ui";
+
+function pct(v: number) {
+  return `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2)}%`;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -15,45 +22,62 @@ export default function DashboardPage() {
   const [loadingPreds, setLoadingPreds] = useState(false);
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [trades, setTrades] = useState<TrackedTrade[]>([]);
+  const [prices, setPrices] = useState<Record<string, number | null>>({});
+  const [loadingPrices, setLoadingPrices] = useState(false);
   const [universe, setUniverse] = useState<TickerInfo[]>([]);
-  
+
   const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
   const [tradeError, setTradeError] = useState<string | null>(null);
+  const [tradeSuccess, setTradeSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [holdUnit, setHoldUnit] = useState<"days" | "months" | "years">("days");
   const [holdValue, setHoldValue] = useState("10");
   const [activeTab, setActiveTab] = useState<"analysis" | "portfolio">("analysis");
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [symbolIndex, setSymbolIndex] = useState(0);
 
+  const loadPrices = useCallback(async () => {
+    setLoadingPrices(true);
+    try {
+      const p = await api.trades.prices();
+      setPrices(p);
+    } catch {
+      // prices are nice-to-have; silently ignore
+    } finally {
+      setLoadingPrices(false);
+    }
+  }, []);
+
   const loadTrades = useCallback(async () => {
     try {
       const data = await api.trades.list();
-      setTrades(data.filter((t) => t.status === "active"));
+      const active = data.filter((t) => t.status === "active");
+      setTrades(active);
+      if (active.length > 0) loadPrices();
     } catch (error) {
       console.error(error);
     }
-  }, []);
+  }, [loadPrices]);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const u = await api.auth.me();
         setUser(u);
-        loadTrades().catch((err) => console.error("Failed to load trades:", err));
+        loadTrades().catch(console.error);
       } catch {
         router.push("/login");
       } finally {
         setLoadingAuth(false);
       }
     };
-
     void checkAuth();
   }, [router, loadTrades]);
 
   useEffect(() => {
     api.universe.get()
       .then((r) => setUniverse(r.tickers))
-      .catch((err) => console.error("Failed to load universe:", err));
+      .catch(console.error);
   }, []);
 
   const symbolQuery = newTrade.symbol.trim().toUpperCase();
@@ -81,9 +105,6 @@ export default function DashboardPage() {
     try {
       const res = await api.predict.best(5);
       setPredictions(res.signals);
-      if (res.signals.length > 0) {
-        setNewTrade({ ...newTrade, symbol: res.signals[0].symbol });
-      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -99,28 +120,17 @@ export default function DashboardPage() {
 
   const handleCreateTrade = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTrade.symbol || !newTrade.shares || !newTrade.buy_price) return;
+    if (!canSubmitTrade) return;
     setTradeError(null);
+    setTradeSuccess(false);
+    setSubmitting(true);
     try {
-      if (!isSymbolInUniverse) {
-        setTradeError("Select a symbol from the dropdown list.");
-        return;
-      }
-
-      // Pre-validate symbol via API (fast check + yfinance probe)
       const sym = newTrade.symbol.trim().toUpperCase();
-      const res = await api.utils.validateSymbol(sym);
-      if (!res.valid) {
-        setTradeError(res.reason ? `Invalid symbol: ${res.reason}` : "Symbol is not a US-listed equity");
-        return;
-      }
-
       const holdInt = parseInt(holdValue);
       if (!Number.isFinite(holdInt) || holdInt <= 0) {
         setTradeError("Enter a valid holding duration.");
         return;
       }
-
       await api.trades.create({
         symbol: sym,
         shares: parseFloat(newTrade.shares),
@@ -129,10 +139,13 @@ export default function DashboardPage() {
         hold_value: holdInt,
       });
       setNewTrade({ symbol: "", shares: "", buy_price: "" });
+      setTradeSuccess(true);
+      setTimeout(() => setTradeSuccess(false), 3000);
       loadTrades();
     } catch (e: unknown) {
-      console.error(e);
       setTradeError(e instanceof Error ? e.message : "Failed to log trade");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -150,7 +163,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Loading dashboard...</p>
+          <p className="text-slate-500 text-sm">Loading dashboard…</p>
         </div>
       </div>
     );
@@ -160,7 +173,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-8 animate-fade-in text-slate-100">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center bg-white/[0.02] border border-white/5 p-5 rounded-2xl">
         <div className="flex items-center gap-4">
@@ -170,7 +183,7 @@ export default function DashboardPage() {
           <div>
             <p className="font-bold text-white text-lg leading-none">{user.username}</p>
             <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-              <Send size={10} className="text-blue-400"/>
+              <Send size={10} className="text-blue-400" />
               {user.telegram_username ? `${user.telegram_username} connected` : "No Telegram connected"}
             </p>
           </div>
@@ -186,50 +199,67 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab("analysis")}
-          className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all ${activeTab === "analysis" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" : "border-white/10 text-slate-400 hover:text-white"}`}
-        >
-          ML Analysis
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("portfolio")}
-          className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all ${activeTab === "portfolio" ? "bg-blue-500/20 border-blue-400/40 text-blue-200" : "border-white/10 text-slate-400 hover:text-white"}`}
-        >
-          Portfolio
-        </button>
+        {(["analysis", "portfolio"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider border transition-all ${
+              activeTab === tab
+                ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
+                : "border-white/10 text-slate-400 hover:text-white"
+            }`}
+          >
+            {tab === "analysis" ? "ML Analysis" : "Portfolio"}
+            {tab === "portfolio" && trades.length > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold">
+                {trades.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        
+
         {/* ML Prediction Engine */}
         <div className={`flex flex-col gap-4 ${activeTab !== "analysis" ? "hidden xl:flex" : ""}`}>
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black flex items-center gap-2 text-white">
               <Crosshair className="text-blue-400" /> ML Analysis
             </h2>
-            <button 
+            <button
               onClick={handlePredict}
               disabled={loadingPreds}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl shadow-sm transition-colors disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
             >
-              {loadingPreds ? "Analyzing..." : "Run ML Analysis"}
+              {loadingPreds ? (
+                <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Analyzing…</>
+              ) : (
+                <><Zap size={14} /> Run ML Analysis</>
+              )}
             </button>
           </div>
-          
+
           <Card className="bg-white/[0.02] border-white/5 shadow-xl overflow-hidden min-h-[300px] flex flex-col">
             {predictions.length === 0 && !loadingPreds ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3">
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3 py-12">
                 <Zap size={48} className="opacity-20" />
-                <p className="text-center px-8">Run ML analysis to see today&apos;s top algorithmically chosen stocks.</p>
+                <div className="text-center px-8">
+                  <p className="text-sm text-slate-500 font-medium">No predictions yet</p>
+                  <p className="text-xs text-slate-600 mt-1">Click Run ML Analysis to get today&apos;s top algorithmically ranked stocks.</p>
+                  <p className="text-xs text-slate-700 mt-3">This uses an ensemble of LightGBM, XGBoost, and CatBoost models — takes ~60s on first run.</p>
+                </div>
               </div>
             ) : loadingPreds ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
                 <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 text-sm">Crunching market data with ML models...</p>
+                <div className="text-center">
+                  <p className="text-slate-400 text-sm font-medium">Crunching market data…</p>
+                  <p className="text-slate-600 text-xs mt-1">Fetching 1 year of price data and running ML models. This takes ~60s.</p>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-0">
@@ -240,13 +270,21 @@ export default function DashboardPage() {
                   <div className="text-right">Strength</div>
                 </div>
                 {predictions.map((p, i) => (
-                  <div key={p.symbol} className="grid grid-cols-4 px-5 py-4 items-center hover:bg-slate-800 border border-slate-700 border-b border-white/5 transition-colors cursor-pointer" onClick={() => setNewTrade({ ...newTrade, symbol: p.symbol })}>
+                  <button
+                    key={p.symbol}
+                    type="button"
+                    className="grid grid-cols-4 px-5 py-4 items-center hover:bg-slate-800/60 border-b border-white/5 transition-colors cursor-pointer text-left w-full"
+                    onClick={() => { selectSymbol(p.symbol); setActiveTab("portfolio"); }}
+                  >
                     <div className="font-mono text-slate-600">#{i + 1}</div>
                     <div className="font-bold text-white text-lg">{p.symbol}</div>
                     <div><Badge variant="success" className="uppercase">{p.side}</Badge></div>
                     <div className="text-right font-mono text-blue-400 font-bold">+{p.strength.toFixed(3)}</div>
-                  </div>
+                  </button>
                 ))}
+                <div className="px-5 py-3 text-[10px] text-slate-600 border-t border-white/5 bg-black/10">
+                  Click any row to pre-fill the trade form.
+                </div>
               </div>
             )}
           </Card>
@@ -257,7 +295,7 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-black flex items-center gap-2 text-white">
             <Shield className="text-blue-400" /> Active Portfolio
           </h2>
-          
+
           {/* Log New Trade */}
           <Card className="bg-blue-500/[0.03] border-blue-500/10 shadow-xl">
             <h3 className="text-sm font-semibold text-blue-300 mb-4 flex items-center gap-2">
@@ -271,35 +309,21 @@ export default function DashboardPage() {
                     <input
                       required
                       type="text"
-                      placeholder="e.g. AMD"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50 uppercase"
+                      placeholder="e.g. AAPL"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50 uppercase text-sm"
                       value={newTrade.symbol}
                       onFocus={() => setSymbolOpen(true)}
                       onBlur={() => setTimeout(() => setSymbolOpen(false), 120)}
                       onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          setSymbolOpen(false);
-                          return;
-                        }
-                        if (!symbolOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-                          setSymbolOpen(true);
-                        }
+                        if (e.key === "Escape") { setSymbolOpen(false); return; }
+                        if (!symbolOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) setSymbolOpen(true);
                         if (!filteredSymbols.length) return;
-
-                        if (e.key === "ArrowDown") {
-                          e.preventDefault();
-                          setSymbolIndex((idx) => (idx + 1) % filteredSymbols.length);
-                        }
-                        if (e.key === "ArrowUp") {
-                          e.preventDefault();
-                          setSymbolIndex((idx) => (idx - 1 + filteredSymbols.length) % filteredSymbols.length);
-                        }
+                        if (e.key === "ArrowDown") { e.preventDefault(); setSymbolIndex((idx) => (idx + 1) % filteredSymbols.length); }
+                        if (e.key === "ArrowUp") { e.preventDefault(); setSymbolIndex((idx) => (idx - 1 + filteredSymbols.length) % filteredSymbols.length); }
                         if (e.key === "Enter" && symbolOpen) {
                           e.preventDefault();
                           const picked = filteredSymbols[symbolIndex];
-                          if (picked) {
-                            selectSymbol(picked.symbol);
-                          }
+                          if (picked) selectSymbol(picked.symbol);
                         }
                       }}
                       onChange={(e) => {
@@ -309,7 +333,7 @@ export default function DashboardPage() {
                       }}
                     />
                     {symbolOpen && (
-                      <div className="absolute z-20 mt-2 w-full rounded-xl bg-[#0e1525] shadow-2xl shadow-black/40 overflow-hidden backdrop-blur-sm animate-fade-in">
+                      <div className="absolute z-20 mt-2 w-full rounded-xl bg-[#0e1525] shadow-2xl shadow-black/40 overflow-hidden animate-fade-in">
                         {filteredSymbols.length > 0 ? (
                           filteredSymbols.map((t, i) => (
                             <button
@@ -318,37 +342,49 @@ export default function DashboardPage() {
                               onClick={() => selectSymbol(t.symbol)}
                               onMouseEnter={() => setSymbolIndex(i)}
                               className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
-                                i === symbolIndex ? "bg-gradient-to-r from-white/10 via-white/5 to-transparent" : "hover:bg-slate-800 border border-slate-700"
+                                i === symbolIndex ? "bg-blue-600/20 text-white" : "hover:bg-slate-800"
                               }`}
                             >
                               <span className="font-mono font-bold text-white">{t.symbol}</span>
-                              <span className="text-slate-500 truncate ml-3">{t.name}</span>
-                              <span className="ml-3 text-[10px] uppercase tracking-wider text-slate-600">{t.sector}</span>
+                              <span className="text-slate-500 truncate ml-3 flex-1">{t.name}</span>
+                              <span className="ml-3 text-[10px] uppercase tracking-wider text-slate-600 shrink-0">{t.sector.split(" ")[0]}</span>
                             </button>
                           ))
                         ) : symbolQuery ? (
                           <div className="px-3 py-2 text-xs text-slate-500">No matches found.</div>
                         ) : null}
-                        {filteredSymbols.length > 0 && (
-                          <div className="px-3 py-2 text-[10px] text-slate-600 border-t border-white/5 bg-black/20">
-                            Use ↑ ↓ to navigate, Enter to select.
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">Only US-listed symbols from the Quantify universe.</p>
                   {symbolQuery && !isSymbolInUniverse && (
-                    <p className="text-[10px] text-rose-400 mt-1">Select a symbol from the list.</p>
+                    <p className="text-[10px] text-rose-400 mt-1">Select from the list.</p>
                   )}
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Shares</label>
-                  <input required type="number" step="0.01" placeholder="10" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50" value={newTrade.shares} onChange={e => setNewTrade({...newTrade, shares: e.target.value})} />
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="10"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50 text-sm"
+                    value={newTrade.shares}
+                    onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Buy Price ($)</label>
-                  <input required type="number" step="0.01" placeholder="150.25" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50" value={newTrade.buy_price} onChange={e => setNewTrade({...newTrade, buy_price: e.target.value})} />
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="150.00"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white outline-none focus:border-blue-500/50 text-sm"
+                    value={newTrade.buy_price}
+                    onChange={(e) => setNewTrade({ ...newTrade, buy_price: e.target.value })}
+                  />
                 </div>
               </div>
 
@@ -360,16 +396,12 @@ export default function DashboardPage() {
                     <label
                       key={unit}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs uppercase tracking-wider font-semibold cursor-pointer transition-all ${
-                        holdUnit === unit ? "bg-blue-500/10 border-blue-500/30 text-blue-200" : "border-white/10 text-slate-400 hover:text-white"
+                        holdUnit === unit
+                          ? "bg-blue-500/10 border-blue-500/30 text-blue-200"
+                          : "border-white/10 text-slate-400 hover:text-white"
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name="hold_unit"
-                        className="accent-blue-500"
-                        checked={holdUnit === unit}
-                        onChange={() => setHoldUnit(unit)}
-                      />
+                      <input type="radio" name="hold_unit" className="accent-blue-500" checked={holdUnit === unit} onChange={() => setHoldUnit(unit)} />
                       {unit}
                     </label>
                   ))}
@@ -382,65 +414,120 @@ export default function DashboardPage() {
                     value={holdValue}
                     onChange={(e) => setHoldValue(e.target.value)}
                   />
-                  <span className="text-xs text-slate-500">Duration length</span>
+                  <span className="text-xs text-slate-500">Duration</span>
                 </div>
-                <p className="text-xs text-slate-500">We will monitor the position against your selected horizon and alert if the outlook turns negative.</p>
               </div>
 
               {tradeError && (
-                <div className="text-sm text-rose-400 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 mb-2">
+                <div className="text-sm text-rose-400 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
                   {tradeError}
+                </div>
+              )}
+              {tradeSuccess && (
+                <div className="text-sm text-emerald-400 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 animate-fade-in">
+                  Trade logged successfully!
                 </div>
               )}
               <button
                 type="submit"
-                disabled={!canSubmitTrade}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!canSubmitTrade || submitting}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Log Trade & Activate Alerts
+                {submitting ? (
+                  <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Validating symbol…</>
+                ) : (
+                  "Log Trade & Activate Alerts"
+                )}
               </button>
             </form>
           </Card>
 
           {/* Active Trades */}
-          <div className="flex flex-col gap-3 mt-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+              {trades.length === 0 ? "No Active Positions" : `${trades.length} Active Position${trades.length > 1 ? "s" : ""}`}
+            </p>
+            {trades.length > 0 && (
+              <button
+                onClick={loadPrices}
+                disabled={loadingPrices}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-400 transition-colors"
+              >
+                <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
+                Refresh prices
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3">
             {trades.length === 0 ? (
               <div className="p-10 text-center rounded-2xl border border-dashed border-white/10 text-slate-600 bg-white/[0.01]">
                 No active positions being tracked.
               </div>
             ) : (
-              trades.map(t => (
-                <Card key={t.id} className="bg-white/[0.02] border-white/5 shadow-lg p-5 relative overflow-hidden group hover:border-white/10 transition-all">
-                  {t.alert && (
-                    <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse"></div>
-                  )}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-black text-white">{t.symbol}</h3>
-                      <p className="text-sm text-slate-500">{t.shares} shares @ ${t.buy_price}</p>
+              trades.map((t) => {
+                const currentPrice = prices[t.symbol];
+                const pnlAbs = currentPrice != null
+                  ? (currentPrice - t.buy_price) * t.shares
+                  : null;
+                const pnlPct = currentPrice != null
+                  ? (currentPrice - t.buy_price) / t.buy_price
+                  : null;
+                const isGain = pnlAbs != null && pnlAbs >= 0;
+
+                return (
+                  <Card key={t.id} className="bg-white/[0.02] border-white/5 shadow-lg p-5 relative overflow-hidden hover:border-white/10 transition-all">
+                    {t.alert && <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />}
+
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-xl font-black text-white">{t.symbol}</h3>
+                          {currentPrice != null && (
+                            <span className="text-sm font-bold text-slate-300">${currentPrice.toFixed(2)}</span>
+                          )}
+                          {pnlPct != null && (
+                            <span className={`flex items-center gap-1 text-xs font-bold ${isGain ? "text-emerald-400" : "text-red-400"}`}>
+                              {isGain ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                              {pct(pnlPct)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500 mt-0.5">{t.shares} shares @ ${t.buy_price}</p>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {pnlAbs != null && (
+                          <span className={`text-sm font-bold ${isGain ? "text-emerald-400" : "text-red-400"}`}>
+                            {isGain ? "+" : ""}${pnlAbs.toFixed(2)}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleCloseTrade(t.id)}
+                          className="text-slate-500 hover:text-rose-400 transition-colors bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 text-xs font-bold uppercase tracking-wider"
+                        >
+                          Close
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={() => handleCloseTrade(t.id)} className="text-slate-500 hover:text-rose-400 transition-colors bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 text-xs font-bold uppercase tracking-wider">
-                      Close
-                    </button>
-                  </div>
-                  
-                  {t.alert && (
-                    <div className="mt-4 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex gap-3 items-center">
-                      <AlertTriangle className="text-rose-500 shrink-0" size={18} />
-                      <p className="text-sm text-rose-200 font-medium">{t.alert}</p>
+
+                    {t.alert && (
+                      <div className="mt-4 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex gap-3 items-center">
+                        <AlertTriangle className="text-rose-500 shrink-0" size={18} />
+                        <p className="text-sm text-rose-200 font-medium">{t.alert}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap justify-between gap-2 text-[11px] text-slate-600 font-mono uppercase tracking-widest">
+                      <span>In: {new Date(t.created_at).toLocaleDateString()}</span>
+                      <span>Hold: {t.hold_value ?? t.hold_days} {t.hold_unit ?? "days"}</span>
+                      <span className="text-blue-400">Target Out: {new Date(t.sell_date).toLocaleDateString()}</span>
                     </div>
-                  )}
-                  
-                  <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap justify-between gap-2 text-[11px] text-slate-600 font-mono uppercase tracking-widest">
-                    <span>In: {new Date(t.created_at).toLocaleDateString()}</span>
-                    <span>Hold: {t.hold_value ?? t.hold_days} {t.hold_unit ?? "days"}</span>
-                    <span className="text-blue-400">Target Out: {new Date(t.sell_date).toLocaleDateString()}</span>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
-          
         </div>
       </div>
     </div>

@@ -225,6 +225,9 @@ button:focus-visible {
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
+/* z-index utility not in Tailwind defaults */
+.z-60 { z-index: 60; }
+
 /* Stats row */
 .stats-row { display: flex; gap: 1px; align-items: stretch; }
 .stat-card { flex: 1; padding: 14px; text-align: left; }

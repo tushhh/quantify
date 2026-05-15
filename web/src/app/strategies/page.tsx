@@ -110,7 +110,7 @@ export default function StrategiesPage() {
               : "border-white/10 text-slate-400 hover:text-white"
           )}
         >
-          Parameters
+          Details
         </button>
       </div>
 
