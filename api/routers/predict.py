@@ -45,13 +45,13 @@ def _run_prediction_sync(top_n: int) -> PredictionResponse:
     signals = strat.generate_signals(enriched)
 
     longs = sorted(
-        [s for s in signals if s.side == "long"],
+        [s for s in signals if s.direction == "long"],
         key=lambda x: x.strength,
         reverse=True,
     )
 
     items = [
-        PredictionItem(symbol=s.symbol, strength=s.strength, side=s.side)
+        PredictionItem(symbol=s.symbol, strength=s.strength, side=s.direction)
         for s in longs[:top_n]
     ]
     return PredictionResponse(

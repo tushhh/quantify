@@ -36,20 +36,63 @@ function TradeCard({
   t,
   currentPrice,
   onClose,
+  onUpdateDip,
 }: {
   t: TrackedTrade;
   currentPrice: number | null | undefined;
   onClose: (id: number) => void;
+  onUpdateDip: (id: number, dipThreshold: number | null) => Promise<void>;
 }) {
   const pnlAbs = currentPrice != null ? (currentPrice - t.buy_price) * t.shares : null;
   const pnlPct = currentPrice != null ? (currentPrice - t.buy_price) / t.buy_price : null;
   const isGain  = pnlAbs != null && pnlAbs >= 0;
   const hasPrice = currentPrice != null;
+  const dipThreshold = t.dip_threshold_pct ?? null;
+  const dipDrawdown = hasPrice && dipThreshold != null && dipThreshold > 0
+    ? (currentPrice! - t.buy_price) / t.buy_price
+    : null;
+  const dipAlert = dipDrawdown != null && dipDrawdown <= -dipThreshold!
+    ? `PRICE DROP ALERT — ${Math.abs(dipDrawdown * 100).toFixed(2)}% vs entry (threshold ${(
+        dipThreshold! * 100
+      ).toFixed(1)}%)`
+    : null;
+  const alertText = dipAlert ? (t.alert ? `${dipAlert}\n${t.alert}` : dipAlert) : t.alert;
+  const [dipDraft, setDipDraft] = useState(dipThreshold ? (dipThreshold * 100).toFixed(1) : "");
+  const [dipSaving, setDipSaving] = useState(false);
+  const [dipError, setDipError] = useState<string | null>(null);
+  const displayDip = dipThreshold ? (dipThreshold * 100).toFixed(1) : "";
+  const dipDirty = dipDraft.trim() !== displayDip;
+
+  useEffect(() => {
+    setDipDraft(displayDip);
+  }, [displayDip]);
+
+  const handleSaveDip = async () => {
+    const raw = dipDraft.trim();
+    let next: number | null = null;
+    if (raw) {
+      const val = parseFloat(raw);
+      if (!Number.isFinite(val) || val < 0 || val > 90) {
+        setDipError("Dip alert must be between 0 and 90%.");
+        return;
+      }
+      next = val > 0 ? val / 100 : null;
+    }
+    setDipSaving(true);
+    setDipError(null);
+    try {
+      await onUpdateDip(t.id, next);
+    } catch (e) {
+      setDipError(e instanceof Error ? e.message : "Failed to update dip alert.");
+    } finally {
+      setDipSaving(false);
+    }
+  };
 
   return (
     <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {/* alert stripe */}
-      {t.alert && <div className="absolute top-0 left-0 w-full h-0.5 bg-red-500 animate-pulse" />}
+      {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-red-500 animate-pulse" />}
 
       {/* P&L accent stripe */}
       {!t.alert && hasPrice && (
@@ -93,17 +136,47 @@ function TradeCard({
         </div>
 
         {/* Alert bar */}
-        {t.alert && (
+        {alertText && (
           <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 flex gap-2 items-start">
             <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={14} />
-            <p className="text-xs text-red-300 font-medium leading-relaxed">{t.alert}</p>
+            <p className="text-xs text-red-300 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
           </div>
         )}
 
+        {/* Dip threshold editor */}
+        <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dip Alert</p>
+            <span className="text-[10px] text-slate-600">0 disables</span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              max="90"
+              step="0.5"
+              className="input-field text-xs py-1.5 px-2.5 rounded-lg max-w-[110px]"
+              value={dipDraft}
+              onChange={(e) => setDipDraft(e.target.value)}
+            />
+            <span className="text-[10px] text-slate-500">% from entry</span>
+            <button
+              type="button"
+              onClick={handleSaveDip}
+              disabled={!dipDirty || dipSaving}
+              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)] hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {dipSaving ? "Saving" : "Save"}
+            </button>
+          </div>
+          {dipError && <p className="text-[10px] text-red-400 mt-1">{dipError}</p>}
+        </div>
+
         {/* Footer metadata */}
-        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-3 gap-1 text-[10px] font-mono text-slate-600 uppercase tracking-wider">
+        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-mono text-slate-600 uppercase tracking-wider">
           <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
           <span className="text-center">Hold: {t.hold_value ?? t.hold_days}d</span>
+          <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
           <span className="text-right text-blue-500">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
       </div>
@@ -131,6 +204,7 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [holdUnit, setHoldUnit] = useState<"days" | "months" | "years">("days");
   const [holdValue, setHoldValue] = useState("10");
+  const [dipThresholdPct, setDipThresholdPct] = useState("8");
   const [activeTab, setActiveTab] = useState<"analysis" | "portfolio">("analysis");
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [symbolIndex, setSymbolIndex] = useState(0);
@@ -233,12 +307,22 @@ export default function DashboardPage() {
         setTradeError("Enter a valid holding duration.");
         return;
       }
+      let dipThreshold: number | null = null;
+      if (dipThresholdPct.trim()) {
+        const dipValue = parseFloat(dipThresholdPct);
+        if (!Number.isFinite(dipValue) || dipValue < 0 || dipValue > 90) {
+          setTradeError("Dip alert must be between 0 and 90%. Use 0 to disable.");
+          return;
+        }
+        dipThreshold = dipValue > 0 ? dipValue / 100 : null;
+      }
       await api.trades.create({
         symbol: sym,
         shares: parseFloat(newTrade.shares),
         buy_price: parseFloat(newTrade.buy_price),
         hold_unit: holdUnit,
         hold_value: holdInt,
+        dip_threshold_pct: dipThreshold,
       });
       setNewTrade({ symbol: "", shares: "", buy_price: "" });
       setTradeSuccess(true);
@@ -258,6 +342,11 @@ export default function DashboardPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleUpdateDip = async (id: number, dipThreshold: number | null) => {
+    await api.trades.updateDipThreshold(id, dipThreshold);
+    loadTrades();
   };
 
   if (loadingAuth) return <PageLoader />;
@@ -606,6 +695,28 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dip Alert Threshold</p>
+                  <span className="text-[10px] text-slate-600">Optional</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="90"
+                    step="0.5"
+                    className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-lg"
+                    value={dipThresholdPct}
+                    onChange={(e) => setDipThresholdPct(e.target.value)}
+                  />
+                  <span className="text-xs text-slate-500">% drop from entry</span>
+                </div>
+                <p className="text-[10px] text-slate-600 leading-relaxed">
+                  Sends a Telegram alert if the price drops beyond this threshold.
+                </p>
+              </div>
+
               {tradeError && (
                 <Alert variant="danger">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
@@ -646,6 +757,7 @@ export default function DashboardPage() {
                   t={t}
                   currentPrice={prices[t.symbol]}
                   onClose={handleCloseTrade}
+                  onUpdateDip={handleUpdateDip}
                 />
               ))
             )}

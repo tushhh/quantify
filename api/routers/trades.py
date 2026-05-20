@@ -1,16 +1,17 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from api.schemas import TrackedTrade, TradeCreate
+from api.schemas import TrackedTrade, TradeCreate, TradeDipUpdate
 from api.database import get_db
 from api.models import Trade as DBTrade, User as DBUser
 from api.routers.auth import get_current_user
 from api.routers import utils as utils_router
 from api.hold_health import hold_days_from_unit
+from api.market_data import fetch_latest_prices
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 log = logging.getLogger("quantify.api.trades")
@@ -23,47 +24,12 @@ def _ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def _fetch_prices_sync(symbols: List[str]) -> Dict[str, Optional[float]]:
-    """Fetch latest close prices for a list of symbols via yfinance (synchronous)."""
-    result: Dict[str, Optional[float]] = {s: None for s in symbols}
-    if not symbols:
-        return result
-    try:
-        import yfinance as yf
-        import pandas as pd
-
-        tickers = " ".join(symbols)
-        raw = yf.download(
-            tickers,
-            period="5d",
-            auto_adjust=True,
-            progress=False,
-            group_by="ticker" if len(symbols) > 1 else "column",
-            threads=True,
-        )
-        if raw is None or (isinstance(raw, pd.DataFrame) and raw.empty):
-            return result
-
-        def _get_close(df: pd.DataFrame) -> Optional[float]:
-            """Extract the latest close price from a DataFrame, case-insensitively."""
-            col_map = {c.lower(): c for c in df.columns}
-            col = col_map.get("close")
-            if col is None:
-                return None
-            series = df[col].dropna()
-            return round(float(series.iloc[-1]), 4) if not series.empty else None
-
-        if len(symbols) == 1:
-            result[symbols[0]] = _get_close(raw)
-        else:
-            for sym in symbols:
-                try:
-                    result[sym] = _get_close(raw[sym])
-                except Exception:
-                    pass
-    except Exception as exc:
-        log.warning("Price fetch failed: %s", exc)
-    return result
+def _validate_dip_threshold(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    if value < 0 or value > 0.9:
+        raise HTTPException(status_code=400, detail="dip_threshold_pct must be between 0 and 0.9")
+    return float(value)
 
 
 @router.post("", response_model=TrackedTrade)
@@ -76,6 +42,7 @@ async def create_trade(
     """Log a new trade to track for the current user."""
     created_at = datetime.now(timezone.utc)
     hold_unit = (req.hold_unit or "").strip().lower()
+    dip_threshold_pct = _validate_dip_threshold(req.dip_threshold_pct)
     if req.hold_value is not None:
         if hold_unit not in {"days", "months", "years"}:
             raise HTTPException(status_code=400, detail="hold_unit must be days, months, or years")
@@ -108,6 +75,7 @@ async def create_trade(
         symbol=sym,
         shares=req.shares,
         buy_price=req.buy_price,
+        dip_threshold_pct=dip_threshold_pct,
         hold_days=hold_days,
         hold_unit=hold_unit,
         hold_value=hold_value,
@@ -137,6 +105,7 @@ async def create_trade(
         hold_days=db_trade.hold_days,
         hold_unit=db_trade.hold_unit,
         hold_value=db_trade.hold_value,
+        dip_threshold_pct=db_trade.dip_threshold_pct,
         created_at=db_trade.created_at.isoformat(),
         sell_date=db_trade.sell_date.isoformat(),
         status=db_trade.status,
@@ -172,6 +141,7 @@ async def list_trades(
             hold_days=t.hold_days,
             hold_unit=t.hold_unit,
             hold_value=t.hold_value,
+            dip_threshold_pct=t.dip_threshold_pct,
             created_at=t.created_at.isoformat(),
             sell_date=sell_utc.isoformat(),
             status=t.status,
@@ -180,6 +150,52 @@ async def list_trades(
             alert=alert,
         ))
     return res
+
+
+@router.patch("/{trade_id}/dip-threshold", response_model=TrackedTrade)
+async def update_dip_threshold(
+    trade_id: int,
+    req: TradeDipUpdate,
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user),
+):
+    """Update the dip alert threshold for a trade (0 disables alerts)."""
+    trade = db.query(DBTrade).filter(
+        DBTrade.id == trade_id,
+        DBTrade.user_id == current_user.id,
+    ).first()
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found")
+
+    dip_threshold_pct = _validate_dip_threshold(req.dip_threshold_pct)
+    if dip_threshold_pct is not None and dip_threshold_pct <= 0:
+        dip_threshold_pct = None
+
+    previous = trade.dip_threshold_pct
+    trade.dip_threshold_pct = dip_threshold_pct
+    if previous != trade.dip_threshold_pct:
+        trade.last_dip_alert_at = None
+
+    db.commit()
+    db.refresh(trade)
+
+    sell_utc = _ensure_utc(trade.sell_date)
+    return TrackedTrade(
+        id=trade.id,
+        symbol=trade.symbol,
+        shares=trade.shares,
+        buy_price=trade.buy_price,
+        hold_days=trade.hold_days,
+        hold_unit=trade.hold_unit,
+        hold_value=trade.hold_value,
+        dip_threshold_pct=trade.dip_threshold_pct,
+        created_at=trade.created_at.isoformat(),
+        sell_date=sell_utc.isoformat(),
+        status=trade.status,
+        current_strength=trade.last_health_strength,
+        last_health_reason=trade.last_health_reason,
+        alert=None,
+    )
 
 
 @router.get("/prices")
@@ -196,7 +212,7 @@ async def get_trade_prices(
     if not symbols:
         return {}
     loop = asyncio.get_running_loop()
-    prices = await loop.run_in_executor(None, _fetch_prices_sync, symbols)
+    prices = await loop.run_in_executor(None, fetch_latest_prices, symbols)
     return prices
 
 

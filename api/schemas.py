@@ -201,6 +201,21 @@ class TradeCreate(BaseModel):
     hold_days: Optional[int] = None
     hold_unit: Optional[str] = None
     hold_value: Optional[int] = None
+    dip_threshold_pct: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=0.9,
+        description="Percent drop from entry that triggers an alert (0–0.9)",
+    )
+
+
+class TradeDipUpdate(BaseModel):
+    dip_threshold_pct: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=0.9,
+        description="Updated percent drop threshold (0–0.9); null disables",
+    )
 
 class TrackedTrade(TradeCreate):
     id: int

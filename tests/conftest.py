@@ -12,9 +12,17 @@ sample_returns      — daily returns Series derived from sample_ohlcv_data
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+
+_TEST_DB = Path("./data/quantify_test.db")
+if _TEST_DB.exists():
+    _TEST_DB.unlink()
+os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB.as_posix()}"
 
 
 # ---------------------------------------------------------------------------

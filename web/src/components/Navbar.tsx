@@ -32,7 +32,7 @@ export function Navbar() {
   return (
     <>
       {/* ── Desktop nav ─────────────────────────────────────── */}
-      <nav className="hidden md:flex sticky top-0 left-0 right-0 z-50 h-14 items-center px-5 gap-6 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md">
+      <nav className="hidden md:flex sticky top-0 left-0 right-0 z-50 h-16 items-center px-8 gap-8 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md">
 
         {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group mr-2">
@@ -43,7 +43,7 @@ export function Navbar() {
         </Link>
 
         {/* Links */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2.5">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = path === href;
             return (
@@ -51,9 +51,9 @@ export function Navbar() {
                 key={href}
                 href={href}
                 className={clsx(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all",
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wider transition-all",
                   active
-                    ? "bg-blue-500/15 text-blue-300 border border-blue-500/25"
+                    ? "bg-blue-500/15 text-blue-200 border border-blue-500/30 shadow-sm shadow-blue-500/10"
                     : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                 )}
               >

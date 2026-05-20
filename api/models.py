@@ -16,6 +16,7 @@ class Trade(Base):
     symbol = Column(String)
     shares = Column(Float)
     buy_price = Column(Float)
+    dip_threshold_pct = Column(Float, nullable=True, default=None)
     hold_days = Column(Integer)
     hold_unit = Column(String, default="days")
     hold_value = Column(Integer, default=0)
@@ -27,3 +28,4 @@ class Trade(Base):
     last_health_strength = Column(Float, nullable=True, default=None)
     last_health_reason = Column(String, nullable=True, default=None)
     last_health_alert_at = Column(DateTime, nullable=True, default=None)
+    last_dip_alert_at = Column(DateTime, nullable=True, default=None)

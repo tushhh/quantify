@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from sqlalchemy.orm import Session
 from api.database import SessionLocal
 from api.models import User, Trade
+from api.market_data import fetch_latest_prices
 from api.hold_health import evaluate_hold_health, hold_days_from_unit
 
 logging.basicConfig(level=logging.INFO)
@@ -77,11 +78,14 @@ async def check_alerts_loop():
                 horizon_days[trade.symbol] = trade.hold_days
 
         health_results = evaluate_hold_health(symbols, horizon_days, now=now)
+        prices = fetch_latest_prices(list({s.upper() for s in symbols}))
         
         for trade in active_trades:
             user = db.query(User).filter(User.id == trade.user_id).first()
             if not user or not user.telegram_chat_id:
                 continue
+
+            dirty = False
             
             # Check condition: duration ended
             sell_utc = trade.sell_date if trade.sell_date.tzinfo else trade.sell_date.replace(tzinfo=timezone.utc)
@@ -97,6 +101,26 @@ async def check_alerts_loop():
                 except Exception as e:
                     log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
                 continue
+
+            dip_threshold = trade.dip_threshold_pct
+            if dip_threshold is not None and dip_threshold > 0:
+                current_price = prices.get(trade.symbol)
+                if current_price is not None and trade.buy_price:
+                    drawdown = (current_price - trade.buy_price) / trade.buy_price
+                    if drawdown <= -dip_threshold and trade.last_dip_alert_at is None:
+                        msg = (
+                            f"🚨 PRICE ALERT: {trade.symbol}\n"
+                            f"Price drop exceeded {dip_threshold * 100:.1f}% from entry.\n"
+                            f"Entry: ${trade.buy_price:.2f} | Last: ${current_price:.2f}\n"
+                            f"Current move: {drawdown * 100:.2f}%"
+                        )
+                        log.info(f"Sending dip alert to chat {user.telegram_chat_id}: {msg}")
+                        try:
+                            await bot.send_message(chat_id=user.telegram_chat_id, text=msg)
+                            trade.last_dip_alert_at = now
+                            dirty = True
+                        except Exception as e:
+                            log.error(f"Failed to send dip alert to {user.telegram_chat_id}: {e}")
 
             health = health_results.get(trade.symbol)
             if health:
@@ -115,9 +139,12 @@ async def check_alerts_loop():
                     try:
                         await bot.send_message(chat_id=user.telegram_chat_id, text=msg)
                         trade.last_health_alert_at = now
+                        dirty = True
                     except Exception as e:
                         log.error(f"Failed to send to {user.telegram_chat_id}: {e}")
+                dirty = True
 
+            if dirty:
                 db.commit()
         
     except Exception as e:

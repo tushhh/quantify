@@ -29,7 +29,8 @@
   --text:            #e2eaf8;
   --text-muted:      #7b8fae;
   --text-dim:        #3d5070;
-  --font-sans:       'Inter', 'system-ui', sans-serif;
+  --font-sans:       var(--font-space), system-ui, sans-serif;
+  --font-code:       var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* ── Legacy aliases (keep existing CSS var refs working) ── */
   --color-indiglow:         transparent;
@@ -64,6 +65,11 @@ html {
 body {
   min-height: 100vh;
   background-color: var(--bg);
+  background-image:
+    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.12), transparent 55%),
+    radial-gradient(1000px 500px at 90% -20%, rgba(16, 185, 129, 0.08), transparent 60%),
+    radial-gradient(800px 400px at 50% 120%, rgba(99, 102, 241, 0.06), transparent 65%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -107,6 +113,7 @@ body {
   outline: none;
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
+.font-mono { font-family: var(--font-code); }
 .input-field::placeholder { color: var(--text-dim); }
 .input-field:focus {
   border-color: rgba(59, 130, 246, 0.5);

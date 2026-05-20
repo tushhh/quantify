@@ -182,6 +182,7 @@ export type TradeCreate = {
   hold_days?: number;
   hold_unit?: "days" | "months" | "years";
   hold_value?: number;
+  dip_threshold_pct?: number | null;
 };
 
 export type TrackedTrade = TradeCreate & {
@@ -234,6 +235,11 @@ export const api = {
     list: () => apiFetch<TrackedTrade[]>("/api/trades"),
     prices: () => apiFetch<Record<string, number | null>>("/api/trades/prices"),
     close: (id: number) => apiFetch<{status: string}>(`/api/trades/${id}`, { method: "DELETE" }),
+    updateDipThreshold: (id: number, dip_threshold_pct: number | null) =>
+      apiFetch<TrackedTrade>(`/api/trades/${id}/dip-threshold`, {
+        method: "PATCH",
+        body: { dip_threshold_pct },
+      }),
   },
   health: () => apiFetch<{ status: string }>("/health"),
 };

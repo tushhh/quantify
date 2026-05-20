@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils
-from api.database import engine, ensure_trade_columns
+from api.database import engine, ensure_trade_columns, ensure_user_columns
 from api import models
 from api.telegram_bot import check_alerts_loop
 
@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     # (default) makes this a no-op on existing schema, so it's safe to call at startup.
     models.Base.metadata.create_all(bind=engine)
     ensure_trade_columns()
+    ensure_user_columns()
     
     # Only run telegram bot on worker dyno, not web dyno (prevents polling conflicts on Heroku)
     dyno_type = os.getenv("DYNO", "local")
