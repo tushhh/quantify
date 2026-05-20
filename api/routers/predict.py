@@ -16,7 +16,7 @@ def _run_prediction_sync(top_n: int) -> PredictionResponse:
     from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 
     end_dt = datetime.now(timezone.utc)
-    start_dt = end_dt - timedelta(days=365)
+    start_dt = end_dt - timedelta(days=365 * 3)
 
     strat = MLReturnPredictorStrategy()
     universe = strat.universe[:30]

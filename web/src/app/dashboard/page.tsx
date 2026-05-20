@@ -261,7 +261,7 @@ export default function DashboardPage() {
       ).slice(0, 8)
     : universe.slice(0, 8);
   const isSymbolInUniverse = !!symbolQuery && universe.some((t) => t.symbol === symbolQuery);
-  const canSubmitTrade = isSymbolInUniverse && !!newTrade.shares && !!newTrade.buy_price && !!holdValue;
+  const canSubmitTrade = !!symbolQuery && !!newTrade.shares && !!newTrade.buy_price && !!holdValue;
 
   useEffect(() => {
     if (!symbolOpen) return;
@@ -765,5 +765,8 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+   </div>
   );
 }
