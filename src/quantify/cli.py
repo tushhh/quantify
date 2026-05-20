@@ -23,10 +23,27 @@ Usage examples
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 import click
+
+
+def _sanitize_argv(argv: list[str]) -> list[str]:
+    """Remove stray shell continuation tokens that sometimes get pasted into Windows terminals."""
+    cleaned: list[str] = []
+    for arg in argv:
+        stripped = arg.strip()
+        if not stripped:
+            continue
+        if stripped in {"`", "^"}:
+            continue
+        cleaned.append(arg)
+    return cleaned
+
+
+if len(sys.argv) > 1:
+    sys.argv[:] = [sys.argv[0], *_sanitize_argv(sys.argv[1:])]
 
 # ---------------------------------------------------------------------------
 # Strategy name → class mapping
@@ -425,6 +442,7 @@ def _run_dry_run(strategy_instances, settings) -> None:
         click.echo(f"\nStrategy: {strat.name}")
         try:
             signals = strat.generate_signals(data)
+            latest_bar_date = _latest_data_date(data)
             long_sigs = [s for s in signals if s.direction == "long"]
             short_sigs = [s for s in signals if s.direction == "short"]
             close_sigs = [s for s in signals if s.direction == "close"]
@@ -432,12 +450,49 @@ def _run_dry_run(strategy_instances, settings) -> None:
                 f"  Signals: {len(signals)} total — "
                 f"{len(long_sigs)} long, {len(short_sigs)} short, {len(close_sigs)} close"
             )
+            if latest_bar_date is not None:
+                click.echo(f"  Latest bar date: {latest_bar_date:%Y-%m-%d}")
+            if any("mom_12_1" in getattr(s, "metadata", {}) for s in signals):
+                ranked = sorted(
+                    [s for s in signals if "mom_12_1" in getattr(s, "metadata", {})],
+                    key=lambda s: s.metadata.get("mom_12_1", float("-inf")),
+                    reverse=True,
+                )
+                click.echo("  Momentum ranking (top 3 longs / shorts):")
+                top_longs = [sig for sig in ranked if sig.direction == "long"][:3]
+                top_shorts = [sig for sig in reversed(ranked) if sig.direction == "short"][:3]
+                for sig in top_longs:
+                    click.echo(
+                        f"    LONG  {sig.symbol:<8} mom_12_1={sig.metadata.get('mom_12_1', 0):+.6f} "
+                        f"rank={sig.metadata.get('percentile_rank', 0):.4f}"
+                    )
+                for sig in top_shorts:
+                    click.echo(
+                        f"    SHORT {sig.symbol:<8} mom_12_1={sig.metadata.get('mom_12_1', 0):+.6f} "
+                        f"rank={sig.metadata.get('percentile_rank', 0):.4f}"
+                    )
             for sig in long_sigs[:5]:
                 click.echo(f"    LONG  {sig.symbol:<8}  strength={sig.strength:+.3f}")
             for sig in short_sigs[:5]:
                 click.echo(f"    SHORT {sig.symbol:<8}  strength={sig.strength:+.3f}")
         except Exception as exc:
             click.echo(f"  Error generating signals: {exc}", err=True)
+
+
+def _latest_data_date(data: dict[str, object]) -> Optional[datetime]:
+    """Return the latest timestamp across the fetched data frames."""
+    latest: Optional[datetime] = None
+    for df in data.values():
+        if getattr(df, "empty", True):
+            continue
+        ts = df.index[-1]
+        if hasattr(ts, "to_pydatetime"):
+            ts = ts.to_pydatetime()
+        if getattr(ts, "tzinfo", None) is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if latest is None or ts > latest:
+            latest = ts
+    return latest
 
 
 # ---------------------------------------------------------------------------

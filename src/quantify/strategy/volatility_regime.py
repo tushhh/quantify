@@ -482,7 +482,7 @@ class VolatilityRegimeStrategy(Strategy):
         # ---- VIX from data or yfinance ----
         vix_series = self._extract_vix_from_data(data)
         if vix_series is not None and not vix_series.empty:
-            self._current_vix = float(vix_series.iloc[-1])
+            self._current_vix = _last_numeric_value(vix_series)
         else:
             self._current_vix = self.get_current_vix()
 
@@ -533,7 +533,7 @@ class VolatilityRegimeStrategy(Strategy):
         for key in ("^VIX", "VIX"):
             df = data.get(key)
             if df is not None and not df.empty and "close" in df.columns:
-                return df["close"].dropna()
+                return _series_from_last_column(df["close"])
         return None
 
     def _extract_sector_returns(
@@ -613,8 +613,8 @@ class VolatilityRegimeStrategy(Strategy):
         Determine the current VIX level from provided data or cache.
         """
         if vix_data is not None and not vix_data.empty:
-            val = vix_data.iloc[-1]
-            return float(val) if not np.isnan(val) else None
+            val = _last_numeric_value(vix_data)
+            return val if val is not None and not np.isnan(val) else None
         if self._current_vix is not None:
             return self._current_vix
         return self.get_current_vix()
@@ -662,3 +662,32 @@ class VolatilityRegimeStrategy(Strategy):
 
 
 __all__ = ["VolatilityRegimeStrategy"]
+
+
+def _series_from_last_column(value: pd.Series | pd.DataFrame) -> pd.Series:
+    """Return a 1D series from a close column even if pandas produced a frame."""
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return pd.Series(dtype=float)
+        value = value.iloc[:, -1]
+    return pd.Series(value).dropna()
+
+
+def _last_numeric_value(value: pd.Series | pd.DataFrame) -> Optional[float]:
+    """Safely coerce the last numeric value from a Series or single-column frame."""
+    if value is None:
+        return None
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return None
+        value = value.iloc[:, -1]
+    series = pd.Series(value).dropna()
+    if series.empty:
+        return None
+    last = series.iloc[-1]
+    if isinstance(last, pd.Series):
+        last = last.iloc[-1]
+    try:
+        return float(last)
+    except (TypeError, ValueError):
+        return None
