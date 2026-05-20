@@ -16,9 +16,10 @@ import time
 from datetime import date
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-import numpy as np
-import pandas as pd
-import yfinance as yf
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas as pd
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -46,6 +47,8 @@ REQUEST_TIMEOUT = 120  # 2 minutes max per request
 
 def _fetch_data_with_retry(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
     """Download OHLCV data from yfinance with exponential backoff retry."""
+    import pandas as pd
+    import yfinance as yf
     symbols = " ".join(tickers)
     last_exc = None
     
@@ -87,6 +90,7 @@ def _fetch_data_with_retry(tickers: list[str], start: date, end: date) -> Dict[s
 
 def _process_raw_data(raw: pd.DataFrame | dict, tickers: list[str]) -> Dict[str, pd.DataFrame]:
     """Process raw yfinance data into standardized format."""
+    import pandas as pd
     result: Dict[str, pd.DataFrame] = {}
     
     if len(tickers) == 1:
@@ -238,6 +242,7 @@ def _build_risk_manager(req: BacktestRequest):
 
 
 def _sortino(daily_returns: pd.Series, risk_free: float = 0.0) -> float:
+    import numpy as np
     rets = daily_returns.dropna()
     excess = rets - risk_free / 252
     downside = excess[excess < 0]
@@ -254,6 +259,7 @@ def _calmar(annualized_return: float, max_drawdown: float) -> float:
 
 
 def _avg_holding(trades: list[dict]) -> float:
+    import numpy as np
     days = [t.get("holding_days", 0) for t in trades if t.get("holding_days") is not None]
     return float(np.mean(days)) if days else 0.0
 
