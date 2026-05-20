@@ -22,15 +22,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def _column_exists(table: str, column: str) -> bool:
-    try:
-        inspector = inspect(engine)
-        return column in {col["name"] for col in inspector.get_columns(table)}
-    except Exception as exc:
-        log.warning("Column inspection failed for %s.%s: %s", table, column, exc)
-        return False
-
-
 def ensure_trade_columns() -> None:
     """Ensure optional trade columns exist for hold health tracking."""
     ddl = [
@@ -45,9 +36,11 @@ def ensure_trade_columns() -> None:
         ("last_dip_alert_at", "ALTER TABLE trades ADD COLUMN last_dip_alert_at TIMESTAMP"),
     ]
     try:
+        inspector = inspect(engine)
+        existing_cols = {col["name"] for col in inspector.get_columns("trades")}
         with engine.begin() as conn:
             for column, stmt in ddl:
-                if _column_exists("trades", column):
+                if column in existing_cols:
                     continue
                 try:
                     conn.execute(text(stmt))
@@ -65,9 +58,11 @@ def ensure_user_columns() -> None:
         ("telegram_chat_id", "ALTER TABLE users ADD COLUMN telegram_chat_id VARCHAR(64)"),
     ]
     try:
+        inspector = inspect(engine)
+        existing_cols = {col["name"] for col in inspector.get_columns("users")}
         with engine.begin() as conn:
             for column, stmt in ddl:
-                if _column_exists("users", column):
+                if column in existing_cols:
                     continue
                 try:
                     conn.execute(text(stmt))
