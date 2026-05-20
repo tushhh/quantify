@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from api.database import SessionLocal
 from api.models import User, Trade
 from api.market_data import fetch_latest_prices
+from api.hold_utils import hold_days_from_unit
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("telegram_bot")
@@ -67,7 +68,7 @@ async def check_alerts_loop():
         # Process all active trades (hold alerts are de-duplicated per trade)
         active_trades = db.query(Trade).filter(Trade.status == "active").all()
 
-        from api.hold_health import evaluate_hold_health, hold_days_from_unit
+        from api.hold_health import evaluate_hold_health
 
         horizon_days: dict[str, int] = {}
         symbols: list[str] = []

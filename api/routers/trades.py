@@ -10,7 +10,7 @@ from api.database import get_db
 from api.models import Trade as DBTrade, User as DBUser
 from api.routers.auth import get_current_user
 from api.routers import utils as utils_router
-from api.hold_health import hold_days_from_unit
+from api.hold_utils import hold_days_from_unit
 from api.market_data import fetch_latest_prices
 
 router = APIRouter(prefix="/trades", tags=["trades"])
