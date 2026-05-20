@@ -632,7 +632,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   {symbolQuery && !isSymbolInUniverse && (
-                    <p className="text-[10px] text-red-400 mt-0.5">Select from list</p>
+                    <p className="text-[10px] text-blue-400 mt-0.5">Custom symbol will be verified</p>
                   )}
                 </div>
 
@@ -765,8 +765,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  );
-}
-   </div>
   );
 }
