@@ -50,14 +50,16 @@ async def lifespan(app: FastAPI):
     else:
         log.info("Skipping Telegram bot polling on web dyno (Heroku). Run on worker dyno instead.")
     
-    # Start the background task for telegram alerts (scheduled every 3 hours)
+    # Start the background task for telegram alerts only on worker dynos
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_alerts_loop, 'interval', hours=3)
-    scheduler.start()
+    if not is_web_dyno:
+        scheduler.add_job(check_alerts_loop, 'interval', hours=3)
+        scheduler.start()
     
     yield
     
-    scheduler.shutdown()
+    if scheduler.running:
+        scheduler.shutdown()
     if not is_web_dyno:
         await stop_telegram_bot()
 
