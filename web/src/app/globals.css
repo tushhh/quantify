@@ -1,40 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Colors (Brutalist Terminal Overrides) ── */
-  --color-primary: #000000;
-  --color-secondary: #111111;
-  --color-cta: #39FF14;      /* Pure Neon Green */
-  --color-danger: #FF00FF;   /* Electric Magenta */
-  --color-info: #00FFFF;     /* Cyan */
-  --color-background: #000000;
-  --color-text: #FFFFFF;
-  --color-text-dim: #888888;
-  --color-border: #333333;
+  /* ── Colors (Luxury Obsidian & Gold) ── */
+  --color-primary: #050505;
+  --color-secondary: #0A0A0C;
+  --color-cta: #D4AF37;      /* Pale Gold */
+  --color-cta-hover: #F3E5AB;/* Champagne */
+  --color-danger: #E07A5F;   /* Muted Terracotta */
+  --color-info: #81A1C1;     /* Muted Steel Blue */
+  --color-background: #030303;
+  --color-text: #F3F4F6;
+  --color-text-dim: #9CA3AF;
+  --color-border: rgba(255, 255, 255, 0.04);
+  --color-border-bright: rgba(212, 175, 55, 0.2);
 
-  /* ── Spacing Variables ── */
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-2xl: 3rem;
-  --space-3xl: 4rem;
+  /* ── Spacing Variables (Generous) ── */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 2rem;
+  --space-lg: 3rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+  --space-3xl: 8rem;
 
   /* ── Typography ── */
-  --font-heading: var(--font-heading), monospace;
-  --font-mono: var(--font-mono), monospace;
+  --font-heading: var(--font-heading), "Times New Roman", serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
 
   /* ── Legacy Mappings ── */
   --bg: var(--color-background);
-  --surface: #0A0A0A;
-  --surface-raised: #141414;
+  --surface: rgba(10, 10, 12, 0.7);
+  --surface-raised: rgba(20, 20, 24, 0.8);
   --border: var(--color-border);
-  --border-bright: #666666;
+  --border-bright: var(--color-border-bright);
   --text: var(--color-text);
   --text-muted: var(--color-text-dim);
   --accent: var(--color-cta);
-  --accent-hover: #32E612;
+  --accent-hover: var(--color-cta-hover);
 }
 
 * {
@@ -47,209 +50,174 @@ html, body { height: 100%; }
 
 html {
   color: var(--text);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   scroll-behavior: smooth;
   background-color: var(--color-background);
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
-/* ── Cybernetic Grid Background ── */
+/* ── Deep Space Background ── */
 body {
   min-height: 100vh;
   background-color: var(--color-background);
   background-image: 
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 40px 40px;
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.03) 0%, transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--color-background); }
-::-webkit-scrollbar-thumb { background: var(--border-bright); }
+/* ── Scrollbar (Minimal) ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-cta); }
 
-/* ── Terminal Component Specs ── */
+/* ── Luxury Component Specs ── */
 
 .btn-primary {
   background: var(--color-cta);
-  color: black;
-  padding: 12px 24px;
+  color: #000;
+  padding: 14px 32px;
   border: 1px solid var(--color-cta);
-  border-radius: 0px; /* Brutalist sharp edges */
-  font-family: var(--font-heading);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px; /* Pill shaped */
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  transition: all 400ms cubic-bezier(0.25, 1, 0.5, 1);
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
 }
 
 .btn-primary:hover {
-  background: black;
-  color: var(--color-cta);
-  box-shadow: 4px 4px 0 var(--color-cta);
-  transform: translate(-2px, -2px);
+  background: var(--color-cta-hover);
+  border-color: var(--color-cta-hover);
+  box-shadow: 0 8px 24px -6px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border-bright);
-  padding: 12px 24px;
-  border-radius: 0px;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 14px 32px;
+  border-radius: 9999px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  transition: all 400ms cubic-bezier(0.25, 1, 0.5, 1);
   cursor: pointer;
 }
 
 .btn-secondary:hover {
-  border-color: var(--text);
-  background: var(--text);
-  color: black;
-  box-shadow: 4px 4px 0 var(--border-bright);
-  transform: translate(-2px, -2px);
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0px;
-  padding: 24px;
-  transition: all 150ms ease;
-  position: relative;
-}
-
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 10px; height: 10px;
-  border-top: 2px solid var(--color-cta);
-  border-left: 2px solid var(--color-cta);
-  opacity: 0;
-  transition: opacity 150ms ease;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: all 500ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .card:hover {
   border-color: var(--border-bright);
-}
-
-.card:hover::before {
-  opacity: 1;
+  box-shadow: 0 30px 60px -12px rgba(0,0,0,0.6), 0 0 40px -10px rgba(212, 175, 55, 0.05);
 }
 
 .input {
-  padding: 12px 16px;
+  padding: 16px 24px;
   border: 1px solid var(--border);
-  border-radius: 0px;
-  font-size: 16px;
-  background: black;
-  color: var(--color-cta);
-  font-family: var(--font-mono);
-  transition: border-color 150ms ease;
+  border-radius: 16px;
+  font-size: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  transition: all 400ms ease;
 }
 
 .input:focus {
   border-color: var(--color-cta);
   outline: none;
-  box-shadow: inset 4px 0 0 var(--color-cta);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1px var(--color-cta);
 }
 
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-}
-
-.modal {
-  background: var(--color-secondary);
-  border: 1px solid var(--color-cta);
-  border-radius: 0px;
-  padding: 32px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 12px 12px 0 rgba(57, 255, 20, 0.1);
-}
-
-/* ── Legacy Classes Mapped to Brutalism ── */
+/* ── Legacy Classes Mapped to Luxury ── */
 .glass {
-  background: rgba(10, 10, 10, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--surface);
+  backdrop-filter: blur(24px);
   border: 1px solid var(--border);
-  border-radius: 0px;
+  border-radius: 24px;
 }
 
 .card-inner {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 0px;
+  border-radius: 16px;
 }
 
 .input-field {
   width: 100%;
-  background: black;
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border);
-  border-radius: 0px;
-  padding: 0.625rem 0.875rem;
-  color: var(--color-cta);
-  font-size: 0.875rem;
+  border-radius: 12px;
+  padding: 12px 20px;
+  color: var(--text);
+  font-size: 0.9rem;
   outline: none;
-  transition: all 150ms ease;
+  transition: all 400ms ease;
 }
 .input-field:focus {
   border-color: var(--color-cta);
-  box-shadow: inset 2px 0 0 var(--color-cta);
 }
 
 .gradient-accent {
-  background: var(--color-cta);
+  background: linear-gradient(135deg, #D4AF37 0%, #F3E5AB 100%);
   color: black;
 }
 
-/* ── Glitch Animations ── */
-@keyframes glitch-skew {
-  0% { transform: skew(0deg); }
-  20% { transform: skew(-10deg); }
-  40% { transform: skew(10deg); }
-  60% { transform: skew(0deg); }
-  100% { transform: skew(0deg); }
+/* ── Elegant Fade Animations ── */
+@keyframes elegant-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in { animation: glitch-skew 0.3s ease-out both; }
-.animate-fade-in-up { animation: glitch-skew 0.4s ease-out both; }
+.animate-fade-in { animation: elegant-fade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-fade-in-up { animation: elegant-fade 1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
-/* ── Recharts Overrides (Stark mode) ── */
+/* ── Recharts Overrides (Luxury Mode) ── */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: black !important;
-  border: 1px solid var(--color-cta) !important;
-  border-radius: 0px !important;
-  color: var(--color-cta) !important;
-  font-family: var(--font-mono) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: 12px !important;
+  color: var(--text) !important;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(12px);
 }
 
 /* ── Dynamic Hover States ── */
 button, a {
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 300ms ease;
 }
 
 button:focus-visible, a:focus-visible {
   outline: 2px solid var(--color-cta);
-  outline-offset: 2px;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {

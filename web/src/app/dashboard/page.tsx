@@ -24,7 +24,7 @@ function PageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-2 border-blue-500/50 border-t-blue-500 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-2 border-[var(--color-cta)]/50 border-t-[var(--color-cta)] rounded-full animate-spin" />
         <p className="text-slate-500 text-sm">Loading dashboard…</p>
       </div>
     </div>
@@ -90,7 +90,7 @@ function TradeCard({
   };
 
   return (
-    <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
+    <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {/* alert stripe */}
       {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-red-500 animate-pulse" />}
 
@@ -106,7 +106,7 @@ function TradeCard({
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-lg font-black text-white tracking-tight">{t.symbol}</span>
               {hasPrice && (
-                <span className="text-sm font-mono text-slate-300">{fmt$(currentPrice!)}</span>
+                <span className="text-sm font-sans text-slate-300">{fmt$(currentPrice!)}</span>
               )}
               {pnlPct != null && (
                 <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-emerald-400" : "text-red-400"}`}>
@@ -115,7 +115,7 @@ function TradeCard({
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5 font-mono">
+            <p className="text-xs text-slate-500 mt-0.5 font-sans">
               {t.shares} shares @ {fmt$(t.buy_price)}
             </p>
           </div>
@@ -128,7 +128,7 @@ function TradeCard({
             )}
             <button
               onClick={() => onClose(t.id)}
-              className="text-slate-500 hover:text-red-400 bg-[var(--surface-raised)] border border-[var(--border)] hover:border-red-500/30 hover:bg-red-500/10 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+              className="text-slate-500 hover:text-red-400 bg-[var(--surface-raised)] border border-[var(--border)] hover:border-red-500/30 hover:bg-red-500/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
             >
               Close
             </button>
@@ -137,14 +137,14 @@ function TradeCard({
 
         {/* Alert bar */}
         {alertText && (
-          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 flex gap-2 items-start">
+          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-2xl p-2.5 flex gap-2 items-start">
             <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={14} />
             <p className="text-xs text-red-300 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
           </div>
         )}
 
         {/* Dip threshold editor */}
-        <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
+        <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dip Alert</p>
             <span className="text-[10px] text-slate-600">0 disables</span>
@@ -155,7 +155,7 @@ function TradeCard({
               min="0"
               max="90"
               step="0.5"
-              className="input-field text-xs py-1.5 px-2.5 rounded-lg max-w-[110px]"
+              className="input-field text-xs py-1.5 px-2.5 rounded-2xl max-w-[110px]"
               value={dipDraft}
               onChange={(e) => setDipDraft(e.target.value)}
             />
@@ -164,7 +164,7 @@ function TradeCard({
               type="button"
               onClick={handleSaveDip}
               disabled={!dipDirty || dipSaving}
-              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)] hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)] hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {dipSaving ? "Saving" : "Save"}
             </button>
@@ -173,11 +173,11 @@ function TradeCard({
         </div>
 
         {/* Footer metadata */}
-        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-mono text-slate-600 uppercase tracking-wider">
+        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-slate-600 uppercase tracking-wider">
           <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
           <span className="text-center">Hold: {t.hold_value ?? t.hold_days}d</span>
           <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
-          <span className="text-right text-blue-500">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+          <span className="text-right text-[var(--color-cta)]">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
       </div>
     </div>
@@ -392,26 +392,26 @@ export default function DashboardPage() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
         <div className="flex items-center gap-4">
-          <div className="w-11 h-11 gradient-accent rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/30 shrink-0">
+          <div className="w-11 h-11 gradient-accent rounded-3xl flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/20 shrink-0">
             <UserCircle className="text-white" size={22} />
           </div>
           <div>
             <p className="font-bold text-white leading-tight">{user.username}</p>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-              <Send size={9} className="text-blue-400" />
+              <Send size={9} className="text-[var(--color-cta)]" />
               {user.telegram_username
-                ? <span><span className="text-blue-400">{user.telegram_username}</span> connected</span>
+                ? <span><span className="text-[var(--color-cta)]">{user.telegram_username}</span> connected</span>
                 : "No Telegram connected — add in Settings"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/account" className="text-xs font-medium text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/[0.05] border border-[var(--border)] hover:border-[var(--border-bright)]">
+          <Link href="/account" className="text-xs font-medium text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-2xl hover:bg-white/[0.05] border border-[var(--border)] hover:border-[var(--border-bright)]">
             Settings
           </Link>
           <button
             onClick={logout}
-            className="text-xs font-medium text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-500/10"
+            className="text-xs font-medium text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-2xl hover:bg-red-500/10"
           >
             <LogOut size={13} /> Logout
           </button>
@@ -425,9 +425,9 @@ export default function DashboardPage() {
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider border transition-all ${
+            className={`flex-1 py-2.5 rounded-3xl text-xs font-semibold uppercase tracking-wider border transition-all ${
               activeTab === tab
-                ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
+                ? "bg-[var(--color-cta)]/20 border-[var(--color-cta)]/40 text-blue-200"
                 : "border-[var(--border)] text-slate-400 hover:text-white bg-[var(--surface)]"
             }`}
           >
@@ -437,7 +437,7 @@ export default function DashboardPage() {
               <span className="flex items-center justify-center gap-1.5">
                 <Shield size={13} /> Portfolio
                 {trades.length > 0 && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--color-cta)] text-white text-[9px] font-bold">
                     {trades.length}
                   </span>
                 )}
@@ -456,14 +456,14 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Crosshair size={18} className="text-blue-400" /> ML Analysis
+                <Crosshair size={18} className="text-[var(--color-cta)]" /> ML Analysis
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">Ensemble model: LightGBM + XGBoost + CatBoost</p>
             </div>
             <button
               onClick={handlePredict}
               disabled={loadingPreds}
-              className="gradient-accent text-white font-semibold py-2 px-4 rounded-xl shadow-sm shadow-blue-900/30 transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-2 text-xs"
+              className="gradient-accent text-white font-semibold py-2 px-4 rounded-3xl shadow-sm shadow-[var(--color-cta)]/20 transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-2 text-xs"
             >
               {loadingPreds ? (
                 <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analyzing…</>
@@ -474,12 +474,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Result panel */}
-          <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden flex flex-col min-h-[340px]">
+          <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden flex flex-col min-h-[340px]">
 
             {/* Error state */}
             {predError && !loadingPreds && (
               <div className="flex-1 flex flex-col gap-4 p-6">
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="flex items-start gap-3 p-4 rounded-3xl bg-red-500/10 border border-red-500/20">
                   <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={16} />
                   <div>
                     <p className="text-sm font-semibold text-red-300">Analysis failed</p>
@@ -491,7 +491,7 @@ export default function DashboardPage() {
                 </p>
                 <button
                   onClick={handlePredict}
-                  className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 font-semibold self-start transition-colors"
+                  className="flex items-center gap-2 text-xs text-[var(--color-cta)] hover:text-[var(--color-cta)] font-semibold self-start transition-colors"
                 >
                   <RotateCcw size={12} /> Try again
                 </button>
@@ -501,8 +501,8 @@ export default function DashboardPage() {
             {/* Empty / prompt state */}
             {!predError && !loadingPreds && !isComputing && predictions.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center py-12 px-6 text-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <Zap size={24} className="text-blue-400 opacity-60" />
+                <div className="w-14 h-14 rounded-2xl bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20 flex items-center justify-center">
+                  <Zap size={24} className="text-[var(--color-cta)] opacity-60" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-400">No predictions yet</p>
@@ -510,7 +510,7 @@ export default function DashboardPage() {
                     Run the ML analysis to get today&apos;s top algorithmically ranked stocks. Click any result to pre-fill the trade form.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-slate-600 bg-[var(--surface-raised)] border border-[var(--border)] rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-[10px] text-slate-600 bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl px-3 py-2">
                   <Clock size={10} className="text-amber-500/60" />
                   Allow ~60–90 seconds on first run
                 </div>
@@ -521,9 +521,9 @@ export default function DashboardPage() {
             {(loadingPreds || isComputing) && (
               <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
                 <div className="relative">
-                  <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                  <div className="w-12 h-12 border-2 border-[var(--color-cta)]/20 border-t-[var(--color-cta)] rounded-full animate-spin" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Zap size={14} className="text-blue-400" />
+                    <Zap size={14} className="text-[var(--color-cta)]" />
                   </div>
                 </div>
                 <div className="text-center px-6">
@@ -545,7 +545,7 @@ export default function DashboardPage() {
             {/* Results table */}
             {!loadingPreds && predictions.length > 0 && (
               <div className="flex flex-col">
-                <div className="grid grid-cols-4 px-5 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-[var(--border)] bg-black/20">
+                <div className="grid grid-cols-4 px-5 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-[var(--border)] bg-black/40">
                   <div>Rank</div>
                   <div>Symbol</div>
                   <div>Signal</div>
@@ -558,16 +558,16 @@ export default function DashboardPage() {
                     className="grid grid-cols-4 px-5 py-3.5 items-center hover:bg-white/[0.03] border-b border-[var(--border)] transition-colors cursor-pointer text-left w-full group"
                     onClick={() => { selectSymbol(p.symbol); setActiveTab("portfolio"); }}
                   >
-                    <div className="font-mono text-slate-600 text-xs">#{i + 1}</div>
-                    <div className="font-bold text-white text-base group-hover:text-blue-300 transition-colors">{p.symbol}</div>
+                    <div className="font-sans text-slate-600 text-xs">#{i + 1}</div>
+                    <div className="font-bold text-white text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
                     <div><Badge variant="success" className="uppercase">{p.side}</Badge></div>
-                    <div className="text-right font-mono text-blue-400 font-bold text-sm tabular-nums">
+                    <div className="text-right font-sans text-[var(--color-cta)] font-bold text-sm tabular-nums">
                       +{p.strength.toFixed(3)}
                     </div>
                   </button>
                 ))}
                 <div className="px-5 py-2.5 text-[10px] text-slate-600 border-t border-[var(--border)] bg-black/10 flex items-center gap-1.5">
-                  <DollarSign size={9} className="text-blue-500/50" />
+                  <DollarSign size={9} className="text-[var(--color-cta)]/50" />
                   Click any row to pre-fill the trade form
                 </div>
               </div>
@@ -576,8 +576,8 @@ export default function DashboardPage() {
 
           {/* Info card */}
           {!loadingPreds && predictions.length > 0 && (
-            <div className="rounded-xl bg-blue-500/[0.04] border border-blue-500/15 p-4 flex items-start gap-3 animate-fade-in">
-              <Zap size={14} className="text-blue-400 mt-0.5 shrink-0" />
+            <div className="rounded-3xl bg-[var(--color-cta)]/[0.04] border border-[var(--color-cta)]/15 p-4 flex items-start gap-3 animate-fade-in">
+              <Zap size={14} className="text-[var(--color-cta)] mt-0.5 shrink-0" />
               <p className="text-xs text-slate-500 leading-relaxed">
                 Signals reflect expected return over the next trading window. These are model predictions, not financial advice.
               </p>
@@ -590,7 +590,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Shield size={18} className="text-blue-400" /> Active Portfolio
+                <Shield size={18} className="text-[var(--color-cta)]" /> Active Portfolio
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {trades.length === 0 ? "No active positions" : `${trades.length} position${trades.length > 1 ? "s" : ""} tracked`}
@@ -599,14 +599,14 @@ export default function DashboardPage() {
             {trades.length > 0 && (
               <div className="flex items-center gap-2">
                 {lastPriceUpdate && !loadingPrices && (
-                  <span className="text-[10px] text-slate-600 font-mono">
+                  <span className="text-[10px] text-slate-600 font-sans">
                     Updated {Math.round((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
                   </span>
                 )}
                 <button
                   onClick={loadPrices}
                   disabled={loadingPrices}
-                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-400 transition-colors py-1.5 px-2.5 rounded-lg hover:bg-blue-500/10 disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-2xl hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
                 >
                   <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
                   {loadingPrices ? "Refreshing…" : "Refresh"}
@@ -616,8 +616,8 @@ export default function DashboardPage() {
           </div>
 
           {/* New trade form */}
-          <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-4">
-            <h3 className="text-xs font-bold text-blue-300 mb-4 flex items-center gap-2 uppercase tracking-wider">
+          <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-4">
+            <h3 className="text-xs font-bold text-[var(--color-cta)] mb-4 flex items-center gap-2 uppercase tracking-wider">
               <Plus size={14} /> Log a New Trade
             </h3>
             <form onSubmit={handleCreateTrade} className="flex flex-col gap-3">
@@ -631,7 +631,7 @@ export default function DashboardPage() {
                       required
                       type="text"
                       placeholder="AAPL"
-                      className="input-field uppercase text-sm py-2 px-3 rounded-lg"
+                      className="input-field uppercase text-sm py-2 px-3 rounded-2xl"
                       value={newTrade.symbol}
                       onFocus={() => setSymbolOpen(true)}
                       onBlur={() => setTimeout(() => setSymbolOpen(false), 120)}
@@ -654,7 +654,7 @@ export default function DashboardPage() {
                       }}
                     />
                     {symbolOpen && (
-                      <div className="absolute z-20 mt-1 w-full rounded-xl bg-[var(--surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
+                      <div className="absolute z-20 mt-1 w-full rounded-3xl bg-[var(--surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
                         {filteredSymbols.length > 0 ? (
                           filteredSymbols.map((t, i) => (
                             <button
@@ -663,10 +663,10 @@ export default function DashboardPage() {
                               onClick={() => selectSymbol(t.symbol)}
                               onMouseEnter={() => setSymbolIndex(i)}
                               className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
-                                i === symbolIndex ? "bg-blue-600/20 text-white" : "hover:bg-white/[0.03] text-slate-300"
+                                i === symbolIndex ? "bg-[var(--color-cta)]/20 text-white" : "hover:bg-white/[0.03] text-slate-300"
                               }`}
                             >
-                              <span className="font-mono font-bold text-white text-xs w-14 shrink-0">{t.symbol}</span>
+                              <span className="font-sans font-bold text-white text-xs w-14 shrink-0">{t.symbol}</span>
                               <span className="text-slate-500 truncate flex-1 text-[10px]">{t.name}</span>
                             </button>
                           ))
@@ -677,7 +677,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   {symbolQuery && !isSymbolInUniverse && (
-                    <p className="text-[10px] text-blue-400 mt-0.5">Custom symbol will be verified</p>
+                    <p className="text-[10px] text-[var(--color-cta)] mt-0.5">Custom symbol will be verified</p>
                   )}
                 </div>
 
@@ -689,7 +689,7 @@ export default function DashboardPage() {
                     step="0.01"
                     min="0.01"
                     placeholder="10"
-                    className="input-field text-sm py-2 px-3 rounded-lg"
+                    className="input-field text-sm py-2 px-3 rounded-2xl"
                     value={newTrade.shares}
                     onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
                   />
@@ -703,7 +703,7 @@ export default function DashboardPage() {
                     step="0.01"
                     min="0.01"
                     placeholder="150.00"
-                    className="input-field text-sm py-2 px-3 rounded-lg"
+                    className="input-field text-sm py-2 px-3 rounded-2xl"
                     value={newTrade.buy_price}
                     onChange={(e) => setNewTrade({ ...newTrade, buy_price: e.target.value })}
                   />
@@ -711,19 +711,19 @@ export default function DashboardPage() {
               </div>
 
               {/* Holding duration */}
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Holding Duration</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {(["days", "months", "years"] as const).map((unit) => (
                     <label
                       key={unit}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
                         holdUnit === unit
-                          ? "bg-blue-500/15 border-blue-500/40 text-blue-300"
+                          ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
                           : "border-[var(--border)] text-slate-500 hover:text-white hover:border-[var(--border-bright)]"
                       }`}
                     >
-                      <input type="radio" name="hold_unit" className="accent-blue-500 sr-only" checked={holdUnit === unit} onChange={() => setHoldUnit(unit)} />
+                      <input type="radio" name="hold_unit" className="accent-[var(--color-cta)] sr-only" checked={holdUnit === unit} onChange={() => setHoldUnit(unit)} />
                       {unit}
                     </label>
                   ))}
@@ -732,7 +732,7 @@ export default function DashboardPage() {
                   <input
                     type="number"
                     min="1"
-                    className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-lg"
+                    className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
                     value={holdValue}
                     onChange={(e) => setHoldValue(e.target.value)}
                   />
@@ -740,7 +740,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dip Alert Threshold</p>
                   <span className="text-[10px] text-slate-600">Optional</span>
@@ -751,7 +751,7 @@ export default function DashboardPage() {
                     min="0"
                     max="90"
                     step="0.5"
-                    className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-lg"
+                    className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
                     value={dipThresholdPct}
                     onChange={(e) => setDipThresholdPct(e.target.value)}
                   />
@@ -777,7 +777,7 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={!canSubmitTrade || submitting}
-                className="w-full gradient-accent text-white font-bold py-2.5 rounded-xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-blue-900/30"
+                className="w-full gradient-accent text-white font-bold py-2.5 rounded-3xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-[var(--color-cta)]/20"
               >
                 {submitting ? (
                   <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Validating…</>

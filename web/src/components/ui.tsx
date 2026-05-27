@@ -21,23 +21,23 @@ export function MetricCard({ label, value, sub, positive, size = "md", className
       ? "text-[var(--color-cta)]"
       : "text-[var(--color-danger)]";
 
-  const accentBar =
+  const accentGlow =
     positive === true
-      ? "bg-[var(--color-cta)]"
+      ? "from-[var(--color-cta)]"
       : positive === false
-      ? "bg-[var(--color-danger)]"
-      : "bg-[var(--color-info)]";
+      ? "from-[var(--color-danger)]"
+      : "from-[var(--color-info)]";
 
   return (
-    <div className={clsx("card p-4 flex flex-col gap-1.5 animate-fade-in", className)}>
-      <div className={clsx("absolute top-0 left-0 w-full h-[3px]", accentBar)} />
-      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">{label}</p>
-      <p className={clsx("font-bold tabular-nums leading-none mt-0.5", valueColor,
-        size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-xl"
+    <div className={clsx("card flex flex-col justify-center animate-fade-in relative overflow-hidden group", className)}>
+      <div className={clsx("absolute -top-10 -left-10 w-32 h-32 bg-gradient-to-br to-transparent opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 blur-2xl rounded-full", accentGlow)} />
+      <p className="text-xs text-[var(--color-text-dim)] font-medium tracking-widest uppercase mb-2">{label}</p>
+      <p className={clsx("font-heading leading-tight", valueColor,
+        size === "lg" ? "text-4xl" : size === "sm" ? "text-xl" : "text-3xl"
       )}>
         {value}
       </p>
-      {sub && <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{sub}</p>}
+      {sub && <p className="text-[11px] text-[var(--color-text-dim)] mt-2 opacity-80">{sub}</p>}
     </div>
   );
 }
@@ -62,10 +62,10 @@ export function CardHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
+    <div className="flex items-start justify-between mb-8 pb-6 border-b border-[var(--border)]">
       <div>
-        <h2 className="text-sm font-bold text-white tracking-[0.1em] uppercase font-heading">{title}</h2>
-        {subtitle && <p className="text-[10px] text-[var(--color-cta)] mt-0.5 font-mono">{subtitle}</p>}
+        <h2 className="text-2xl font-heading text-white font-medium tracking-wide">{title}</h2>
+        {subtitle && <p className="text-sm text-[var(--color-text-dim)] mt-2">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -86,13 +86,13 @@ export function Badge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center px-2 py-0.5 rounded-none border text-[10px] font-bold uppercase tracking-widest font-mono",
+        "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase border backdrop-blur-md",
         {
-          "bg-black text-slate-400 border-slate-700":                          variant === "default",
-          "bg-black text-[var(--color-cta)] border-[var(--color-cta)]":        variant === "success",
-          "bg-black text-[var(--color-danger)] border-[var(--color-danger)]":  variant === "danger",
-          "bg-black text-amber-400 border-amber-500":                          variant === "warning",
-          "bg-black text-[var(--color-info)] border-[var(--color-info)]":      variant === "blue",
+          "bg-[rgba(255,255,255,0.03)] text-[var(--color-text-dim)] border-[rgba(255,255,255,0.1)]": variant === "default",
+          "bg-[rgba(212,175,55,0.05)] text-[var(--color-cta)] border-[rgba(212,175,55,0.2)]":       variant === "success",
+          "bg-[rgba(224,122,95,0.05)] text-[var(--color-danger)] border-[rgba(224,122,95,0.2)]":    variant === "danger",
+          "bg-[rgba(212,175,55,0.05)] text-[var(--color-cta)] border-[rgba(212,175,55,0.2)]":       variant === "warning",
+          "bg-[rgba(129,161,193,0.05)] text-[var(--color-info)] border-[rgba(129,161,193,0.2)]":    variant === "blue",
         },
         className
       )}
@@ -131,9 +131,9 @@ export function Button({
         {
           "btn-primary": variant === "primary",
           "btn-secondary": variant === "secondary",
-          "hover:bg-[var(--border)] text-slate-400 hover:text-white rounded-none px-4 py-2 text-sm font-bold transition-all uppercase tracking-widest":
+          "hover:bg-[rgba(255,255,255,0.03)] text-[var(--color-text-dim)] hover:text-white rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
             variant === "ghost",
-          "bg-transparent hover:bg-[var(--color-danger)] text-[var(--color-danger)] hover:text-black border border-[var(--color-danger)] rounded-none px-4 py-2 text-sm font-bold transition-all uppercase tracking-widest":
+          "bg-transparent hover:bg-[rgba(224,122,95,0.1)] text-[var(--color-danger)] border border-[var(--color-danger)] rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
             variant === "danger",
         },
         className
@@ -141,7 +141,7 @@ export function Button({
     >
       {loading && (
         <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
         </svg>
       )}
@@ -153,7 +153,7 @@ export function Button({
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx("skeleton rounded-none", className)} />;
+  return <div className={clsx("skeleton rounded-2xl", className)} />;
 }
 
 // ── Slider ───────────────────────────────────────────────────────────────────
@@ -179,14 +179,14 @@ export function Slider({
   const pct = ((value - min) / (max - min)) * 100;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{label}</label>
-        <span className="text-xs font-mono font-bold text-[var(--color-cta)] tabular-nums">{display}</span>
+        <label className="text-xs font-medium text-[var(--color-text-dim)] uppercase tracking-wider">{label}</label>
+        <span className="text-sm font-medium text-[var(--color-cta)]">{display}</span>
       </div>
-      <div className="relative h-2 rounded-none bg-[var(--border)]">
+      <div className="relative h-1.5 rounded-full bg-[rgba(255,255,255,0.05)]">
         <div
-          className="absolute top-0 left-0 h-full rounded-none bg-[var(--color-cta)]"
+          className="absolute top-0 left-0 h-full rounded-full bg-[var(--color-cta)] shadow-[0_0_10px_var(--color-cta)]"
           style={{ width: `${pct}%` }}
         />
         <input
@@ -216,13 +216,13 @@ export function Alert({
   className?: string;
 }) {
   const styles = {
-    info:    "bg-black border-[var(--color-info)] text-[var(--color-info)]",
-    success: "bg-black border-[var(--color-cta)] text-[var(--color-cta)]",
-    danger:  "bg-black border-[var(--color-danger)] text-[var(--color-danger)]",
-    warning: "bg-black border-amber-500 text-amber-500",
+    info:    "bg-[rgba(129,161,193,0.05)] border-[var(--color-info)] text-[var(--color-info)]",
+    success: "bg-[rgba(212,175,55,0.05)] border-[var(--color-cta)] text-[var(--color-cta)]",
+    danger:  "bg-[rgba(224,122,95,0.05)] border-[var(--color-danger)] text-[var(--color-danger)]",
+    warning: "bg-[rgba(212,175,55,0.05)] border-[var(--color-cta)] text-[var(--color-cta)]",
   };
   return (
-    <div className={clsx("flex items-start gap-2.5 p-3.5 rounded-none border-[2px] font-mono text-xs leading-relaxed animate-fade-in", styles[variant], className)}>
+    <div className={clsx("flex items-start gap-4 p-5 rounded-2xl border text-sm leading-relaxed animate-fade-in shadow-xl backdrop-blur-md", styles[variant], className)}>
       {children}
     </div>
   );
