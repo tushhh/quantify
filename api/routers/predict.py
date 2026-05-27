@@ -19,9 +19,9 @@ _cache: dict = {
 }
 CACHE_TTL_SECONDS = 24 * 3600  # 24 hours
 
-# Limit screener universe to top 150 most liquid tickers for speed
-# (still 50% more than before, full backtest can use all 500+)
-_SCREENER_UNIVERSE_SIZE = 150
+# Limit screener universe to top 60 most liquid tickers for speed
+# (Ensures API responds well within Heroku's 30s timeout)
+_SCREENER_UNIVERSE_SIZE = 60
 
 # ---------------------------------------------------------------------------
 # Ticker name lookup (top 150 most common tickers)
