@@ -18,26 +18,26 @@ export function MetricCard({ label, value, sub, positive, size = "md", className
     positive === null || positive === undefined
       ? "text-white"
       : positive
-      ? "text-emerald-400"
-      : "text-red-400";
+      ? "text-[var(--color-cta)]"
+      : "text-[var(--color-danger)]";
 
   const accentBar =
     positive === true
-      ? "bg-emerald-500"
+      ? "bg-[var(--color-cta)]"
       : positive === false
-      ? "bg-red-500"
-      : "bg-blue-500";
+      ? "bg-[var(--color-danger)]"
+      : "bg-[var(--color-info)]";
 
   return (
-    <div className={clsx("rounded-xl glass hover-lift p-4 flex flex-col gap-1.5 relative overflow-hidden animate-fade-in", className)}>
-      <div className={clsx("absolute top-0 left-0 w-full h-[2px]", accentBar, "opacity-60")} />
-      <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest leading-none">{label}</p>
+    <div className={clsx("card p-4 flex flex-col gap-1.5 animate-fade-in", className)}>
+      <div className={clsx("absolute top-0 left-0 w-full h-[3px]", accentBar)} />
+      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">{label}</p>
       <p className={clsx("font-bold tabular-nums leading-none mt-0.5", valueColor,
         size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-xl"
       )}>
         {value}
       </p>
-      {sub && <p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>}
+      {sub && <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{sub}</p>}
     </div>
   );
 }
@@ -62,10 +62,10 @@ export function CardHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-2">
       <div>
-        <h2 className="text-sm font-bold text-white tracking-tight">{title}</h2>
-        {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
+        <h2 className="text-sm font-bold text-white tracking-[0.1em] uppercase font-heading">{title}</h2>
+        {subtitle && <p className="text-[10px] text-[var(--color-cta)] mt-0.5 font-mono">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -86,13 +86,13 @@ export function Badge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center px-2 py-0.5 rounded-none border text-[10px] font-bold uppercase tracking-widest font-mono",
         {
-          "bg-slate-800 text-slate-400 border border-slate-700":              variant === "default",
-          "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20":  variant === "success",
-          "bg-red-500/15 text-red-400 border border-red-500/20":              variant === "danger",
-          "bg-amber-500/15 text-amber-400 border border-amber-500/20":        variant === "warning",
-          "bg-blue-500/15 text-blue-400 border border-blue-500/20":           variant === "blue",
+          "bg-black text-slate-400 border-slate-700":                          variant === "default",
+          "bg-black text-[var(--color-cta)] border-[var(--color-cta)]":        variant === "success",
+          "bg-black text-[var(--color-danger)] border-[var(--color-danger)]":  variant === "danger",
+          "bg-black text-amber-400 border-amber-500":                          variant === "warning",
+          "bg-black text-[var(--color-info)] border-[var(--color-info)]":      variant === "blue",
         },
         className
       )}
@@ -131,9 +131,9 @@ export function Button({
         {
           "btn-primary": variant === "primary",
           "btn-secondary": variant === "secondary",
-          "hover:bg-[var(--surface-raised)] text-slate-400 hover:text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-all":
+          "hover:bg-[var(--border)] text-slate-400 hover:text-white rounded-none px-4 py-2 text-sm font-bold transition-all uppercase tracking-widest":
             variant === "ghost",
-          "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all":
+          "bg-transparent hover:bg-[var(--color-danger)] text-[var(--color-danger)] hover:text-black border border-[var(--color-danger)] rounded-none px-4 py-2 text-sm font-bold transition-all uppercase tracking-widest":
             variant === "danger",
         },
         className
@@ -153,7 +153,7 @@ export function Button({
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx("skeleton", className)} />;
+  return <div className={clsx("skeleton rounded-none", className)} />;
 }
 
 // ── Slider ───────────────────────────────────────────────────────────────────
@@ -181,12 +181,12 @@ export function Slider({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
-        <label className="text-xs text-slate-400">{label}</label>
-        <span className="text-xs font-mono font-bold text-blue-400 tabular-nums">{display}</span>
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{label}</label>
+        <span className="text-xs font-mono font-bold text-[var(--color-cta)] tabular-nums">{display}</span>
       </div>
-      <div className="relative h-1.5 rounded-full bg-slate-700/60">
+      <div className="relative h-2 rounded-none bg-[var(--border)]">
         <div
-          className="absolute top-0 left-0 h-full rounded-full bg-blue-500/60"
+          className="absolute top-0 left-0 h-full rounded-none bg-[var(--color-cta)]"
           style={{ width: `${pct}%` }}
         />
         <input
@@ -216,13 +216,13 @@ export function Alert({
   className?: string;
 }) {
   const styles = {
-    info:    "bg-blue-500/10 border-blue-500/30 text-blue-300",
-    success: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-    danger:  "bg-red-500/10 border-red-500/30 text-red-300",
-    warning: "bg-amber-500/10 border-amber-500/30 text-amber-300",
+    info:    "bg-black border-[var(--color-info)] text-[var(--color-info)]",
+    success: "bg-black border-[var(--color-cta)] text-[var(--color-cta)]",
+    danger:  "bg-black border-[var(--color-danger)] text-[var(--color-danger)]",
+    warning: "bg-black border-amber-500 text-amber-500",
   };
   return (
-    <div className={clsx("flex items-start gap-2.5 p-3.5 rounded-xl border text-xs leading-relaxed animate-fade-in", styles[variant], className)}>
+    <div className={clsx("flex items-start gap-2.5 p-3.5 rounded-none border-[2px] font-mono text-xs leading-relaxed animate-fade-in", styles[variant], className)}>
       {children}
     </div>
   );

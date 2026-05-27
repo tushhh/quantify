@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Colors (Dark Mode Overrides) ── */
-  --color-primary: #0F172A;
-  --color-secondary: #1E293B;
-  --color-cta: #22C55E;
-  --color-background: #020617;
-  --color-text: #F8FAFC;
+  /* ── Colors (Brutalist Terminal Overrides) ── */
+  --color-primary: #000000;
+  --color-secondary: #111111;
+  --color-cta: #39FF14;      /* Pure Neon Green */
+  --color-danger: #FF00FF;   /* Electric Magenta */
+  --color-info: #00FFFF;     /* Cyan */
+  --color-background: #000000;
+  --color-text: #FFFFFF;
+  --color-text-dim: #888888;
+  --color-border: #333333;
 
-  /* ── Spacing Variables (MASTER.md) ── */
+  /* ── Spacing Variables ── */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;
@@ -17,26 +21,20 @@
   --space-2xl: 3rem;
   --space-3xl: 4rem;
 
-  /* ── Shadow Depths (MASTER.md) ── */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
-  --shadow-xl: 0 20px 25px rgba(0,0,0,0.15);
-
   /* ── Typography ── */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-code: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-heading: var(--font-heading), monospace;
+  --font-mono: var(--font-mono), monospace;
 
   /* ── Legacy Mappings ── */
   --bg: var(--color-background);
-  --surface: rgba(15, 23, 42, 0.4);
-  --surface-raised: rgba(30, 41, 59, 0.5);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-bright: rgba(255, 255, 255, 0.15);
+  --surface: #0A0A0A;
+  --surface-raised: #141414;
+  --border: var(--color-border);
+  --border-bright: #666666;
   --text: var(--color-text);
-  --text-muted: #94A3B8;
+  --text-muted: var(--color-text-dim);
   --accent: var(--color-cta);
-  --accent-hover: #16A34A;
+  --accent-hover: #32E612;
 }
 
 * {
@@ -49,156 +47,209 @@ html, body { height: 100%; }
 
 html {
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   scroll-behavior: smooth;
+  background-color: var(--color-background);
 }
 
-/* ── Dynamic Background Mesh ── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Cybernetic Grid Background ── */
 body {
   min-height: 100vh;
   background-color: var(--color-background);
-  background-image:
-    radial-gradient(100vw 100vh at 0% 0%, rgba(34, 197, 94, 0.05), transparent 50%),
-    radial-gradient(80vw 80vh at 100% 0%, rgba(15, 23, 42, 0.5), transparent 50%),
-    radial-gradient(100vw 100vh at 50% 100%, rgba(30, 41, 59, 0.3), transparent 50%);
+  background-image: 
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Component Specs (MASTER.md) ── */
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--color-background); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-cta); }
+
+/* ── Terminal Component Specs ── */
 
 .btn-primary {
   background: var(--color-cta);
-  color: white;
+  color: black;
   padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
+  border: 1px solid var(--color-cta);
+  border-radius: 0px; /* Brutalist sharp edges */
+  font-family: var(--font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  background: black;
+  color: var(--color-cta);
+  box-shadow: 4px 4px 0 var(--color-cta);
+  transform: translate(-2px, -2px);
 }
 
 .btn-secondary {
   background: transparent;
-  color: var(--color-cta);
-  border: 2px solid var(--color-cta);
+  color: var(--text);
+  border: 1px solid var(--border-bright);
   padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
+  border-radius: 0px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: var(--text);
+  background: var(--text);
+  color: black;
+  box-shadow: 4px 4px 0 var(--border-bright);
+  transform: translate(-2px, -2px);
 }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 0px;
   padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 10px; height: 10px;
+  border-top: 2px solid var(--color-cta);
+  border-left: 2px solid var(--color-cta);
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  border-color: var(--border-bright);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .input {
   padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0px;
   font-size: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--text);
-  transition: border-color 200ms ease;
+  background: black;
+  color: var(--color-cta);
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease;
 }
 
 .input:focus {
   border-color: var(--color-cta);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  box-shadow: inset 4px 0 0 var(--color-cta);
 }
 
 .modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
 }
 
 .modal {
-  background: var(--color-primary);
-  border-radius: 16px;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-cta);
+  border-radius: 0px;
   padding: 32px;
-  box-shadow: var(--shadow-xl);
   max-width: 500px;
   width: 90%;
+  box-shadow: 12px 12px 0 rgba(57, 255, 20, 0.1);
 }
 
-/* ── Legacy Classes / Utilities for existing UI ── */
+/* ── Legacy Classes Mapped to Brutalism ── */
 .glass {
-  background: var(--surface);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10, 10, 10, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 0px;
 }
 
 .card-inner {
   background: var(--surface-raised);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0px;
 }
 
 .input-field {
   width: 100%;
-  background: rgba(0, 0, 0, 0.2);
+  background: black;
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0px;
   padding: 0.625rem 0.875rem;
-  color: var(--text);
+  color: var(--color-cta);
   font-size: 0.875rem;
   outline: none;
-  transition: all 250ms ease;
+  transition: all 150ms ease;
 }
 .input-field:focus {
   border-color: var(--color-cta);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  box-shadow: inset 2px 0 0 var(--color-cta);
 }
 
 .gradient-accent {
-  background: linear-gradient(135deg, var(--color-cta) 0%, #16A34A 100%);
+  background: var(--color-cta);
+  color: black;
 }
 
-.skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.02) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite linear;
-  border-radius: 8px;
+/* ── Glitch Animations ── */
+@keyframes glitch-skew {
+  0% { transform: skew(0deg); }
+  20% { transform: skew(-10deg); }
+  40% { transform: skew(10deg); }
+  60% { transform: skew(0deg); }
+  100% { transform: skew(0deg); }
 }
 
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: glitch-skew 0.3s ease-out both; }
+.animate-fade-in-up { animation: glitch-skew 0.4s ease-out both; }
 
-.animate-fade-in { animation: fadeIn 0.5s ease both; }
-.animate-fade-in-up { animation: fadeInUp 0.6s ease both; }
+/* ── Recharts Overrides (Stark mode) ── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: black !important;
+  border: 1px solid var(--color-cta) !important;
+  border-radius: 0px !important;
+  color: var(--color-cta) !important;
+  font-family: var(--font-mono) !important;
+}
 
-/* ── Dynamic Hover States (Checklist) ── */
+/* ── Dynamic Hover States ── */
 button, a {
-  transition: all 200ms ease;
-  cursor: pointer; /* Mandatory */
+  cursor: pointer;
+  transition: all 150ms ease;
 }
 
 button:focus-visible, a:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-cta); /* Visible focus state */
+  outline: 2px solid var(--color-cta);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Chakra_Petch, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const chakra = Chakra_Petch({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-heading" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Quantify — Premium ML Trading Platform",
+  title: "QUANTIFY // SYS",
   description:
-    "Trade smarter with machine learning intelligence. 6 production-grade strategies, ensemble ML predictions, and automated Telegram alerts.",
-  keywords: ["quantitative trading", "machine learning trading", "backtesting", "algorithmic trading", "ML analysis"],
+    "High-frequency machine learning trading terminal. Production-grade strategies, ensemble ML predictions.",
+  keywords: ["quantitative trading", "terminal", "machine learning", "algorithmic trading", "cybernetic"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
-      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-sans">
+    <html lang="en" className={`${chakra.variable} ${jetbrains.variable}`}>
+      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-mono selection:bg-[var(--accent)] selection:text-black">
         <Navbar />
         <main className="min-h-screen relative z-10">
           {children}
