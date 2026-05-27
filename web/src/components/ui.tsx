@@ -46,7 +46,7 @@ export function MetricCard({ label, value, sub, positive, size = "md", className
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={clsx("rounded-xl glass p-5", className)}>
+    <div className={clsx("card", className)}>
       {children}
     </div>
   );
@@ -127,16 +127,13 @@ export function Button({
       onClick={onClick}
       disabled={disabled || loading}
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold",
-        "transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
+        "inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed",
         {
-          "bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-900/30":
-            variant === "primary",
-          "bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-bright)] text-slate-200 hover:text-white":
-            variant === "secondary",
-          "hover:bg-[var(--surface-raised)] text-slate-400 hover:text-white":
+          "btn-primary": variant === "primary",
+          "btn-secondary": variant === "secondary",
+          "hover:bg-[var(--surface-raised)] text-slate-400 hover:text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-all":
             variant === "ghost",
-          "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20":
+          "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all":
             variant === "danger",
         },
         className

@@ -7,8 +7,8 @@
 ---
 
 **Project:** Quantify
-**Generated:** 2026-05-27 02:17:54
-**Category:** Financial Dashboard
+**Generated:** 2026-05-28 02:44:07
+**Category:** Fintech/Crypto
 
 ---
 
@@ -18,24 +18,24 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#1E40AF` | `--color-primary` |
-| Secondary | `#3B82F6` | `--color-secondary` |
-| CTA/Accent | `#F59E0B` | `--color-cta` |
-| Background | `#F8FAFC` | `--color-background` |
-| Text | `#1E3A8A` | `--color-text` |
+| Primary | `#4F46E5` | `--color-primary` |
+| Secondary | `#818CF8` | `--color-secondary` |
+| CTA/Accent | `#22C55E` | `--color-cta` |
+| Background | `#EEF2FF` | `--color-background` |
+| Text | `#312E81` | `--color-text` |
 
-**Color Notes:** Blue data + amber highlights
+**Color Notes:** Learning indigo + progress green
 
 ### Typography
 
-- **Heading Font:** Fira Code
-- **Body Font:** Fira Sans
-- **Mood:** dashboard, data, analytics, code, technical, precise
-- **Google Fonts:** [Fira Code + Fira Sans](https://fonts.google.com/share?selection.family=Fira+Code:wght@400;500;600;700|Fira+Sans:wght@300;400;500;600;700)
+- **Heading Font:** Inter
+- **Body Font:** Inter
+- **Mood:** spatial, legible, glass, system, clean, neutral
+- **Google Fonts:** [Inter + Inter](https://fonts.google.com/share?selection.family=Inter:wght@300;400;500;600)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 ```
 
 ### Spacing Variables
@@ -68,7 +68,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #F59E0B;
+  background: #22C55E;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -85,8 +85,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #1E40AF;
-  border: 2px solid #1E40AF;
+  color: #4F46E5;
+  border: 2px solid #4F46E5;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -99,7 +99,7 @@
 
 ```css
 .card {
-  background: #F8FAFC;
+  background: #EEF2FF;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -125,9 +125,9 @@
 }
 
 .input:focus {
-  border-color: #1E40AF;
+  border-color: #4F46E5;
   outline: none;
-  box-shadow: 0 0 0 3px #1E40AF20;
+  box-shadow: 0 0 0 3px #4F46E520;
 }
 ```
 
@@ -153,28 +153,31 @@
 
 ## Style Guidelines
 
-**Style:** Dark Mode (OLED)
+**Style:** Glassmorphism
 
-**Keywords:** Dark theme, low light, high contrast, deep black, midnight blue, eye-friendly, OLED, night mode, power efficient
+**Keywords:** Frosted glass, transparent, blurred background, layered, vibrant background, light source, depth, multi-layer
 
-**Best For:** Night-mode apps, coding platforms, entertainment, eye-strain prevention, OLED devices, low-light
+**Best For:** Modern SaaS, financial dashboards, high-end corporate, lifestyle apps, modal overlays, navigation
 
-**Key Effects:** Minimal glow (text-shadow: 0 0 10px), dark-to-light transitions, low white emission, high readability, visible focus
+**Key Effects:** Backdrop blur (10-20px), subtle border (1px solid rgba white 0.2), light reflection, Z-depth
 
 ### Page Pattern
 
-**Pattern Name:** AI Personalization Landing
+**Pattern Name:** Horizontal Scroll Journey
 
-- **Conversion Strategy:** 20%+ conversion with personalization. Requires analytics integration. Fallback for new users.
-- **CTA Placement:** Context-aware placement based on user segment
-- **Section Order:** 1. Dynamic hero (personalized), 2. Relevant features, 3. Tailored testimonials, 4. Smart CTA
+- **Conversion Strategy:** Immersive product discovery. High engagement. Keep navigation visible.
+28,Bento Grid Showcase,bento,  grid,  features,  modular,  apple-style,  showcase", 1. Hero, 2. Bento Grid (Key Features), 3. Detail Cards, 4. Tech Specs, 5. CTA, Floating Action Button or Bottom of Grid, Card backgrounds: #F5F5F7 or Glass. Icons: Vibrant brand colors. Text: Dark., Hover card scale (1.02), video inside cards, tilt effect, staggered reveal, Scannable value props. High information density without clutter. Mobile stack.
+29,Interactive 3D Configurator,3d,  configurator,  customizer,  interactive,  product", 1. Hero (Configurator), 2. Feature Highlight (synced), 3. Price/Specs, 4. Purchase, Inside Configurator UI + Sticky Bottom Bar, Neutral studio background. Product: Realistic materials. UI: Minimal overlay., Real-time rendering, material swap animation, camera rotate/zoom, light reflection, Increases ownership feeling. 360 view reduces return rates. Direct add-to-cart.
+30,AI-Driven Dynamic Landing,ai,  dynamic,  personalized,  adaptive,  generative", 1. Prompt/Input Hero, 2. Generated Result Preview, 3. How it Works, 4. Value Prop, Input Field (Hero) + 'Try it' Buttons, Adaptive to user input. Dark mode for compute feel. Neon accents., Typing text effects, shimmering generation loaders, morphing layouts, Immediate value demonstration. 'Show, don't tell'. Low friction start.
+- **CTA Placement:** Floating Sticky CTA or End of Horizontal Track
+- **Section Order:** 1. Intro (Vertical), 2. The Journey (Horizontal Track), 3. Detail Reveal, 4. Vertical Footer
 
 ---
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Light mode default
-- ❌ Slow rendering
+- ❌ Light backgrounds
+- ❌ No security indicators
 
 ### Additional Forbidden Patterns
 
