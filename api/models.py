@@ -29,3 +29,9 @@ class Trade(Base):
     last_health_reason = Column(String, nullable=True, default=None)
     last_health_alert_at = Column(DateTime, nullable=True, default=None)
     last_dip_alert_at = Column(DateTime, nullable=True, default=None)
+
+class PredictionCache(Base):
+    __tablename__ = "prediction_cache"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    result_json = Column(String)  # Full PredictionResponse JSON string

@@ -55,6 +55,11 @@ async def lifespan(app: FastAPI):
     if not is_web_dyno:
         scheduler.add_job(check_alerts_loop, 'interval', hours=3)
         scheduler.start()
+    else:
+        # On web dyno, schedule the ML predictions to run at 4:00 AM UTC daily
+        from api.routers.predict import _run_and_cache_predictions
+        scheduler.add_job(_run_and_cache_predictions, 'cron', hour=4, minute=0)
+        scheduler.start()
     
     yield
     

@@ -193,6 +193,7 @@ export default function DashboardPage() {
   const [loadingPreds, setLoadingPreds] = useState(false);
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
   const [predError, setPredError] = useState<string | null>(null);
+  const [isComputing, setIsComputing] = useState(false);
   const [trades, setTrades] = useState<TrackedTrade[]>([]);
   const [prices, setPrices] = useState<Record<string, number | null>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
@@ -300,16 +301,23 @@ export default function DashboardPage() {
   };
 
   const handlePredict = async () => {
-    setLoadingPreds(true);
+    if (!isComputing) setLoadingPreds(true);
     setPredError(null);
     try {
       const res = await api.predict.best(5);
-      setPredictions(res.signals);
+      if (res.status === "computing") {
+        setIsComputing(true);
+        setTimeout(() => handlePredict(), 10000);
+      } else {
+        setIsComputing(false);
+        setPredictions(res.signals || []);
+        setLoadingPreds(false);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "ML analysis failed";
       setPredError(msg);
       console.error(e);
-    } finally {
+      setIsComputing(false);
       setLoadingPreds(false);
     }
   };
@@ -490,29 +498,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Loading state */}
-            {loadingPreds && (
-              <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
-                <div className="relative">
-                  <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Zap size={14} className="text-blue-400" />
-                  </div>
-                </div>
-                <div className="text-center px-6">
-                  <p className="text-slate-300 text-sm font-semibold">Crunching market data…</p>
-                  <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
-                    Fetching 1 year of OHLCV data and running 3 ML models.
-                  </p>
-                  <div className="flex items-center justify-center gap-1.5 mt-3 text-amber-400/70 text-[10px]">
-                    <Clock size={10} /> First run can take up to 90 seconds
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Empty / prompt state */}
-            {!predError && !loadingPreds && predictions.length === 0 && (
+            {!predError && !loadingPreds && !isComputing && predictions.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center py-12 px-6 text-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
                   <Zap size={24} className="text-blue-400 opacity-60" />
@@ -526,6 +513,31 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 text-[10px] text-slate-600 bg-[var(--surface-raised)] border border-[var(--border)] rounded-lg px-3 py-2">
                   <Clock size={10} className="text-amber-500/60" />
                   Allow ~60–90 seconds on first run
+                </div>
+              </div>
+            )}
+
+            {/* Loading / Computing state */}
+            {(loadingPreds || isComputing) && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
+                <div className="relative">
+                  <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Zap size={14} className="text-blue-400" />
+                  </div>
+                </div>
+                <div className="text-center px-6">
+                  <p className="text-slate-300 text-sm font-semibold">
+                    {isComputing ? "Training Models in Background…" : "Crunching market data…"}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+                    {isComputing 
+                      ? "The ML ensemble is training on 150+ stocks. This will take ~3 minutes. You can safely close this page." 
+                      : "Fetching 1 year of OHLCV data and running 3 ML models."}
+                  </p>
+                  <div className="flex items-center justify-center gap-1.5 mt-3 text-amber-400/70 text-[10px]">
+                    <Clock size={10} /> Auto-refreshing every 10 seconds
+                  </div>
                 </div>
               </div>
             )}

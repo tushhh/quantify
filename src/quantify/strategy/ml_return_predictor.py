@@ -605,19 +605,65 @@ class MLReturnPredictorStrategy(Strategy):
 
 def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     """
-    Return a LightGBM regressor (fastest for production API).
+    Return a VotingRegressor ensemble of LightGBM, XGBoost, and CatBoost,
+    plus a list of backend names actually used.
     """
+    from sklearn.ensemble import VotingRegressor
+    
+    estimators: list[tuple[str, Any]] = []
     backends: list[str] = []
     
+    # 1. LightGBM
     try:
         from lightgbm import LGBMRegressor
-        model = LGBMRegressor(**params)
+        estimators.append(("lgbm", LGBMRegressor(**params)))
         backends.append("lgbm")
-        return model, backends
     except ImportError:
-        log.error("LightGBM not found. Falling back to sklearn.")
+        log.error("LightGBM not found for ensemble.")
+
+    # 2. XGBoost
+    try:
+        from xgboost import XGBRegressor
+        xgb_params = {
+            "n_estimators": params.get("n_estimators", 200),
+            "learning_rate": params.get("learning_rate", 0.05),
+            "max_depth": params.get("max_depth", 5),
+            "n_jobs": -1,
+            "random_state": 42
+        }
+        estimators.append(("xgboost", XGBRegressor(**xgb_params)))
+        backends.append("xgboost")
+    except ImportError:
+        log.error("XGBoost not found for ensemble.")
+
+    # 3. CatBoost
+    try:
+        from catboost import CatBoostRegressor
+        cb_params = {
+            "iterations": params.get("n_estimators", 200),
+            "learning_rate": params.get("learning_rate", 0.05),
+            "depth": params.get("max_depth", 5),
+            "verbose": False,
+            "random_seed": 42
+        }
+        estimators.append(("catboost", CatBoostRegressor(**cb_params)))
+        backends.append("catboost")
+    except ImportError:
+        log.error("CatBoost not found for ensemble.")
+
+    if not estimators:
+        log.error("No ML backends available! Falling back to sklearn.")
         from sklearn.ensemble import GradientBoostingRegressor
-        return GradientBoostingRegressor(n_estimators=50), ["sklearn_fallback"]
+        return GradientBoostingRegressor(n_estimators=100), ["sklearn_fallback"]
+
+    # Return the weighted ensemble
+    # We give LightGBM slightly more weight as it's the gold standard for finance
+    weights = []
+    for name, _ in estimators:
+        if name == "lgbm": weights.append(1.5)
+        else: weights.append(1.0)
+        
+    return VotingRegressor(estimators=estimators, weights=weights), backends
 
 
 __all__ = ["MLReturnPredictorStrategy"]

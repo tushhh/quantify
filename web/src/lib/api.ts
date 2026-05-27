@@ -173,12 +173,13 @@ export type PredictionItem = {
 };
 
 export type PredictionResponse = {
-  status: string;
+  status: string; // "ok" or "computing"
   date: string;
-  signals: PredictionItem[];
+  signals?: PredictionItem[]; // Now optional since it's omitted in computing state
   cached: boolean;
   cache_age_minutes: number;
   universe_size: number;
+  message?: string; // e.g. "Model training started..."
 };
 
 export type TradeCreate = {

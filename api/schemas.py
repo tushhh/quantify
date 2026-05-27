@@ -194,11 +194,12 @@ class PredictionItem(BaseModel):
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
-    date: str
-    signals: List[PredictionItem]
+    date: str = ""
+    signals: List[PredictionItem] = Field(default_factory=list)
     cached: bool = False
     cache_age_minutes: float = 0.0
     universe_size: int = 0
+    message: Optional[str] = None
 
 class TradeCreate(BaseModel):
     symbol: str

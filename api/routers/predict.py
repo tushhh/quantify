@@ -1,11 +1,16 @@
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
 from api.schemas import PredictionResponse, PredictionItem
+from api.database import get_db, SessionLocal
+from api.models import PredictionCache
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 log = logging.getLogger("quantify.api.predict")
@@ -17,11 +22,11 @@ _cache: dict = {
     "result": None,
     "timestamp": None,   # float epoch seconds
 }
+_is_computing = False
 CACHE_TTL_SECONDS = 24 * 3600  # 24 hours
 
-# Limit screener universe to top 60 most liquid tickers for speed
-# (Ensures API responds well within Heroku's 30s timeout)
-_SCREENER_UNIVERSE_SIZE = 60
+# Universe size restored to 150 since ML computation is now backgrounded
+_SCREENER_UNIVERSE_SIZE = 150
 
 # ---------------------------------------------------------------------------
 # Ticker name lookup (top 150 most common tickers)
@@ -56,7 +61,7 @@ _TICKER_NAMES: dict[str, str] = {
     "GILD": "Gilead Sciences", "AMGN": "Amgen Inc.", "BMY": "Bristol-Myers Squibb",
     "PFE": "Pfizer Inc.", "MRNA": "Moderna Inc.", "CVS": "CVS Health",
     "CI": "Cigna Group", "HUM": "Humana Inc.", "ELV": "Elevance Health",
-    "HCA": "HCA Healthcare", "MCK": "McKesson Corp.", "AMZN": "Amazon.com Inc.",
+    "HCA": "HCA Healthcare", "MCK": "McKesson Corp.",
     "HD": "Home Depot Inc.", "MCD": "McDonald's Corp.", "NKE": "Nike Inc.",
     "SBUX": "Starbucks Corp.", "TGT": "Target Corp.", "LOW": "Lowe's Companies",
     "BKNG": "Booking Holdings", "MAR": "Marriott International", "HLT": "Hilton Worldwide",
@@ -99,8 +104,8 @@ def _get_ticker_name(symbol: str) -> str:
     return _TICKER_NAMES.get(symbol, symbol)
 
 
-def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> PredictionResponse:
-    """Blocking prediction logic — run in a thread pool from the async route."""
+def _run_prediction_sync() -> PredictionResponse:
+    """Blocking prediction logic — computes for the full universe."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
     from quantify.data.features import FeatureEngine
     from quantify.data.universe import get_russell1000, get_sector_map
@@ -109,7 +114,6 @@ def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> Pre
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(days=365 * 3)
 
-    # Use Russell 1000 universe, capped at screener size for speed
     full_universe = get_russell1000()
     universe = full_universe[:_SCREENER_UNIVERSE_SIZE]
     sector_map = get_sector_map()
@@ -139,7 +143,6 @@ def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> Pre
     log.info("Screener: generating signals…")
     signals = strat.generate_signals(enriched)
 
-    # Sort longs by strength desc, shorts by strength asc (most negative first)
     longs = sorted(
         [s for s in signals if s.direction == "long"],
         key=lambda x: x.strength, reverse=True,
@@ -151,14 +154,10 @@ def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> Pre
 
     all_signals = longs + shorts
 
-    # Build prediction items with enriched metadata
     items = []
     for s in all_signals:
         sym = s.symbol
         sector = sector_map.get(sym, "Unknown")
-        # Apply sector filter if provided
-        if sector_filter and sector.lower() != sector_filter.lower():
-            continue
         pred_return = s.metadata.get("predicted_return_5d", 0.0) if s.metadata else 0.0
         items.append(PredictionItem(
             symbol=sym,
@@ -168,8 +167,6 @@ def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> Pre
             name=_get_ticker_name(sym),
             predicted_return_pct=round(float(pred_return) * 100, 2),
         ))
-        if len(items) >= top_n:
-            break
 
     return PredictionResponse(
         status="ok",
@@ -181,23 +178,55 @@ def _run_prediction_sync(top_n: int, sector_filter: Optional[str] = None) -> Pre
     )
 
 
-@router.get("/best", response_model=PredictionResponse)
+def _run_and_cache_predictions():
+    global _is_computing, _cache
+    log.info("Screener: starting background prediction task...")
+    try:
+        result = _run_prediction_sync()
+        
+        # Save to database
+        db = SessionLocal()
+        try:
+            db.query(PredictionCache).delete()
+            cache_entry = PredictionCache(
+                result_json=result.model_dump_json()
+            )
+            db.add(cache_entry)
+            db.commit()
+            log.info("Screener: predictions saved to DB successfully.")
+        except Exception as e:
+            log.error(f"Failed to save prediction cache to DB: {e}")
+        finally:
+            db.close()
+
+        # Update in-memory
+        _cache["result"] = result
+        _cache["timestamp"] = time.time()
+        
+    except Exception as e:
+        log.exception("Screener prediction failed in background task")
+    finally:
+        _is_computing = False
+
+
+@router.get("/best")
 async def get_best_predictions(
-    top_n: int = Query(10, ge=1, le=50, description="Number of top predictions to return"),
+    background_tasks: BackgroundTasks,
+    top_n: int = Query(10, ge=1, le=150, description="Number of top predictions to return"),
     sector: Optional[str] = Query(None, description="Filter by GICS sector"),
     force: bool = Query(False, description="Force re-run, ignoring the daily cache"),
+    db: Session = Depends(get_db)
 ):
     """
     Run the ensemble ML model and return the top bullish (and bearish) predictions.
-
-    Results are cached for 24 hours. Pass `?force=true` to bypass the cache and
-    recompute fresh predictions (takes 2–5 minutes).
+    Uses a 24-hour database cache. If missing, runs as a background task and returns 202.
     """
+    global _is_computing, _cache
     now = time.time()
+    
     cached_result: Optional[PredictionResponse] = _cache.get("result")
     cached_ts: Optional[float] = _cache.get("timestamp")
 
-    # Check if cache is valid
     cache_valid = (
         cached_result is not None
         and cached_ts is not None
@@ -205,10 +234,26 @@ async def get_best_predictions(
         and not force
     )
 
-    if cache_valid:
-        age_minutes = round((now - cached_ts) / 60, 1)
+    if not cache_valid and not force:
+        # Check DB cache
+        db_cache = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).first()
+        if db_cache:
+            cache_age = (datetime.now(timezone.utc) - db_cache.created_at).total_seconds()
+            if cache_age < CACHE_TTL_SECONDS:
+                try:
+                    result_dict = json.loads(db_cache.result_json)
+                    cached_result = PredictionResponse(**result_dict)
+                    cached_ts = now - cache_age
+                    _cache["result"] = cached_result
+                    _cache["timestamp"] = cached_ts
+                    cache_valid = True
+                    log.info("Screener: loaded cache from database (age=%.1f min)", cache_age / 60)
+                except Exception as e:
+                    log.error(f"Failed to parse DB cache: {e}")
+
+    if cache_valid and cached_result is not None:
+        age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
         log.info("Screener: serving from cache (age=%.1f min)", age_minutes)
-        # Apply on-the-fly filters to cached result
         filtered = cached_result.signals
         if sector:
             filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
@@ -222,35 +267,21 @@ async def get_best_predictions(
             universe_size=cached_result.universe_size,
         )
 
-    # Run fresh prediction in thread pool (blocking ML work)
-    log.info("Screener: running fresh prediction (force=%s)…", force)
-    loop = asyncio.get_running_loop()
-    try:
-        result = await loop.run_in_executor(None, _run_prediction_sync, 50, None)
-        # Cache the full unfiltered result
-        _cache["result"] = result
-        _cache["timestamp"] = time.time()
-
-        # Apply filters to the returned payload
-        filtered = result.signals
-        if sector:
-            filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
-        filtered = filtered[:top_n]
-
-        return PredictionResponse(
-            status="ok",
-            date=result.date,
-            signals=filtered,
-            cached=False,
-            cache_age_minutes=0.0,
-            universe_size=result.universe_size,
+    # Need to run predictions
+    if _is_computing:
+        return JSONResponse(
+            status_code=202,
+            content={"status": "computing", "message": "Models are training in the background. Please check back in a few minutes."}
         )
-    except Exception as e:
-        log.exception("Screener prediction failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction failed: {str(e)}. Please try again later.",
-        )
+
+    log.info("Screener: cache miss or force. Queuing background prediction task…")
+    _is_computing = True
+    background_tasks.add_task(_run_and_cache_predictions)
+    
+    return JSONResponse(
+        status_code=202,
+        content={"status": "computing", "message": "Model training started. Please check back in a few minutes."}
+    )
 
 
 @router.get("/sectors", response_model=list[str])
@@ -264,8 +295,11 @@ async def get_prediction_sectors():
 
 
 @router.delete("/cache")
-async def clear_prediction_cache():
+async def clear_prediction_cache(db: Session = Depends(get_db)):
     """Clear the prediction cache (admin use). Next request will recompute."""
+    global _cache
     _cache["result"] = None
     _cache["timestamp"] = None
+    db.query(PredictionCache).delete()
+    db.commit()
     return {"status": "cleared"}

@@ -57,6 +57,7 @@ export default function ScreenerPage() {
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [forcing, setForcing] = useState(false);
+  const [isComputing, setIsComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topN, setTopN] = useState(10);
   const [sectorFilter, setSectorFilter] = useState<string>("");
@@ -67,19 +68,27 @@ export default function ScreenerPage() {
   const fetchPredictions = useCallback(async (force = false) => {
     setError(null);
     if (force) setForcing(true);
-    else setLoading(true);
+    else if (!isComputing) setLoading(true);
 
     try {
       const data = await api.predict.best(50, sectorFilter || undefined, force);
-      setResult(data);
-      setHasLoaded(true);
+      if (data.status === "computing") {
+        setIsComputing(true);
+        setTimeout(() => fetchPredictions(false), 10000);
+      } else {
+        setIsComputing(false);
+        setResult(data);
+        setHasLoaded(true);
+        setLoading(false);
+        setForcing(false);
+      }
     } catch (err: any) {
       setError(err?.message ?? "Failed to load predictions. Please try again.");
-    } finally {
+      setIsComputing(false);
       setLoading(false);
       setForcing(false);
     }
-  }, [sectorFilter]);
+  }, [sectorFilter, isComputing]);
 
   useEffect(() => {
     fetchPredictions(false);
@@ -142,19 +151,19 @@ export default function ScreenerPage() {
             <button
               id="screener-rerun-btn"
               onClick={() => fetchPredictions(true)}
-              disabled={forcing || loading}
+              disabled={forcing || isComputing || loading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-900/30"
             >
-              <RefreshCw size={13} className={forcing ? "animate-spin" : ""} />
-              {forcing ? "Recomputing…" : "Re-run Predictions"}
+              <RefreshCw size={13} className={forcing || isComputing ? "animate-spin" : ""} />
+              {forcing || isComputing ? "Recomputing…" : "Re-run Predictions"}
             </button>
           </div>
         </div>
 
         {/* ── Re-run warning ───────────────────────────────────────────── */}
-        {forcing && (
+        {(forcing || isComputing) && (
           <Alert variant="warning">
-            <strong>Computing fresh predictions</strong> — the ML ensemble is scanning {result?.universe_size ?? 150}+ stocks. This may take 2–4 minutes. Please wait…
+            <strong>Training Models in Background</strong> — the ML ensemble is training on 150+ stocks. This will take ~3 minutes. You can safely close this page, it will auto-refresh when ready.
           </Alert>
         )}
 
