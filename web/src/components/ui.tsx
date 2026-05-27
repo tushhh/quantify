@@ -91,7 +91,7 @@ export function Badge({
           "bg-[rgba(255,255,255,0.03)] text-[var(--color-text-dim)] border-[rgba(255,255,255,0.1)]": variant === "default",
           "bg-[rgba(212,175,55,0.05)] text-[var(--color-cta)] border-[rgba(212,175,55,0.2)]":       variant === "success",
           "bg-[rgba(224,122,95,0.05)] text-[var(--color-danger)] border-[rgba(224,122,95,0.2)]":    variant === "danger",
-          "bg-[rgba(212,175,55,0.05)] text-[var(--color-cta)] border-[rgba(212,175,55,0.2)]":       variant === "warning",
+          "bg-[rgba(245,158,11,0.05)] text-amber-500 border-[rgba(245,158,11,0.2)]":                variant === "warning",
           "bg-[rgba(129,161,193,0.05)] text-[var(--color-info)] border-[rgba(129,161,193,0.2)]":    variant === "blue",
         },
         className
