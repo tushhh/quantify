@@ -45,91 +45,39 @@ REQUEST_TIMEOUT = 120  # 2 minutes max per request
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_data_with_retry(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
-    """Download OHLCV data from yfinance with exponential backoff retry."""
-    import pandas as pd
-    import yfinance as yf
-    symbols = " ".join(tickers)
-    last_exc = None
-    
-    for attempt in range(MAX_RETRIES):
-        try:
-            log.info(f"Fetching data (attempt {attempt + 1}/{MAX_RETRIES}): {len(tickers)} tickers from {start} to {end}")
-            raw = yf.download(
-                symbols,
-                start=str(start),
-                end=str(end),
-                auto_adjust=True,
-                progress=False,
-                group_by="ticker" if len(tickers) > 1 else "column",
-                threads=True,
-                timeout=30,  # 30s timeout per yfinance call
-            )
-            
-            if raw is None or (isinstance(raw, pd.DataFrame) and raw.empty):
-                raise ValueError("yfinance returned empty data")
-            
-            log.info(f"Data fetch successful on attempt {attempt + 1}")
-            return _process_raw_data(raw, tickers)
-            
-        except Exception as exc:
-            last_exc = exc
-            if attempt < MAX_RETRIES - 1:
-                wait_time = RETRY_BACKOFF_FACTOR ** attempt
-                log.warning(f"Data fetch failed (attempt {attempt + 1}): {exc}. Retrying in {wait_time}s...")
-                time.sleep(wait_time)
-            else:
-                log.error(f"Data fetch failed after {MAX_RETRIES} attempts: {exc}")
-    
-    # All retries exhausted
-    raise HTTPException(
-        status_code=502,
-        detail=f"Failed to fetch market data after {MAX_RETRIES} retries. The data provider may be temporarily unavailable."
-    ) from last_exc
-
-
-def _process_raw_data(raw: pd.DataFrame | dict, tickers: list[str]) -> Dict[str, pd.DataFrame]:
-    """Process raw yfinance data into standardized format."""
-    import pandas as pd
-    result: Dict[str, pd.DataFrame] = {}
-    
-    if len(tickers) == 1:
-        sym = tickers[0]
-        try:
-            df = raw.copy() if isinstance(raw, pd.DataFrame) else raw
-            df.columns = [c.lower() for c in df.columns]
-            df = df.dropna()
-            if not df.empty and len(df) > 5:  # Need minimum bars
-                result[sym] = df
-            else:
-                log.warning(f"Insufficient data for {sym}: {len(df)} bars")
-        except Exception as e:
-            log.warning(f"Failed to process {sym}: {e}")
-    else:
-        for sym in tickers:
-            try:
-                df = raw[sym].copy()
-                df.columns = [c.lower() for c in df.columns]
-                df = df.dropna()
-                if not df.empty and len(df) > 5:  # Need minimum bars
-                    result[sym] = df
-                else:
-                    log.warning(f"Insufficient data for {sym}: {len(df) if not df.empty else 0} bars")
-            except Exception as e:
-                log.debug(f"Skipping {sym}: {e}")
-    
-    return result
-
-
 def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
-    """Download OHLCV data from yfinance (with retry logic)."""
-    result = _fetch_data_with_retry(tickers, start, end)
+    """Download OHLCV data from yfinance via YFinanceProvider (which uses ParquetCache and handles retries)."""
+    from quantify.data.providers.yfinance_provider import YFinanceProvider
+    from quantify.data.cache import ParquetCache
+    from datetime import datetime
+    
+    start_dt = datetime.combine(start, datetime.min.time())
+    end_dt = datetime.combine(end, datetime.min.time())
+    
+    provider = YFinanceProvider(cache=ParquetCache())
+    result = provider.get_multiple(tickers, start_dt, end_dt)
+    
     if not result:
         raise HTTPException(
             status_code=502,
             detail="No valid market data was retrieved for any tickers. Check dates and ticker symbols."
         )
-    return result
+        
+    # YFinanceProvider returns standard OHLCV, but we also want to drop any empty dataframes and ensure length > 5
+    filtered_result = {}
+    for sym, df in result.items():
+        if not df.empty and len(df) > 5:
+            filtered_result[sym] = df
+        else:
+            log.warning(f"Insufficient data for {sym}: {len(df) if not df.empty else 0} bars")
+            
+    if not filtered_result:
+        raise HTTPException(
+            status_code=502,
+            detail="No valid market data was retrieved for any tickers (insufficient bars). Check dates and ticker symbols."
+        )
+        
+    return filtered_result
 
 
 def _build_strategy_instances(req: BacktestRequest) -> list:
@@ -267,6 +215,8 @@ def _avg_holding(trades: list[dict]) -> float:
 def _serialize_equity(equity: pd.Series, benchmark: pd.Series | None = None) -> list[dict]:
     records = []
     base = float(equity.iloc[0]) if len(equity) else 1.0
+    if base == 0:
+        base = 1.0  # guard against division-by-zero on degenerate equity curves
     bbase = float(benchmark.iloc[0]) if benchmark is not None and len(benchmark) else None
 
     for dt, val in equity.items():
@@ -296,10 +246,10 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
     """Blocking backtest execution — called in a thread from the async endpoint."""
     from quantify.backtest.engine import BacktestEngine
 
-    log.info(
-        "Backtest request: %s → %s, capital=%.0f",
-        req.start_date, req.end_date, req.initial_capital,
-    )
+    def _progress(msg: str):
+        log.info(msg)
+        if q := _progress_queues.get("default"):
+            q.put(msg)
 
     # ── Universe ──────────────────────────────────────────────────────────
     # Note: benchmark symbol is included in the universe for data fetching,
@@ -311,22 +261,21 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         "XOM", "CVX", "WMT", "PG", "KO", req.benchmark,
     ]
     tickers = list(dict.fromkeys(req.universe or default_universe))  # deduplicate, preserve order
-    log.info(f"Universe: {len(tickers)} tickers")
+    _progress(f"Universe: {len(tickers)} tickers")
 
     # ── Fetch data ────────────────────────────────────────────────────────
-    log.info("Step 1/5: Downloading market data for %d tickers…", len(tickers))
+    _progress(f"Step 1/5: Downloading market data for {len(tickers)} tickers…")
     data = _fetch_data(tickers, req.start_date, req.end_date)
-    log.info(f"Successfully fetched data for {len(data)} tickers: {list(data.keys())}")
+    _progress(f"Successfully fetched data for {len(data)} tickers")
 
     # ── Build engine components ────────────────────────────────────────────
-    log.info("Step 2/5: Instantiating strategies…")
+    _progress("Step 2/5: Instantiating strategies…")
     strategies = _build_strategy_instances(req)
-    log.info(f"Strategies loaded: {[s.name for s in strategies]}")
     
     cost_model = _build_cost_model(req)
     position_sizer = _build_position_sizer(req)
     risk_manager = _build_risk_manager(req)
-    log.info("Step 3/5: Risk, cost, and sizing models configured")
+    _progress("Step 3/5: Risk, cost, and sizing models configured")
 
     engine = BacktestEngine(
         strategies=strategies,
@@ -340,7 +289,7 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
     )
 
     # ── Run ───────────────────────────────────────────────────────────────
-    log.info("Step 4/5: Running backtest engine (this may take a minute)…")
+    _progress("Step 4/5: Running backtest engine (this may take a minute)…")
     try:
         result = engine.run(data)
     except Exception as exc:
@@ -411,6 +360,9 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
             "initial_capital": req.initial_capital,
         },
     )
+
+    _progress("__done__")
+    return response
 
 
 # ---------------------------------------------------------------------------

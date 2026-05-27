@@ -88,15 +88,17 @@ app = FastAPI(
 # CORS – allow the Vercel frontend and local dev
 # ---------------------------------------------------------------------------
 _frontend_url = os.getenv("FRONTEND_URL", "")
-ALLOWED_ORIGINS = [o for o in [
+# Always include localhost dev origins. If FRONTEND_URL is set (production),
+# add it too. Never fall back to ["*"] with credentials=True — browsers reject that.
+ALLOWED_ORIGINS = list(dict.fromkeys(filter(None, [
     "http://localhost:3000",
     "http://localhost:3001",
     _frontend_url,
-] if o]
+])))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS if _frontend_url else ["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

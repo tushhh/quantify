@@ -60,7 +60,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
-from quantify.data.universe import get_sp500
+from quantify.data.universe import get_russell1000
 from quantify.strategy.base import Strategy
 from quantify.strategy.signal import Signal
 
@@ -161,7 +161,7 @@ class MLReturnPredictorStrategy(Strategy):
         short_decile: float = _SHORT_DECILE,
         lgbm_params: Optional[dict[str, Any]] = None,
     ) -> None:
-        self.universe: list[str] = universe if universe is not None else get_sp500()
+        self.universe: list[str] = universe if universe is not None else get_russell1000()
         self.features = features if features is not None else list(_ALL_FEATURES)
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
@@ -285,13 +285,10 @@ class MLReturnPredictorStrategy(Strategy):
         """
         Construct a stacked (symbol × time) feature matrix and forward-return
         target vector from the available data.
-
-        For each symbol and each bar (up to the 2nd-to-last, since we need
-        the next 5 bars for the target), assemble feature rows and match them
-        to the 5-day forward return.
+        Features and targets are cross-sectionally standardized per timestamp.
+        Training data is limited to a sliding window of the last 1260 days.
         """
         X_parts: list[pd.DataFrame] = []
-        y_parts: list[pd.Series] = []
 
         for symbol, df in data.items():
             if df.empty or len(df) < _FORWARD_RETURN_DAYS + 30:
@@ -323,14 +320,39 @@ class MLReturnPredictorStrategy(Strategy):
             if feat_df.empty:
                 continue
 
+            # Add target column
+            feat_df["target"] = fwd_ret
             X_parts.append(feat_df)
-            y_parts.append(fwd_ret)
 
         if not X_parts:
             return None, None
 
-        X_all = pd.concat(X_parts, axis=0).reset_index(drop=True)
-        y_all = pd.concat(y_parts, axis=0).reset_index(drop=True)
+        all_data = pd.concat(X_parts, axis=0)
+
+        # Constrain to sliding window of ~5 years (1260 trading days)
+        unique_dates = all_data.index.unique().sort_values()
+        if len(unique_dates) > 1260:
+            start_date = unique_dates[-1260]
+            all_data = all_data[all_data.index >= start_date]
+
+        # Cross-sectional standardization (z-score per timestamp)
+        def zscore(x):
+            std = x.std()
+            if len(x) > 1 and std > 0:
+                return (x - x.mean()) / std
+            return x - x.mean()
+
+        cols_to_norm = self.features + ["target"]
+        
+        # Use groupby on the DatetimeIndex (level=0)
+        normed = all_data.groupby(level=0)[cols_to_norm].transform(zscore)
+        normed = normed.dropna()
+
+        if normed.empty:
+            return None, None
+
+        X_all = normed[self.features]
+        y_all = normed["target"]
 
         return X_all, y_all
 
@@ -417,8 +439,8 @@ class MLReturnPredictorStrategy(Strategy):
 
         Returns a dict of {symbol: predicted_return}.
         """
-        predictions: dict[str, float] = {}
-
+        # Collect current feature rows for all symbols
+        current_features = {}
         for symbol, df in data.items():
             if df.empty or len(df) < 30:
                 continue
@@ -433,8 +455,28 @@ class MLReturnPredictorStrategy(Strategy):
                 log.debug("%s: %s has NaN features at latest bar", self.name, symbol)
                 continue
 
+            current_features[symbol] = feat_row
+
+        if not current_features:
+            return {}
+
+        # Build DataFrame for cross-sectional standardization
+        feat_df = pd.DataFrame.from_dict(current_features, orient="index")
+
+        # Z-score standardization across the cross-section
+        if len(feat_df) > 1:
+            stds = feat_df.std()
+            stds[stds == 0] = 1.0  # Avoid division by zero
+            feat_df = (feat_df - feat_df.mean()) / stds
+        else:
+            feat_df = feat_df - feat_df.mean()
+
+        predictions: dict[str, float] = {}
+
+        for symbol in feat_df.index:
             try:
-                pred = self._model.predict(feat_row.values.reshape(1, -1))[0]
+                row = feat_df.loc[symbol].values.reshape(1, -1)
+                pred = self._model.predict(row)[0]
                 predictions[symbol] = float(pred)
             except Exception as exc:
                 log.debug(

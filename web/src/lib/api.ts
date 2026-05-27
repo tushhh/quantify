@@ -3,7 +3,7 @@
  * Falls back to localhost:8000 for local development.
  */
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+export const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 type FetchOptions = {
   method?: string;
@@ -167,12 +167,18 @@ export type PredictionItem = {
   symbol: string;
   strength: number;
   side: string;
+  sector: string;
+  name: string;
+  predicted_return_pct: number;
 };
 
 export type PredictionResponse = {
   status: string;
   date: string;
   signals: PredictionItem[];
+  cached: boolean;
+  cache_age_minutes: number;
+  universe_size: number;
 };
 
 export type TradeCreate = {
@@ -228,7 +234,13 @@ export const api = {
       apiFetch<BacktestResponse>("/api/backtest", { method: "POST", body: req, signal }),
   },
   predict: {
-    best: (top_n: number = 5) => apiFetch<PredictionResponse>(`/api/predict/best?top_n=${top_n}`),
+    best: (top_n: number = 10, sector?: string, force?: boolean) => {
+      const params = new URLSearchParams({ top_n: String(top_n) });
+      if (sector) params.set("sector", sector);
+      if (force) params.set("force", "true");
+      return apiFetch<PredictionResponse>(`/api/predict/best?${params}`);
+    },
+    sectors: () => apiFetch<string[]>("/api/predict/sectors"),
   },
   trades: {
     create: (req: TradeCreate) => apiFetch<TrackedTrade>("/api/trades", { method: "POST", body: req }),

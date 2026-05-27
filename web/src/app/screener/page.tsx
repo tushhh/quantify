@@ -1,0 +1,408 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import {
+  Sparkles, RefreshCw, TrendingUp, TrendingDown, Clock, Database,
+  AlertTriangle, ChevronDown, Filter, Info, ArrowUpRight, Plus,
+} from "lucide-react";
+import { api, PredictionItem, PredictionResponse } from "@/lib/api";
+import { Card, CardHeader, Badge, Alert, Skeleton } from "@/components/ui";
+import Link from "next/link";
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function StrengthBar({ value, side }: { value: number; side: string }) {
+  const pct = Math.abs(value) * 100;
+  const isLong = side === "long";
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${isLong ? "bg-emerald-500" : "bg-red-500"}`}
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
+      </div>
+      <span className={`text-[10px] font-mono tabular-nums w-8 text-right ${isLong ? "text-emerald-400" : "text-red-400"}`}>
+        {pct.toFixed(0)}%
+      </span>
+    </div>
+  );
+}
+
+function SectorBadge({ sector }: { sector: string }) {
+  const colors: Record<string, string> = {
+    "Information Technology": "text-blue-300 bg-blue-500/10 border-blue-500/20",
+    "Health Care": "text-emerald-300 bg-emerald-500/10 border-emerald-500/20",
+    "Financials": "text-violet-300 bg-violet-500/10 border-violet-500/20",
+    "Consumer Discretionary": "text-orange-300 bg-orange-500/10 border-orange-500/20",
+    "Consumer Staples": "text-yellow-300 bg-yellow-500/10 border-yellow-500/20",
+    "Industrials": "text-cyan-300 bg-cyan-500/10 border-cyan-500/20",
+    "Energy": "text-amber-300 bg-amber-500/10 border-amber-500/20",
+    "Materials": "text-lime-300 bg-lime-500/10 border-lime-500/20",
+    "Real Estate": "text-pink-300 bg-pink-500/10 border-pink-500/20",
+    "Utilities": "text-teal-300 bg-teal-500/10 border-teal-500/20",
+    "Communication Services": "text-indigo-300 bg-indigo-500/10 border-indigo-500/20",
+  };
+  const cls = colors[sector] ?? "text-slate-400 bg-slate-500/10 border-slate-500/20";
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-semibold tracking-wide ${cls}`}>
+      {sector.replace("Information Technology", "Tech").replace("Communication Services", "Comms").replace("Consumer ", "Cons. ")}
+    </span>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+
+export default function ScreenerPage() {
+  const [result, setResult] = useState<PredictionResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [forcing, setForcing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [topN, setTopN] = useState(10);
+  const [sectorFilter, setSectorFilter] = useState<string>("");
+  const [directionFilter, setDirectionFilter] = useState<"all" | "long" | "short">("all");
+  const [sectors, setSectors] = useState<string[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const fetchPredictions = useCallback(async (force = false) => {
+    setError(null);
+    if (force) setForcing(true);
+    else setLoading(true);
+
+    try {
+      const data = await api.predict.best(50, sectorFilter || undefined, force);
+      setResult(data);
+      setHasLoaded(true);
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to load predictions. Please try again.");
+    } finally {
+      setLoading(false);
+      setForcing(false);
+    }
+  }, [sectorFilter]);
+
+  useEffect(() => {
+    fetchPredictions(false);
+  }, []);
+
+  useEffect(() => {
+    api.predict.sectors().then(setSectors).catch(() => {});
+  }, []);
+
+  // Apply client-side filters on the cached result
+  const signals = (result?.signals ?? []).filter(s => {
+    if (directionFilter !== "all" && s.side !== directionFilter) return false;
+    if (sectorFilter && s.sector.toLowerCase() !== sectorFilter.toLowerCase()) return false;
+    return true;
+  }).slice(0, topN);
+
+  const longs = signals.filter(s => s.side === "long").length;
+  const shorts = signals.filter(s => s.side === "short").length;
+
+  return (
+    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-6">
+
+        {/* ── Page Header ──────────────────────────────────────────────── */}
+        <div className="animate-fade-in-up flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
+                <Sparkles size={17} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-white">ML Stock Screener</h1>
+            </div>
+            <p className="text-slate-500 text-xs ml-12">
+              Forward-looking predictions from ensemble ML (LightGBM + XGBoost + CatBoost) · Russell 1000 universe
+            </p>
+          </div>
+
+          {/* Cache status + re-run button */}
+          <div className="flex items-center gap-3 ml-12 md:ml-0 flex-wrap">
+            {result && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[11px] text-slate-500">
+                {result.cached ? (
+                  <>
+                    <Clock size={11} className="text-amber-400" />
+                    <span className="text-amber-300">Cached</span>
+                    <span>· {result.cache_age_minutes.toFixed(0)}m ago</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-emerald-300">Fresh</span>
+                    <span>· {result.date}</span>
+                  </>
+                )}
+                <span className="mx-1 text-slate-600">|</span>
+                <Database size={11} />
+                <span>{result.universe_size} stocks scanned</span>
+              </div>
+            )}
+            <button
+              id="screener-rerun-btn"
+              onClick={() => fetchPredictions(true)}
+              disabled={forcing || loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-900/30"
+            >
+              <RefreshCw size={13} className={forcing ? "animate-spin" : ""} />
+              {forcing ? "Recomputing…" : "Re-run Predictions"}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Re-run warning ───────────────────────────────────────────── */}
+        {forcing && (
+          <Alert variant="warning">
+            <strong>Computing fresh predictions</strong> — the ML ensemble is scanning {result?.universe_size ?? 150}+ stocks. This may take 2–4 minutes. Please wait…
+          </Alert>
+        )}
+
+        {/* ── Error ────────────────────────────────────────────────────── */}
+        {error && (
+          <Alert variant="danger">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <strong>Prediction failed</strong>
+                <p className="text-xs mt-0.5 opacity-80">{error}</p>
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        {/* ── Main grid ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+          {/* ── Sidebar ─────────────────────────────────────────────── */}
+          <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
+
+            {/* Filters */}
+            <Card>
+              <CardHeader title="Filters" subtitle="Narrow your results" />
+              <div className="flex flex-col gap-4">
+
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">
+                    Show Top N
+                  </label>
+                  <select
+                    id="screener-top-n"
+                    className="input-field"
+                    value={topN}
+                    onChange={e => setTopN(Number(e.target.value))}
+                  >
+                    {[5, 10, 20, 50].map(n => (
+                      <option key={n} value={n}>Top {n} stocks</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">
+                    Sector
+                  </label>
+                  <select
+                    id="screener-sector-filter"
+                    className="input-field"
+                    value={sectorFilter}
+                    onChange={e => setSectorFilter(e.target.value)}
+                  >
+                    <option value="">All Sectors</option>
+                    {sectors.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">
+                    Direction
+                  </label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(["all", "long", "short"] as const).map(d => (
+                      <button
+                        key={d}
+                        id={`screener-dir-${d}`}
+                        onClick={() => setDirectionFilter(d)}
+                        className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          directionFilter === d
+                            ? d === "long"
+                              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                              : d === "short"
+                              ? "bg-red-500/15 border-red-500/30 text-red-300"
+                              : "bg-blue-500/15 border-blue-500/30 text-blue-300"
+                            : "border-[var(--border)] text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        {d.charAt(0).toUpperCase() + d.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Summary stats */}
+            {result && !loading && (
+              <Card>
+                <CardHeader title="Summary" />
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Showing</span>
+                    <span className="text-white font-semibold">{signals.length} stocks</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 flex items-center gap-1.5"><TrendingUp size={11} className="text-emerald-500" /> Bullish picks</span>
+                    <span className="text-emerald-400 font-semibold">{longs}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 flex items-center gap-1.5"><TrendingDown size={11} className="text-red-500" /> Bearish picks</span>
+                    <span className="text-red-400 font-semibold">{shorts}</span>
+                  </div>
+                  <div className="h-px bg-[var(--border)] my-1" />
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Universe scanned</span>
+                    <span className="text-slate-300 font-mono">{result.universe_size}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Model date</span>
+                    <span className="text-slate-300 font-mono">{result.date}</span>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* How it works */}
+            <Card>
+              <CardHeader title="How it works" />
+              <div className="flex flex-col gap-3 text-xs text-slate-400 leading-relaxed">
+                <p>The ML ensemble trains on <strong className="text-slate-200">3 years of price & feature data</strong> from the Russell 1000, then predicts each stock's 5-day forward return.</p>
+                <p>Stocks are ranked by predicted return, and the <strong className="text-slate-200">top decile → Long</strong>, <strong className="text-slate-200">bottom decile → Short</strong>.</p>
+                <p>Results are <strong className="text-slate-200">cached daily</strong>. Use Re-run to get fresh signals.</p>
+                <div className="h-px bg-[var(--border)] my-1" />
+                <Link
+                  href="/backtest"
+                  className="flex items-center gap-1.5 text-[var(--accent)] hover:opacity-80 transition-opacity font-semibold"
+                >
+                  Validate model in Backtest
+                  <ArrowUpRight size={12} />
+                </Link>
+              </div>
+            </Card>
+          </div>
+
+          {/* ── Results Table ────────────────────────────────────────── */}
+          <div className="lg:col-span-3 animate-fade-in-up">
+            <Card>
+              <CardHeader
+                title="Top Predictions"
+                subtitle={`ML-ranked stocks for the week · ${result?.date ?? "Loading…"}`}
+              />
+
+              {/* Loading skeletons */}
+              {(loading && !hasLoaded) && (
+                <div className="flex flex-col gap-2">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="skeleton h-12 rounded-xl" style={{ animationDelay: `${i * 40}ms` }} />
+                  ))}
+                </div>
+              )}
+
+              {/* Results */}
+              {(!loading || hasLoaded) && signals.length > 0 && (
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-xs min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-[var(--border)]">
+                        {["#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d"].map(h => (
+                          <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {signals.map((s, i) => (
+                        <tr
+                          key={s.symbol}
+                          className="border-b border-[var(--border)]/40 hover:bg-white/[0.025] transition-colors animate-fade-in-up"
+                          style={{ animationDelay: `${i * 40}ms` }}
+                        >
+                          <td className="px-3 py-3 text-slate-600 font-mono text-[10px]">
+                            {String(i + 1).padStart(2, "0")}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="font-mono font-bold text-white tracking-wide">{s.symbol}</span>
+                          </td>
+                          <td className="px-3 py-3 text-slate-400 max-w-[160px] truncate">
+                            {s.name || s.symbol}
+                          </td>
+                          <td className="px-3 py-3">
+                            <SectorBadge sector={s.sector} />
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                              s.side === "long"
+                                ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
+                                : "text-red-300 bg-red-500/10 border-red-500/25"
+                            }`}>
+                              {s.side === "long"
+                                ? <TrendingUp size={10} />
+                                : <TrendingDown size={10} />}
+                              {s.side.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 w-32">
+                            <StrengthBar value={s.strength} side={s.side} />
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`font-mono font-semibold tabular-nums ${
+                              s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
+                            }`}>
+                              {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {(!loading || hasLoaded) && signals.length === 0 && !error && (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+                    <Sparkles size={24} className="text-slate-600" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-slate-400 text-sm font-semibold">No predictions yet</p>
+                    <p className="text-slate-600 text-xs mt-1">
+                      {hasLoaded ? "Try clearing filters or re-running the model." : "Click Re-run Predictions to generate ML signals."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => fetchPredictions(false)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-white hover:opacity-90 transition-opacity"
+                  >
+                    <Sparkles size={13} />
+                    Load Predictions
+                  </button>
+                </div>
+              )}
+            </Card>
+
+            {/* Disclaimer */}
+            <div className="mt-4 flex items-start gap-2 px-1 text-[10px] text-slate-600 leading-relaxed">
+              <Info size={11} className="mt-0.5 shrink-0" />
+              <p>
+                These predictions are generated by a machine learning model trained on historical price data and are for <strong className="text-slate-500">informational purposes only</strong>. Past model performance does not guarantee future results. Always conduct your own research before making any investment decisions.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

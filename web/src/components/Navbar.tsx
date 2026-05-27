@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { TrendingUp, BarChart2, Globe, Zap, Menu, X, LogOut, UserCircle, LayoutDashboard } from "lucide-react";
+import { TrendingUp, BarChart2, Globe, Zap, Menu, X, LogOut, UserCircle, LayoutDashboard, Sparkles } from "lucide-react";
 import clsx from "clsx";
 import { useState, useEffect } from "react";
 
 const NAV = [
   { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
   { href: "/backtest",   label: "Backtest",   icon: TrendingUp },
+  { href: "/screener",   label: "Screener",   icon: Sparkles },
   { href: "/strategies", label: "Strategies", icon: BarChart2 },
   { href: "/universe",   label: "Universe",   icon: Globe },
 ];

@@ -209,11 +209,14 @@ export default function DashboardPage() {
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [symbolIndex, setSymbolIndex] = useState(0);
 
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+
   const loadPrices = useCallback(async () => {
     setLoadingPrices(true);
     try {
       const p = await api.trades.prices();
       setPrices(p);
+      setLastPriceUpdate(new Date());
     } catch {
       // prices are supplemental; silently skip
     } finally {
@@ -246,6 +249,29 @@ export default function DashboardPage() {
     };
     void check();
   }, [router, loadTrades]);
+
+  // Auto-refresh prices every 30s, only when the tab is visible
+  useEffect(() => {
+    if (trades.length === 0) return;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      interval = setInterval(() => {
+        if (!document.hidden) loadPrices();
+      }, 30_000);
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) loadPrices(); // refresh immediately on tab focus
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [trades.length, loadPrices]);
 
   useEffect(() => {
     api.universe.get()
@@ -559,14 +585,21 @@ export default function DashboardPage() {
               </p>
             </div>
             {trades.length > 0 && (
-              <button
-                onClick={loadPrices}
-                disabled={loadingPrices}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-400 transition-colors py-1.5 px-2.5 rounded-lg hover:bg-blue-500/10"
-              >
-                <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
-                Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                {lastPriceUpdate && !loadingPrices && (
+                  <span className="text-[10px] text-slate-600 font-mono">
+                    Updated {Math.round((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
+                  </span>
+                )}
+                <button
+                  onClick={loadPrices}
+                  disabled={loadingPrices}
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-400 transition-colors py-1.5 px-2.5 rounded-lg hover:bg-blue-500/10 disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
+                  {loadingPrices ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
             )}
           </div>
 

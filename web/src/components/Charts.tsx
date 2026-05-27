@@ -52,8 +52,8 @@ export function EquityCurveChart({ data }: { data: EquityPoint[] }) {
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                <stop offset="5%"  stopColor="#26A69A" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#26A69A" stopOpacity={0.0} />
               </linearGradient>
               <linearGradient id="benchmarkGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.15} />
@@ -91,7 +91,7 @@ export function EquityCurveChart({ data }: { data: EquityPoint[] }) {
             <Area
               type="monotone"
               dataKey="pct"
-              stroke="#3b82f6"
+              stroke="#26A69A"
               strokeWidth={2}
               fill="url(#portfolioGrad)"
               dot={false}
@@ -102,7 +102,7 @@ export function EquityCurveChart({ data }: { data: EquityPoint[] }) {
       {hasBenchmark && (
         <div className="flex gap-5 mt-3 pt-2 border-t border-[var(--border)]">
           <div className="flex items-center gap-1.5">
-            <div className="w-6 h-0.5 bg-blue-500 rounded" />
+            <div className="w-6 h-0.5 bg-[#26A69A] rounded" />
             <span className="text-[10px] text-slate-500">Portfolio</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -129,8 +129,8 @@ export function DrawdownChart({ data }: { data: DrawdownPoint[] }) {
           <AreaChart data={normalizedData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
+                <stop offset="5%"  stopColor="#EF5350" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#EF5350" stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
@@ -153,7 +153,7 @@ export function DrawdownChart({ data }: { data: DrawdownPoint[] }) {
             <Area
               type="monotone"
               dataKey="drawdown"
-              stroke="#ef4444"
+              stroke="#EF5350"
               strokeWidth={1.5}
               fill="url(#ddGrad)"
               dot={false}

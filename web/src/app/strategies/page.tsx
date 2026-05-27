@@ -73,12 +73,21 @@ function StrategyCard({ info }: { info: StrategyInfo }) {
 export default function StrategiesPage() {
   const [strategies, setStrategies] = useState<StrategyInfo[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
   const [view, setView]             = useState<"overview" | "params">("overview");
 
-  useEffect(() => {
+  const fetchStrategies = () => {
+    setLoading(true);
+    setError(null);
     api.strategies.list()
       .then(setStrategies)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load strategies"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchStrategies();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -121,6 +130,22 @@ export default function StrategiesPage() {
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-[68px] w-full" />
           ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+          <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <ChevronDown size={20} className="text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-red-300">Failed to load strategies</p>
+            <p className="text-xs text-slate-600 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={fetchStrategies}
+            className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors border border-blue-500/20 px-4 py-2 rounded-lg hover:bg-blue-500/10"
+          >
+            Try again
+          </button>
         </div>
       ) : view === "overview" ? (
         <div className="flex flex-col gap-3">

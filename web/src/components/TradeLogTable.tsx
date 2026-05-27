@@ -100,11 +100,12 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
             </tr>
           </thead>
           <tbody>
-            {paged.map((t, i) => {
+            {paged.map((t) => {
               const isWin = t.pnl > 0;
+              const rowKey = `${t.symbol}-${t.strategy_name}-${t.entry_date ?? "open"}-${t.exit_date ?? "open"}`;
               return (
                 <tr
-                  key={i}
+                  key={rowKey}
                   className="border-b border-[var(--border)]/50 hover:bg-white/[0.02] transition-colors"
                 >
                   <td className="px-3 py-2.5 font-mono font-bold text-white">{t.symbol}</td>
@@ -120,7 +121,7 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
                     {isWin ? "+" : ""}${t.pnl.toFixed(2)}
                   </td>
                   <td className={clsx("px-3 py-2.5 font-mono tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
-                    {(t.return_pct * 100).toFixed(2)}%
+                    {isWin ? "+" : ""}{(t.return_pct * 100).toFixed(2)}%
                   </td>
                   <td className="px-3 py-2.5 text-slate-500">{t.holding_days}d</td>
                 </tr>

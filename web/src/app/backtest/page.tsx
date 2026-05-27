@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, AlertCircle, Info, ChevronDown, ChevronUp, Zap, TrendingUp } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { api } from "@/lib/api";
+import { api, BASE } from "@/lib/api";
 import { RiskProfileSelector } from "@/components/RiskProfileSelector";
 import { StrategyConfigurator } from "@/components/StrategyConfigurator";
 import { EquityCurveChart, DrawdownChart } from "@/components/Charts";
@@ -25,6 +25,7 @@ export default function BacktestPage() {
     endDate, setEndDate,
     initialCapital, setInitialCapital,
     benchmark, setBenchmark,
+    costs, setCosts,
     isRunning, setIsRunning,
     backtestResult, setBacktestResult,
     error, setError,
@@ -33,8 +34,14 @@ export default function BacktestPage() {
 
   const abortRef  = useRef<AbortController | null>(null);
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const esRef     = useRef<EventSource | null>(null);
   const [serverWarning, setServerWarning] = useState(false);
   const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [progressMsg, setProgressMsg]     = useState<string | null>(null);
+
+  const dateError = startDate && endDate && startDate >= endDate
+    ? "End date must be after start date"
+    : null;
 
   useEffect(() => {
     if (!strategyInfos.length) api.strategies.list().then(setStrategyInfos).catch(() => {});
@@ -44,6 +51,7 @@ export default function BacktestPage() {
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      esRef.current?.close();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
@@ -51,8 +59,10 @@ export default function BacktestPage() {
   const handleRun = async () => {
     if (isRunning) {
       abortRef.current?.abort();
+      esRef.current?.close();
       setIsRunning(false);
       setServerWarning(false);
+      setProgressMsg(null);
       if (timerRef.current) clearTimeout(timerRef.current);
       return;
     }
@@ -61,10 +71,24 @@ export default function BacktestPage() {
     setBacktestResult(null);
     setIsRunning(true);
     setServerWarning(false);
+    setProgressMsg("Connecting to engine...");
     timerRef.current = setTimeout(() => setServerWarning(true), 8_000);
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+
+    const es = new EventSource(`${BASE}/api/backtest/stream?job_id=default`);
+    esRef.current = es;
+    es.onmessage = (e) => {
+      if (e.data === "done") {
+        es.close();
+      } else {
+        setProgressMsg(e.data);
+      }
+    };
+    es.onerror = () => {
+      es.close();
+    };
 
     try {
       const req = buildRequest();
@@ -76,6 +100,8 @@ export default function BacktestPage() {
     } finally {
       setIsRunning(false);
       setServerWarning(false);
+      setProgressMsg(null);
+      es.close();
       if (timerRef.current) clearTimeout(timerRef.current);
     }
   };
@@ -183,13 +209,52 @@ export default function BacktestPage() {
             >
               <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
                 {showAdvanced ? <ChevronUp size={14} className="text-blue-400" /> : <ChevronDown size={14} />}
-                Advanced — Strategy Overrides
+                Advanced Settings
               </span>
               {showAdvanced && <span className="text-[10px] bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded-md border border-blue-500/20">Open</span>}
             </button>
 
             {showAdvanced && (
               <div className="animate-fade-in-up flex flex-col gap-4">
+                <Card>
+                  <CardHeader title="Trading Costs" subtitle="Slippage, spread, and commission" />
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Comm. ($/sh)</label>
+                      <input
+                        type="number"
+                        step={0.001}
+                        min={0}
+                        value={costs.commission_per_share}
+                        onChange={(e) => setCosts({ commission_per_share: Number(e.target.value) })}
+                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Spread (bps)</label>
+                      <input
+                        type="number"
+                        step={1}
+                        min={0}
+                        value={costs.spread_bps}
+                        onChange={(e) => setCosts({ spread_bps: Number(e.target.value) })}
+                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Slippage (%)</label>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0}
+                        value={costs.slippage_pct}
+                        onChange={(e) => setCosts({ slippage_pct: Number(e.target.value) })}
+                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </Card>
+
                 <Card>
                   <CardHeader title="Strategy Allocations" subtitle="Enable strategies & set weights" />
                   {strategyInfos.length > 0 ? (
@@ -205,21 +270,37 @@ export default function BacktestPage() {
               </div>
             )}
 
+            {/* Date error */}
+            {dateError && (
+              <Alert variant="danger">
+                <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                <span>{dateError}</span>
+              </Alert>
+            )}
+
             {/* Run button */}
-            <button
-              onClick={handleRun}
-              className={`w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-                isRunning
-                  ? "bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/15"
-                  : "gradient-accent text-white shadow-sm shadow-blue-900/30 hover:opacity-90"
-              }`}
-            >
-              {isRunning ? (
-                <><Square size={14} fill="currentColor" /> Stop Backtest</>
-              ) : (
-                <><Play size={15} fill="currentColor" /> Run Backtest</>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleRun}
+                disabled={!!dateError}
+                className={`w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isRunning
+                    ? "bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/15"
+                    : "gradient-accent text-white shadow-sm shadow-blue-900/30 hover:opacity-90"
+                }`}
+              >
+                {isRunning ? (
+                  <><Square size={14} fill="currentColor" /> Stop Backtest</>
+                ) : (
+                  <><Play size={15} fill="currentColor" /> Run Backtest</>
+                )}
+              </button>
+              {isRunning && progressMsg && (
+                <div className="text-center text-xs font-mono text-blue-400 animate-pulse">
+                  {progressMsg}
+                </div>
               )}
-            </button>
+            </div>
 
             {/* Alerts */}
             {serverWarning && (
@@ -285,6 +366,50 @@ export default function BacktestPage() {
                 {/* Charts */}
                 <EquityCurveChart data={backtestResult.equity_curve} />
                 <DrawdownChart data={backtestResult.drawdown_curve} />
+
+                {/* Strategy breakdown */}
+                {backtestResult.trades.length > 0 && (() => {
+                  const byStrategy = backtestResult.trades.reduce((acc: Record<string, { trades: number; wins: number; pnl: number }>, t: any) => {
+                    const k = t.strategy_name || "unknown";
+                    if (!acc[k]) acc[k] = { trades: 0, wins: 0, pnl: 0 };
+                    acc[k].trades++;
+                    acc[k].pnl += t.pnl;
+                    if (t.pnl > 0) acc[k].wins++;
+                    return acc;
+                  }, {} as Record<string, { trades: number; wins: number; pnl: number }>);
+                  const rows = Object.entries(byStrategy).sort((a: any, b: any) => b[1].pnl - a[1].pnl);
+                  return (
+                    <Card>
+                      <CardHeader title="Strategy Breakdown" subtitle="P&L and win rate per strategy" />
+                      <div className="overflow-x-auto -mx-1">
+                        <table className="w-full text-xs min-w-[420px]">
+                          <thead>
+                            <tr className="border-b border-[var(--border)]">
+                              {["Strategy", "Trades", "Win Rate", "Total P&L"].map(h => (
+                                <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map(([name, s]: [string, any]) => {
+                              const isPos = s.pnl >= 0;
+                              return (
+                                <tr key={name} className="border-b border-[var(--border)]/40 hover:bg-white/[0.02]">
+                                  <td className="px-3 py-2.5 text-slate-300 capitalize">{name.replace(/_/g, " ")}</td>
+                                  <td className="px-3 py-2.5 text-slate-400 tabular-nums">{s.trades}</td>
+                                  <td className="px-3 py-2.5 tabular-nums text-slate-300">{((s.wins / s.trades) * 100).toFixed(0)}%</td>
+                                  <td className={`px-3 py-2.5 font-mono font-semibold tabular-nums ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                                    {isPos ? "+" : ""}${s.pnl.toFixed(0)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  );
+                })()}
 
                 {/* Trade log */}
                 {backtestResult.trades.length > 0 && (

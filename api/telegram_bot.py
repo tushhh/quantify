@@ -156,10 +156,7 @@ async def check_alerts_loop():
         db.close()
 
 def send_telegram_alert(username: str, message: str):
-    """Instantly send a Telegram alert to a user using their saved chat_id.
-    
-    This runs in a background task, so it's synchronous (uses asyncio.run).
-    """
+    """Instantly send a Telegram alert to a user using their saved chat_id."""
     if not BOT_TOKEN or not username:
         log.warning(f"Cannot send alert to @{username}: BOT_TOKEN not set or username missing")
         return
@@ -171,20 +168,20 @@ def send_telegram_alert(username: str, message: str):
             (User.telegram_username == f"@{username}")
         ).first()
 
-        if not user:
-            log.warning(f"User @{username} not found in database")
-            return
-            
-        if not user.telegram_chat_id:
-            log.warning(f"No chat_id for @{username}. User needs to /start the bot first.")
+        if not user or not user.telegram_chat_id:
+            log.warning(f"User @{username} not found or no chat_id")
             return
         
+        # Schedule the async task on the existing running loop or create a new one if necessary
         try:
-            # Run async function synchronously in the background task
+            loop = asyncio.get_running_loop()
+            loop.create_task(_send_message_async(user.telegram_chat_id, message))
+        except RuntimeError:
             asyncio.run(_send_message_async(user.telegram_chat_id, message))
-            log.info(f"✅ Telegram alert sent to @{username} (chat_id: {user.telegram_chat_id})")
-        except Exception as e:
-            log.error(f"❌ Failed to send Telegram alert to @{username}: {e}")
+            
+        log.info(f"✅ Telegram alert scheduled for @{username} (chat_id: {user.telegram_chat_id})")
+    except Exception as e:
+        log.error(f"❌ Failed to send Telegram alert to @{username}: {e}")
     finally:
         db.close()
 

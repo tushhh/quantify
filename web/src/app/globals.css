@@ -186,8 +186,11 @@ body {
   border-radius: 6px;
 }
 
-/* ── Transitions ────────────────────────────────────────────── */
-* { transition: background-color 120ms ease, border-color 120ms ease; }
+/* ── Transitions ────────────────────────────────────────────────── */
+/* Scoped to interactive/surface elements only — NOT SVG paths, table cells, or structural elements */
+*:not(svg):not(path):not(circle):not(line):not(polyline):not(polygon):not(rect):not(td):not(th):not(tr):not(thead):not(tbody) {
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
 button, a {
   transition: color 150ms ease, background-color 150ms ease,
               border-color 150ms ease, box-shadow 150ms ease,

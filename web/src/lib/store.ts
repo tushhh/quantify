@@ -11,6 +11,7 @@ import type {
   StrategyConfig,
   RiskPreset,
   StrategyInfo,
+  BacktestCostConfig,
 } from "@/lib/api";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ type AppState = {
   initialCapital: number;
   benchmark: string;
   risk: RiskConfig;
+  costs: BacktestCostConfig;
   strategies: Record<string, StrategyConfig>;
   selectedPresetId: string;
 
@@ -62,6 +64,7 @@ type AppState = {
   setInitialCapital: (n: number) => void;
   setBenchmark: (s: string) => void;
   setRisk: (r: Partial<RiskConfig>) => void;
+  setCosts: (c: Partial<BacktestCostConfig>) => void;
   setStrategy: (name: string, cfg: Partial<StrategyConfig>) => void;
   applyPreset: (preset: RiskPreset) => void;
   setSelectedPresetId: (id: string) => void;
@@ -81,6 +84,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   initialCapital: 100_000,
   benchmark: "SPY",
   risk: { ...DEFAULT_RISK },
+  costs: {
+    commission_per_share: 0.005,
+    spread_bps: 5,
+    slippage_pct: 0.05,
+  },
   strategies: { ...DEFAULT_STRATEGIES },
   selectedPresetId: "moderate",
   backtestResult: null,
@@ -94,6 +102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setInitialCapital: (n) => set({ initialCapital: n }),
   setBenchmark: (s) => set({ benchmark: s }),
   setRisk: (r) => set((st) => ({ risk: { ...st.risk, ...r } })),
+  setCosts: (c) => set((st) => ({ costs: { ...st.costs, ...c } })),
   setStrategy: (name, cfg) =>
     set((st) => ({
       strategies: {
@@ -125,11 +134,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       end_date: st.endDate,
       initial_capital: st.initialCapital,
       risk: st.risk,
-      costs: {
-        commission_per_share: 0.005,
-        spread_bps: 5,
-        slippage_pct: 0.05,
-      },
+      costs: st.costs,
       benchmark: st.benchmark,
     };
   },

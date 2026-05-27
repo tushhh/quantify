@@ -117,8 +117,11 @@ async def list_trades(
     db: Session = Depends(get_db),
     current_user: DBUser = Depends(get_current_user),
 ):
-    """List all tracked trades for the current user."""
-    trades = db.query(DBTrade).filter(DBTrade.user_id == current_user.id).all()
+    """List all active tracked trades for the current user."""
+    trades = db.query(DBTrade).filter(
+        DBTrade.user_id == current_user.id,
+        DBTrade.status == "active",
+    ).all()
     now = datetime.now(timezone.utc)
 
     res = []

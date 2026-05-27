@@ -45,9 +45,9 @@ const METRICS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen text-slate-100 selection:bg-blue-500/30 relative">
+    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in text-slate-100 selection:bg-blue-500/30 relative">
 
-      <main className="pt-24 md:pt-28 pb-20">
+      <main className="pt-4 pb-0">
         <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-7 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/50 text-xs text-blue-300">
@@ -79,7 +79,11 @@ export default function LandingPage() {
             <div className="pt-6">
               <div className="border border-slate-700 rounded-2xl p-1 stats-row bg-slate-800/20">
                 {METRICS.map((item, i) => (
-                  <div key={item.label} className={`stat-card ${i < METRICS.length - 1 ? 'border-r border-slate-700' : ''}`}>
+                  <div 
+                    key={item.label} 
+                    className={`stat-card animate-fade-in-up ${i < METRICS.length - 1 ? 'border-r border-slate-700' : ''}`}
+                    style={{ animationDelay: `${300 + i * 60}ms` }}
+                  >
                     <div className="stat-value text-slate-100">{item.value}</div>
                     <div className="stat-label mt-1 text-slate-500">{item.label}</div>
                   </div>
@@ -161,8 +165,8 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {FEATURES.map((feature, index) => (
-              <div key={feature.title} className="border border-slate-700 bg-slate-800/30 rounded-2xl p-5 hover-lift animate-fade-in-up" style={{ animationDelay: `${index * 70}ms` }}>
-                <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center mb-4">
+              <div key={feature.title} className="border border-slate-700 bg-slate-800/30 rounded-2xl p-5 hover-lift animate-fade-in-up cursor-pointer" style={{ animationDelay: `${index * 60}ms` }}>
+                <div className="w-11 h-11 rounded-xl gradient-accent flex items-center justify-center mb-4">
                   <feature.icon size={20} className="text-white" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-slate-100">{feature.title}</h3>

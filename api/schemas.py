@@ -188,11 +188,17 @@ class PredictionItem(BaseModel):
     symbol: str
     strength: float
     side: str
+    sector: str = "Unknown"
+    name: str = ""
+    predicted_return_pct: float = 0.0
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
     date: str
     signals: List[PredictionItem]
+    cached: bool = False
+    cache_age_minutes: float = 0.0
+    universe_size: int = 0
 
 class TradeCreate(BaseModel):
     symbol: str
