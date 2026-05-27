@@ -238,7 +238,7 @@ async def get_best_predictions(
         # Check DB cache
         db_cache = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).first()
         if db_cache:
-            cache_age = (datetime.now(timezone.utc) - db_cache.created_at).total_seconds()
+            cache_age = (datetime.now(timezone.utc).replace(tzinfo=None) - db_cache.created_at).total_seconds()
             if cache_age < CACHE_TTL_SECONDS:
                 try:
                     result_dict = json.loads(db_cache.result_json)
