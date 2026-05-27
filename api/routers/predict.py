@@ -23,7 +23,7 @@ _cache: dict = {
     "timestamp": None,   # float epoch seconds
 }
 _is_computing = False
-CACHE_TTL_SECONDS = 24 * 3600  # 24 hours
+CACHE_TTL_SECONDS = 300  # 5 minutes
 
 # Universe size restored to 150 since ML computation is now backgrounded
 _SCREENER_UNIVERSE_SIZE = 150
