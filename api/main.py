@@ -88,17 +88,25 @@ app = FastAPI(
 # CORS – allow the Vercel frontend and local dev
 # ---------------------------------------------------------------------------
 _frontend_url = os.getenv("FRONTEND_URL", "")
-# Always include localhost dev origins. If FRONTEND_URL is set (production),
-# add it too. Never fall back to ["*"] with credentials=True — browsers reject that.
-ALLOWED_ORIGINS = list(dict.fromkeys(filter(None, [
+# Support multiple comma-separated URLs and handle trailing slashes
+frontend_urls = [
+    url.strip().rstrip("/") 
+    for url in _frontend_url.split(",") 
+    if url.strip()
+]
+
+ALLOWED_ORIGINS = list(dict.fromkeys([
     "http://localhost:3000",
     "http://localhost:3001",
-    _frontend_url,
-])))
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    *frontend_urls
+]))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.herokuapp\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
