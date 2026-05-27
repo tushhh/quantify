@@ -1,38 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Core surfaces ──────────────────────────────── */
-  --bg:              #070b14;
-  --surface:         #0e1525;
-  --surface-raised:  #162035;
-  --surface-overlay: #1e2d4a;
-  --border:          #1e2d4a;
-  --border-bright:   #2a3f6f;
-  --border-subtle:   rgba(255, 255, 255, 0.05);
+  /* ── Core surfaces (Sleek deep dark mode) ── */
+  --bg:              #030509;
+  --surface:         rgba(20, 25, 40, 0.4);
+  --surface-raised:  rgba(30, 38, 60, 0.5);
+  --surface-overlay: rgba(15, 20, 35, 0.8);
+  --border:          rgba(255, 255, 255, 0.06);
+  --border-bright:   rgba(255, 255, 255, 0.15);
+  --border-subtle:   rgba(255, 255, 255, 0.03);
 
-  /* ── Accent ─────────────────────────────────────── */
-  --accent:          #3b82f6;
-  --accent-hover:    #2563eb;
-  --accent-dim:      rgba(59, 130, 246, 0.12);
-  --accent-glow:     rgba(59, 130, 246, 0.06);
-  --accent-text:     #93c5fd;
+  /* ── Accent (Vibrant Blue/Indigo) ── */
+  --accent:          #4f46e5; /* Indigo 600 */
+  --accent-hover:    #6366f1; /* Indigo 500 */
+  --accent-dim:      rgba(79, 70, 229, 0.15);
+  --accent-glow:     rgba(99, 102, 241, 0.3);
+  --accent-text:     #a5b4fc;
 
-  /* ── Semantic ───────────────────────────────────── */
+  /* ── Semantic ── */
   --success:         #10b981;
-  --success-dim:     rgba(16, 185, 129, 0.12);
-  --danger:          #ef4444;
-  --danger-dim:      rgba(239, 68, 68, 0.12);
+  --success-dim:     rgba(16, 185, 129, 0.15);
+  --danger:          #f43f5e;
+  --danger-dim:      rgba(244, 63, 94, 0.15);
   --warning:         #f59e0b;
-  --warning-dim:     rgba(245, 158, 11, 0.12);
+  --warning-dim:     rgba(245, 158, 11, 0.15);
 
-  /* ── Typography ─────────────────────────────────── */
-  --text:            #e2eaf8;
-  --text-muted:      #7b8fae;
-  --text-dim:        #3d5070;
-  --font-sans:       var(--font-space), system-ui, sans-serif;
+  /* ── Typography ── */
+  --text:            #f8fafc;
+  --text-muted:      #94a3b8;
+  --text-dim:        #475569;
+  --font-sans:       var(--font-inter), system-ui, sans-serif;
+  --font-heading:    var(--font-outfit), system-ui, sans-serif;
   --font-code:       var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  /* ── Legacy aliases (keep existing CSS var refs working) ── */
+  /* Legacy aliases */
   --color-indiglow:         transparent;
   --color-bg:               var(--bg);
   --color-surface:          var(--surface);
@@ -62,181 +63,190 @@ html {
   scroll-behavior: smooth;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* Dynamic Animated Background Mesh */
 body {
   min-height: 100vh;
   background-color: var(--bg);
   background-image:
-    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.12), transparent 55%),
-    radial-gradient(1000px 500px at 90% -20%, rgba(16, 185, 129, 0.08), transparent 60%),
-    radial-gradient(800px 400px at 50% 120%, rgba(99, 102, 241, 0.06), transparent 65%);
+    radial-gradient(100vw 100vh at 0% 0%, rgba(79, 70, 229, 0.08), transparent 50%),
+    radial-gradient(80vw 80vh at 100% 0%, rgba(16, 185, 129, 0.05), transparent 50%),
+    radial-gradient(100vw 100vh at 50% 100%, rgba(244, 63, 94, 0.04), transparent 50%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Scrollbar ──────────────────────────────────────────────── */
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
 
-/* ── Surface / card utilities ───────────────────────────────── */
+/* ── True Glassmorphism ── */
 .glass {
   background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.3),
-    0 6px 20px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    0 4px 24px -1px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .glass-dark {
-  background: var(--bg);
+  background: rgba(3, 5, 9, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
 }
 
 .card-inner {
   background: var(--surface-raised);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* ── Input base ─────────────────────────────────────────────── */
+/* ── Input base ── */
 .input-field {
   width: 100%;
-  background: var(--surface-raised);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   padding: 0.625rem 0.875rem;
   color: var(--text);
+  font-family: var(--font-sans);
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .font-mono { font-family: var(--font-code); }
 .input-field::placeholder { color: var(--text-dim); }
 .input-field:focus {
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 1px 2px rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.3);
 }
 
-/* ── Gradient helpers ───────────────────────────────────────── */
+/* ── Gradients ── */
 .gradient-accent {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
-.gradient-accent-light { background: var(--accent-dim); }
+.gradient-accent-light { background: var(--accent-dim); border: 1px solid rgba(99, 102, 241, 0.2); }
 
-/* ── Recharts overrides ─────────────────────────────────────── */
+/* ── Recharts overrides ── */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+  background: rgba(15, 20, 35, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6) !important;
+  color: var(--text) !important;
 }
-.recharts-cartesian-grid line { stroke: var(--border) !important; opacity: 0.35 !important; }
-.recharts-cartesian-axis-line { stroke: var(--border) !important; opacity: 0.3 !important; }
+.recharts-cartesian-grid line { stroke: var(--border) !important; opacity: 0.25 !important; }
+.recharts-cartesian-axis-line { stroke: var(--border) !important; opacity: 0.2 !important; }
 
-/* ── Animations ─────────────────────────────────────────────── */
+/* ── Micro-Animations ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-20px); }
+  from { opacity: 0; transform: translateX(-24px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
+  from { opacity: 0; transform: translateX(24px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
-@keyframes bounceSoft {
+@keyframes float {
   0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-6px); }
+  50%       { transform: translateY(-8px); }
 }
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 6px var(--accent-dim); }
-  50%       { box-shadow: 0 0 20px var(--accent-dim); }
+  0%, 100% { box-shadow: 0 0 12px var(--accent-dim); }
+  50%       { box-shadow: 0 0 24px var(--accent-glow); }
 }
 
-.animate-fade-in        { animation: fadeIn 0.35s ease-out both; }
-.animate-fade-in-up     { animation: fadeInUp 0.45s ease-out both; }
-.animate-slide-in-left  { animation: slideInLeft 0.35s ease-out both; }
-.animate-slide-in-right { animation: slideInRight 0.35s ease-out both; }
-.animate-pulse-ring     { animation: pulseGlow 2s ease-in-out infinite; }
-.animate-bounce-soft    { animation: bounceSoft 2.2s ease-in-out infinite; }
+.animate-fade-in        { animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in-up     { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-in-left  { animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-pulse-ring     { animation: pulseGlow 3s ease-in-out infinite; }
+.animate-bounce-soft    { animation: float 3.5s ease-in-out infinite; }
 
-/* ── Skeleton ───────────────────────────────────────────────── */
+/* ── Skeleton ── */
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--surface)        25%,
-    var(--surface-raised) 50%,
-    var(--surface)        75%
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.02) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.8s infinite;
-  border-radius: 6px;
+  animation: shimmer 2s infinite linear;
+  border-radius: 8px;
 }
 
-/* ── Transitions ────────────────────────────────────────────────── */
-/* Scoped to interactive/surface elements only — NOT SVG paths, table cells, or structural elements */
+/* ── Dynamic Hover States ── */
 *:not(svg):not(path):not(circle):not(line):not(polyline):not(polygon):not(rect):not(td):not(th):not(tr):not(thead):not(tbody) {
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
 }
+
 button, a {
-  transition: color 150ms ease, background-color 150ms ease,
-              border-color 150ms ease, box-shadow 150ms ease,
-              transform 150ms ease, opacity 150ms ease;
-}
-input, select, textarea {
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Focus states */
-input:focus, textarea:focus, select:focus {
+button:focus-visible, a:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-/* ── Hover lift ─────────────────────────────────────────────── */
-.hover-lift { transition: transform 200ms ease, box-shadow 200ms ease !important; }
+/* Subtle scaling on interactive elements */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Hover lift ── */
+.hover-lift { transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1) !important; }
 .hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(79, 70, 229, 0.15);
+  border-color: var(--border-bright);
 }
 
-/* ── Misc ───────────────────────────────────────────────────── */
-.text-glow    { text-shadow: none; }
-.z-60         { z-index: 60; }
+/* ── Component Aliases ── */
+.text-glow { text-shadow: 0 0 16px rgba(255, 255, 255, 0.2); }
+.z-60 { z-index: 60; }
 .mesh-animated { display: none; }
 
-/* ── Stats row (landing) ────────────────────────────────────── */
-.stats-row  { display: flex; gap: 1px; align-items: stretch; }
-.stat-card  { flex: 1; padding: 14px; text-align: left; }
-.stat-value { font-size: 1.4rem; font-weight: 800; color: var(--text); }
-.stat-label { font-size: 0.675rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); }
+.stats-row  { display: flex; gap: 8px; align-items: stretch; }
+.stat-card  { flex: 1; padding: 16px; text-align: left; background: var(--surface-raised); border-radius: 12px; border: 1px solid var(--border); transition: all 200ms ease; }
+.stat-card:hover { border-color: var(--border-bright); background: rgba(40, 50, 75, 0.5); }
+.stat-value { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; color: var(--text); tracking: -0.02em; }
+.stat-label { font-family: var(--font-sans); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
 
-/* ── CTA section ────────────────────────────────────────────── */
-.cta-glow { position: relative; overflow: hidden; }
-
-/* ── Responsive tweaks ──────────────────────────────────────── */
 @media (max-width: 640px) {
-  .stats-row { flex-wrap: wrap; }
+  .stats-row { flex-direction: column; gap: 8px; }
 }
 
-/* ── Reduced motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

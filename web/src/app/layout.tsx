@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Outfit, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 
-const space = Space_Grotesk({ subsets: ["latin"], variable: "--font-space" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Quantify — ML-Powered Trading Platform",
+  title: "Quantify — Premium ML Trading Platform",
   description:
     "Trade smarter with machine learning intelligence. 6 production-grade strategies, ensemble ML predictions, and automated Telegram alerts.",
   keywords: ["quantitative trading", "machine learning trading", "backtesting", "algorithmic trading", "ML analysis"],
@@ -15,10 +16,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${space.variable} ${jetbrains.variable}`}>
-      <body className="antialiased min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
+    <html lang="en" className={`${outfit.variable} ${inter.variable} ${jetbrains.variable}`}>
+      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-sans">
         <Navbar />
-        <main className="min-h-screen">
+        <main className="min-h-screen relative z-10">
           {children}
         </main>
       </body>
