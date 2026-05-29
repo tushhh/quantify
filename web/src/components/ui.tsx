@@ -62,10 +62,10 @@ export function CardHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between mb-8 pb-6 border-b border-[var(--border)]">
-      <div>
-        <h2 className="text-2xl font-heading text-white font-medium tracking-wide">{title}</h2>
-        {subtitle && <p className="text-sm text-[var(--color-text-dim)] mt-2">{subtitle}</p>}
+    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6 pb-4 border-b border-[var(--border)]">
+      <div className="space-y-1">
+        <h2 className="text-xl md:text-2xl font-heading text-white font-medium tracking-wide">{title}</h2>
+        {subtitle && <p className="text-sm text-[var(--color-text-dim)]">{subtitle}</p>}
       </div>
       {children}
     </div>

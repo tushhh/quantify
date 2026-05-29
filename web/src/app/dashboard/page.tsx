@@ -99,7 +99,7 @@ function TradeCard({
         <div className={`absolute top-0 left-0 w-full h-0.5 ${isGain ? "bg-emerald-500" : "bg-red-500"}`} />
       )}
 
-      <div className="p-4">
+      <div className="p-5">
         {/* Row 1: symbol + price + close */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">

@@ -93,14 +93,14 @@ export default function LandingPage() {
           </div>
 
           <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div className="relative bg-slate-800/30 rounded-[28px] p-4 md:p-6 border border-slate-700 shadow-xl overflow-hidden">
+            <div className="relative bg-slate-800/30 rounded-[28px] p-6 md:p-8 border border-slate-700 shadow-xl overflow-hidden">
               <div className="flex items-center justify-between mb-4 text-xs text-slate-400">
                 <span>System overview</span>
                 <span className="text-emerald-400">Live + Paper ready</span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-4 min-h-36">
+                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-5 min-h-36">
                   <div className="text-xs text-slate-400">Active modules</div>
                   <div className="mt-3 space-y-2">
                     {FEATURES.slice(0, 3).map((feature) => (
@@ -112,7 +112,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-4 min-h-36 flex flex-col justify-between">
+                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-5 min-h-36 flex flex-col justify-between">
                   <div>
                     <div className="text-xs text-slate-400">Backtest mode</div>
                     <div className="mt-2 text-xl font-semibold">Simple by default</div>
@@ -125,7 +125,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="sm:col-span-2 rounded-2xl border border-slate-700 bg-slate-800/50 p-5">
+                <div className="sm:col-span-2 rounded-2xl border border-slate-700 bg-slate-800/50 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <div className="text-xs text-slate-400">Automation</div>
