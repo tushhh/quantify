@@ -162,6 +162,3 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
     </Card>
   );
 }
-rd>
-  );
-}
