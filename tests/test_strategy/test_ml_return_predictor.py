@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 
+from quantify.data.universe import get_sp500
 from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 from quantify.strategy.signal import Signal
 
@@ -100,6 +101,54 @@ def test_ml_predictor_signal_strength_matches_direction():
     assert long_signal.strength > 0.0
     assert short_signal.metadata["predicted_return_5d"] == 0.1
     assert long_signal.metadata["predicted_return_5d"] == 0.4
+
+
+def test_ml_predictor_defaults_to_sp500_only():
+    """
+    Test that the default universe stays on the S&P 500 list and excludes
+    names that only appear in the broader Russell 1000 set.
+    """
+    strat = MLReturnPredictorStrategy(features=["return_5d", "volatility_20d"], min_train_bars=50)
+
+    sp500 = set(get_sp500())
+    assert set(strat.universe) == sp500
+    assert "CIEN" not in strat.universe
+    assert "COHR" not in strat.universe
+
+
+def test_ml_predictor_ignores_non_universe_symbols():
+    """
+    Test that symbols outside the configured universe are ignored during
+    signal generation.
+    """
+    strat = MLReturnPredictorStrategy(
+        universe=["AAPL", "MSFT", "GOOG"],
+        features=["return_5d", "volatility_20d"],
+        min_train_bars=50,
+    )
+
+    class DummyModel:
+        def fit(self, X, y):
+            pass
+
+        def predict(self, X):
+            return X.sum(axis=1)
+
+    strat._model = DummyModel()
+    strat._last_train_date = datetime.now(timezone.utc)
+
+    start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    data = {
+        "AAPL": _make_dummy_data("AAPL", start_date, 200),
+        "MSFT": _make_dummy_data("MSFT", start_date, 200),
+        "GOOG": _make_dummy_data("GOOG", start_date, 200),
+        "CIEN": _make_dummy_data("CIEN", start_date, 200),
+    }
+
+    signals = strat.generate_signals(data)
+
+    assert {sig.symbol for sig in signals} == {"AAPL", "MSFT", "GOOG"}
+    assert "CIEN" not in {sig.symbol for sig in signals}
 
 def test_ml_predictor_predict_cross_sectional_standardization():
     """

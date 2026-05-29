@@ -60,7 +60,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
-from quantify.data.universe import get_russell1000
+from quantify.data.universe import get_sp500
 from quantify.strategy.base import Strategy
 from quantify.strategy.signal import Signal
 
@@ -161,7 +161,7 @@ class MLReturnPredictorStrategy(Strategy):
         short_decile: float = _SHORT_DECILE,
         lgbm_params: Optional[dict[str, Any]] = None,
     ) -> None:
-        self.universe: list[str] = universe if universe is not None else get_russell1000()
+        self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
@@ -220,6 +220,11 @@ class MLReturnPredictorStrategy(Strategy):
         """
         if not data:
             log.warning("%s: empty data dict", self.name)
+            return []
+
+        data = self._filter_to_universe(data)
+        if not data:
+            log.warning("%s: no universe symbols present in input data", self.name)
             return []
 
         timestamp = self._latest_timestamp(data)
@@ -289,6 +294,7 @@ class MLReturnPredictorStrategy(Strategy):
         target remains in raw return space so predictions stay interpretable.
         Training data is limited to a sliding window of the last 1260 days.
         """
+        data = self._filter_to_universe(data)
         X_parts: list[pd.DataFrame] = []
 
         for symbol, df in data.items():
@@ -438,6 +444,8 @@ class MLReturnPredictorStrategy(Strategy):
 
         Returns a dict of {symbol: predicted_return}.
         """
+        data = self._filter_to_universe(data)
+
         # Collect current feature rows for all symbols
         current_features = {}
         for symbol, df in data.items():
@@ -573,6 +581,19 @@ class MLReturnPredictorStrategy(Strategy):
             return True
         delta = timestamp - self._last_train_date
         return delta.days >= self.retrain_interval_days
+
+    def _filter_to_universe(self, data: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+        universe_set = set(self.universe)
+        filtered = {symbol: df for symbol, df in data.items() if symbol in universe_set}
+        dropped = sorted(set(data) - universe_set)
+        if dropped:
+            log.debug(
+                "%s: ignoring %d symbols outside universe: %s",
+                self.name,
+                len(dropped),
+                ", ".join(dropped[:10]),
+            )
+        return filtered
 
     @staticmethod
     def _latest_timestamp(data: dict[str, pd.DataFrame]) -> datetime:
