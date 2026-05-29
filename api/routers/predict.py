@@ -232,6 +232,13 @@ async def get_best_predictions(
     Uses a 24-hour database cache. If missing, runs as a background task and returns 202.
     """
     global _is_computing, _cache
+    
+    if _is_computing:
+        return JSONResponse(
+            status_code=202,
+            content={"status": "computing", "message": "Models are training in the background. Please check back in a few minutes."}
+        )
+
     now = time.time()
     
     cached_result: Optional[PredictionResponse] = _cache.get("result")
@@ -283,16 +290,8 @@ async def get_best_predictions(
             model_metrics=cached_result.model_metrics,
         )
 
-    # Need to run predictions
-    if _is_computing:
-        return JSONResponse(
-            status_code=202,
-            content={"status": "computing", "message": "Models are training in the background. Please check back in a few minutes."}
-        )
-
     log.info("Screener: cache miss or force. Queuing background prediction task…")
-    # Do NOT set _is_computing = True here because it causes a race condition with source check
-    # We pass source="api" to bypass the scheduler check inside the task, which will set _is_computing = True
+    _is_computing = True
     background_tasks.add_task(_run_and_cache_predictions, source="api")
     
     return JSONResponse(
