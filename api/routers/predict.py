@@ -25,8 +25,8 @@ _cache: dict = {
 _is_computing = False
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
-# Universe size restored to 150 since ML computation is now backgrounded
-_SCREENER_UNIVERSE_SIZE = 150
+# S&P 500 universe size (top ~100 liquid constituents)
+_SCREENER_UNIVERSE_SIZE = 100
 
 # ---------------------------------------------------------------------------
 # Ticker name lookup (top 150 most common tickers)
@@ -108,19 +108,19 @@ def _run_prediction_sync() -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
     from quantify.data.features import FeatureEngine
-    from quantify.data.universe import get_russell1000, get_sector_map
+    from quantify.data.universe import get_sp500, get_sector_map
     from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(days=365 * 3)
 
-    full_universe = get_russell1000()
+    full_universe = get_sp500()
     universe = full_universe[:_SCREENER_UNIVERSE_SIZE]
     sector_map = get_sector_map()
 
     strat = MLReturnPredictorStrategy(universe=universe)
 
-    log.info("Screener: fetching data for %d symbols from Russell 1000…", len(universe))
+    log.info("Screener: fetching data for %d symbols from S&P 500…", len(universe))
     provider = YFinanceProvider()
     data = provider.get_multiple(universe, start=start_dt, end=end_dt)
 
@@ -287,9 +287,9 @@ async def get_best_predictions(
 @router.get("/sectors", response_model=list[str])
 async def get_prediction_sectors():
     """Return the list of GICS sectors available in the screener universe."""
-    from quantify.data.universe import get_sector_map, get_russell1000
+    from quantify.data.universe import get_sector_map, get_sp500
     sector_map = get_sector_map()
-    universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
+    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
     sectors = sorted({sector_map.get(t, "Unknown") for t in universe if sector_map.get(t, "Unknown") != "Unknown"})
     return sectors
 
