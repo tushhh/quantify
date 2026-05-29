@@ -62,7 +62,7 @@ function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
       {items.slice(0, 3).map((item) => (
         <span
           key={`${item.feature}-${item.zscore}`}
-          className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[10px] text-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-700/50 bg-slate-800/40 px-2.5 py-1 text-[10px] text-slate-300"
         >
           <span className={item.direction === "higher" ? "text-emerald-400" : "text-red-400"}>
             {item.direction === "higher" ? "▲" : "▼"}
@@ -414,12 +414,12 @@ export default function ScreenerPage() {
 
               {/* Results */}
               {(!loading || hasLoaded) && signals.length > 0 && (
-                <div className="overflow-x-auto -mx-1">
-                  <table className="w-full text-xs min-w-[640px]">
+                <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-black/20">
+                  <table className="w-full text-xs min-w-[640px] border-collapse">
                     <thead>
-                      <tr className="border-b border-[var(--border)]">
+                      <tr className="border-b border-[var(--border)] bg-white/[0.02]">
                         {TABLE_HEADERS.map(h => (
-                          <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                          <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             {h}
                           </th>
                         ))}
@@ -432,41 +432,41 @@ export default function ScreenerPage() {
                           className="border-b border-[var(--border)]/40 hover:bg-white/[0.025] transition-colors animate-fade-in-up"
                           style={{ animationDelay: `${i * 40}ms` }}
                         >
-                          <td className="px-3 py-3 text-slate-600 font-mono text-[10px]">
+                          <td className="px-4 py-4 text-slate-600 font-mono text-[10px]">
                             {String(i + 1).padStart(2, "0")}
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-4 py-4">
                             <span className="font-mono font-bold text-white tracking-wide">{s.symbol}</span>
                           </td>
-                          <td className="px-3 py-3 text-slate-400 max-w-[160px] truncate">
+                          <td className="px-4 py-4 text-slate-400 max-w-[160px] truncate">
                             {s.name || s.symbol}
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-4 py-4">
                             <SectorBadge sector={s.sector} />
                           </td>
-                          <td className="px-3 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                          <td className="px-4 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${
                               s.side === "long"
                                 ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
                                 : "text-red-300 bg-red-500/10 border-red-500/25"
                             }`}>
                               {s.side === "long"
-                                ? <TrendingUp size={10} />
-                                : <TrendingDown size={10} />}
+                                ? <TrendingUp size={12} />
+                                : <TrendingDown size={12} />}
                               {s.side.toUpperCase()}
                             </span>
                           </td>
-                          <td className="px-3 py-3 w-32">
+                          <td className="px-4 py-4 w-32">
                             <StrengthBar value={s.strength} side={s.side} />
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-4 py-4">
                             <span className={`font-mono font-semibold tabular-nums ${
                               s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
                               {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
                             </span>
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-4 py-4">
                             <ExplanationPills items={s.explanations} />
                           </td>
                         </tr>

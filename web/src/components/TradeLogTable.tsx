@@ -85,10 +85,10 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
         />
       </CardHeader>
 
-      <div className="overflow-x-auto -mx-1">
-        <table className="w-full text-xs min-w-[600px]">
+      <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-black/20">
+        <table className="w-full text-xs min-w-[600px] border-collapse">
           <thead>
-            <tr className="border-b border-[var(--border)]">
+            <tr className="border-b border-[var(--border)] bg-white/[0.02]">
               <HeaderCell label="Symbol"   active={sortKey === "symbol"}        ascending={sortAsc} onClick={() => toggleSort("symbol")} />
               <HeaderCell label="Strategy" active={sortKey === "strategy_name"} ascending={sortAsc} onClick={() => toggleSort("strategy_name")} />
               <HeaderCell label="Side"     active={sortKey === "side"}          ascending={sortAsc} onClick={() => toggleSort("side")} />
@@ -108,22 +108,22 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
                   key={rowKey}
                   className="border-b border-[var(--border)]/50 hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="px-3 py-2.5 font-mono font-bold text-white">{t.symbol}</td>
-                  <td className="px-3 py-2.5 text-slate-400 capitalize text-[11px]">
+                  <td className="px-4 py-3 font-mono font-bold text-white">{t.symbol}</td>
+                  <td className="px-4 py-3 text-slate-400 capitalize text-[11px]">
                     {t.strategy_name.replace(/_/g, " ")}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-4 py-3">
                     <Badge variant={t.side === "long" ? "success" : "danger"}>{t.side}</Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-slate-500 font-mono">{t.entry_date ?? "–"}</td>
-                  <td className="px-3 py-2.5 text-slate-500 font-mono">{t.exit_date ?? "–"}</td>
-                  <td className={clsx("px-3 py-2.5 font-mono font-semibold tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className="px-4 py-3 text-slate-500 font-mono">{t.entry_date ?? "–"}</td>
+                  <td className="px-4 py-3 text-slate-500 font-mono">{t.exit_date ?? "–"}</td>
+                  <td className={clsx("px-4 py-3 font-mono font-semibold tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
                     {isWin ? "+" : ""}${t.pnl.toFixed(2)}
                   </td>
-                  <td className={clsx("px-3 py-2.5 font-mono tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className={clsx("px-4 py-3 font-mono tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
                     {isWin ? "+" : ""}{(t.return_pct * 100).toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2.5 text-slate-500">{t.holding_days}d</td>
+                  <td className="px-4 py-3 text-slate-500">{t.holding_days}d</td>
                 </tr>
               );
             })}
@@ -160,5 +160,8 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
         </div>
       )}
     </Card>
+  );
+}
+rd>
   );
 }

@@ -13,9 +13,9 @@
   --color-text-dim: #9CA3AF;
   --color-border: rgba(255, 255, 255, 0.06);
   --color-border-bright: rgba(212, 175, 55, 0.22);
-  --panel-padding: 16px;
-  --panel-padding-compact: 12px;
-  --panel-radius: 24px;
+  --panel-padding: 32px;
+  --panel-padding-compact: 24px;
+  --panel-radius: 28px;
   --panel-border: rgba(255, 255, 255, 0.06);
   --panel-border-strong: rgba(212, 175, 55, 0.28);
 
