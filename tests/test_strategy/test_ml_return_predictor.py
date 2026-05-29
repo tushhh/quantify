@@ -29,7 +29,7 @@ def test_ml_predictor_training_data_construction():
     """
     Test that _build_training_data:
     1. Cross-sectionally standardizes features (mean ~ 0, std ~ 1 per date).
-    2. Correctly shifts the target to avoid lookahead bias.
+    2. Correctly shifts the raw target to avoid lookahead bias.
     3. Truncates to the sliding window length.
     """
     strat = MLReturnPredictorStrategy(
@@ -65,6 +65,41 @@ def test_ml_predictor_training_data_construction():
             assert abs(mean_ret) < 1e-7, f"Mean not 0 on {date}: {mean_ret}"
             if std_ret > 1e-7:
                 assert abs(std_ret - 1.0) < 1e-7, f"Std not 1 on {date}: {std_ret}"
+
+    # The target should remain in raw return space, not be z-scored to zero.
+    assert y.abs().max() > 0.0
+
+
+def test_ml_predictor_signal_strength_matches_direction():
+    """
+    Test that short signals carry negative strength even when all predictions
+    are positive, and long signals carry positive strength.
+    """
+    strat = MLReturnPredictorStrategy(
+        features=["return_5d", "volatility_20d"],
+        min_train_bars=50,
+        long_decile=0.75,
+        short_decile=0.25,
+    )
+
+    predictions = {
+        "AAPL": 0.1,
+        "MSFT": 0.2,
+        "GOOG": 0.3,
+        "AMZN": 0.4,
+    }
+
+    signals = strat._rank_and_signal(predictions, datetime(2024, 1, 2, tzinfo=timezone.utc))
+
+    short_signal = next(sig for sig in signals if sig.symbol == "AAPL")
+    long_signal = next(sig for sig in signals if sig.symbol == "AMZN")
+
+    assert short_signal.direction == "short"
+    assert short_signal.strength < 0.0
+    assert long_signal.direction == "long"
+    assert long_signal.strength > 0.0
+    assert short_signal.metadata["predicted_return_5d"] == 0.1
+    assert long_signal.metadata["predicted_return_5d"] == 0.4
 
 def test_ml_predictor_predict_cross_sectional_standardization():
     """

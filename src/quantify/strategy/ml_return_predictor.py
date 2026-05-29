@@ -29,7 +29,7 @@ Features (all from FeatureEngine):
   - ATR:          atr_14
 
 Target:
-  - 5-day forward return (computed inside generate_signals from available data)
+    - 5-day forward return (computed inside _build_training_data from available data)
 
 Model:
   - LightGBM regressor (falls back to sklearn GradientBoostingRegressor)
@@ -285,7 +285,8 @@ class MLReturnPredictorStrategy(Strategy):
         """
         Construct a stacked (symbol × time) feature matrix and forward-return
         target vector from the available data.
-        Features and targets are cross-sectionally standardized per timestamp.
+        Features are cross-sectionally standardized per timestamp, while the
+        target remains in raw return space so predictions stay interpretable.
         Training data is limited to a sliding window of the last 1260 days.
         """
         X_parts: list[pd.DataFrame] = []
@@ -335,24 +336,22 @@ class MLReturnPredictorStrategy(Strategy):
             start_date = unique_dates[-1260]
             all_data = all_data[all_data.index >= start_date]
 
-        # Cross-sectional standardization (z-score per timestamp)
+        # Cross-sectional standardization (z-score per timestamp) for features only.
         def zscore(x):
             std = x.std()
             if len(x) > 1 and std > 0:
                 return (x - x.mean()) / std
             return x - x.mean()
 
-        cols_to_norm = self.features + ["target"]
-        
-        # Use groupby on the DatetimeIndex (level=0)
-        normed = all_data.groupby(level=0)[cols_to_norm].transform(zscore)
-        normed = normed.dropna()
+        feature_normed = all_data.groupby(level=0)[self.features].transform(zscore)
+        valid_mask = feature_normed.notna().all(axis=1)
+        feature_normed = feature_normed[valid_mask]
 
-        if normed.empty:
+        if feature_normed.empty:
             return None, None
 
-        X_all = normed[self.features]
-        y_all = normed["target"]
+        X_all = feature_normed
+        y_all = all_data.loc[valid_mask, "target"]
 
         return X_all, y_all
 
@@ -520,14 +519,14 @@ class MLReturnPredictorStrategy(Strategy):
 
         for symbol, pct_rank in pct_ranks.items():
             pred_ret = pred_series[symbol]
-            norm_strength = float(np.clip(pred_ret / max_abs, -1.0, 1.0))
+            norm_strength = float(np.clip(abs(pred_ret) / max_abs, 0.0, 1.0))
 
             if pct_rank >= self.long_decile:
                 direction = "long"
-                strength = float(np.clip(norm_strength, 0.0, 1.0))
+                strength = norm_strength
             elif pct_rank <= self.short_decile:
                 direction = "short"
-                strength = float(np.clip(norm_strength, -1.0, 0.0))
+                strength = -norm_strength
             else:
                 direction = "close"
                 strength = 0.0
