@@ -100,7 +100,7 @@ export default function AccountPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-6 animate-fade-in">
+    <div className="max-w-2xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-4 animate-fade-in">
       <h1 className="text-3xl font-black text-white">Account Settings</h1>
 
       {/* Success/Error Feedback */}
@@ -119,7 +119,7 @@ export default function AccountPage() {
 
       {/* Profile Card */}
       <Card className="bg-white/[0.02] border-white/5 p-6">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <UserCircle className="text-white" size={32} />
           </div>
@@ -232,17 +232,17 @@ export default function AccountPage() {
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative text-center">
-            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Send size={28} className="text-blue-400" />
             </div>
             
             <h2 className="text-2xl font-black text-white mb-3">Activate Alerts</h2>
             
-            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+            <p className="text-slate-400 text-sm mb-4 leading-relaxed">
               To receive instant buy/sell alerts, you must connect your device to our Telegram bot.
             </p>
 
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-6 text-left">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4 text-left">
               <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
                 <li>Click the button below to open Telegram.</li>
                 <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>

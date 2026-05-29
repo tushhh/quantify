@@ -420,7 +420,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Mobile tabs ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-6 xl:hidden">
+      <div className="flex items-center gap-2 mb-4 xl:hidden">
         {(["analysis", "portfolio"] as const).map((tab) => (
           <button
             key={tab}
@@ -449,7 +449,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Main grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
         {/* ── ML Prediction column ──────────────────────────── */}
         <div className={`flex flex-col gap-4 ${activeTab !== "analysis" ? "hidden xl:flex" : ""}`}>

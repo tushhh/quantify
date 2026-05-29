@@ -9,6 +9,8 @@ import { api, PredictionExplanation, PredictionItem, PredictionResponse } from "
 import { Card, CardHeader, Badge, Alert, Skeleton } from "@/components/ui";
 import Link from "next/link";
 
+const TABLE_HEADERS = ["#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d", "Drivers"];
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function StrengthBar({ value, side }: { value: number; side: string }) {
@@ -138,10 +140,10 @@ export default function ScreenerPage() {
         <div className="absolute top-24 left-[-6%] h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl animate-float-slower" />
         <div className="absolute bottom-[-20%] right-1/3 h-80 w-80 rounded-full bg-rose-400/10 blur-[120px] animate-float-slow" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-6 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4 relative z-10">
 
         {/* ── Page Header ──────────────────────────────────────────────── */}
-        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/20 bg-amber-400/10 text-[10px] uppercase tracking-[0.22em] text-amber-200">
               Prediction Lab
@@ -219,7 +221,7 @@ export default function ScreenerPage() {
         )}
 
         {/* ── Main grid ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
           {/* ── Sidebar ─────────────────────────────────────────────── */}
           <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
@@ -394,10 +396,11 @@ export default function ScreenerPage() {
                 ))}
               </div>
             )}
-            <Card>
+            <Card variant="compact">
               <CardHeader
                 title="Top Predictions"
                 subtitle={`ML-ranked stocks for the week · ${result?.date ?? "Loading…"}`}
+                density="compact"
               />
 
               {/* Loading skeletons */}
@@ -415,7 +418,7 @@ export default function ScreenerPage() {
                   <table className="w-full text-xs min-w-[640px]">
                     <thead>
                       <tr className="border-b border-[var(--border)]">
-                        {"#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d", "Drivers"].map(h => (
+                        {TABLE_HEADERS.map(h => (
                           <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             {h}
                           </th>

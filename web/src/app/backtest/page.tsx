@@ -116,7 +116,7 @@ export default function BacktestPage() {
         <div className="absolute top-0 left-1/3 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-6">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="animate-fade-in-up">
@@ -131,7 +131,7 @@ export default function BacktestPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* ── Left: Config panel ──────────────────────────────────────── */}
           <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
@@ -379,8 +379,8 @@ export default function BacktestPage() {
                   }, {} as Record<string, { trades: number; wins: number; pnl: number }>);
                   const rows = Object.entries(byStrategy).sort((a: any, b: any) => b[1].pnl - a[1].pnl);
                   return (
-                    <Card>
-                      <CardHeader title="Strategy Breakdown" subtitle="P&L and win rate per strategy" />
+                    <Card variant="compact">
+                      <CardHeader title="Strategy Breakdown" subtitle="P&L and win rate per strategy" density="compact" />
                       <div className="overflow-x-auto -mx-1">
                         <table className="w-full text-xs min-w-[420px]">
                           <thead>

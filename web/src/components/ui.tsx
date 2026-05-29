@@ -44,9 +44,17 @@ export function MetricCard({ label, value, sub, positive, size = "md", className
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 
-export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Card({
+  children,
+  className,
+  variant = "default",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  variant?: "default" | "compact";
+}) {
   return (
-    <div className={clsx("card", className)}>
+    <div className={clsx("card", variant === "compact" && "card-compact", className)}>
       {children}
     </div>
   );
@@ -56,13 +64,16 @@ export function CardHeader({
   title,
   subtitle,
   children,
+  density = "default",
 }: {
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
+  density?: "default" | "compact";
 }) {
+  const spacing = density === "compact" ? "mb-3 pb-3" : "mb-4 pb-3";
   return (
-    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6 pb-4 border-b border-[var(--border)]">
+    <div className={clsx("flex flex-col md:flex-row md:items-end md:justify-between gap-3 border-b border-[var(--border)]", spacing)}>
       <div className="space-y-1">
         <h2 className="text-xl md:text-2xl font-heading text-white font-medium tracking-wide">{title}</h2>
         {subtitle && <p className="text-sm text-[var(--color-text-dim)]">{subtitle}</p>}
