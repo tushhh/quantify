@@ -261,6 +261,11 @@ async def get_best_predictions(
                 except Exception as e:
                     log.error(f"Failed to parse DB cache: {e}")
 
+    if force:
+        # Check if 3 minutes have passed since the last computation
+        if cached_ts is not None and (now - cached_ts) < 180:
+            raise HTTPException(status_code=429, detail="Please wait at least 3 minutes between manual re-runs.")
+
     if cache_valid and cached_result is not None:
         age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
         log.info("Screener: serving from cache (age=%.1f min)", age_minutes)
@@ -286,8 +291,9 @@ async def get_best_predictions(
         )
 
     log.info("Screener: cache miss or force. Queuing background prediction task…")
-    _is_computing = True
-    background_tasks.add_task(_run_and_cache_predictions)
+    # Do NOT set _is_computing = True here because it causes a race condition with source check
+    # We pass source="api" to bypass the scheduler check inside the task, which will set _is_computing = True
+    background_tasks.add_task(_run_and_cache_predictions, source="api")
     
     return JSONResponse(
         status_code=202,
