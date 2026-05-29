@@ -170,6 +170,16 @@ export type PredictionItem = {
   sector: string;
   name: string;
   predicted_return_pct: number;
+  explanations?: PredictionExplanation[];
+};
+
+export type PredictionExplanation = {
+  feature: string;
+  zscore: number;
+  value?: number | null;
+  weight?: number | null;
+  direction?: "higher" | "lower";
+  score?: number;
 };
 
 export type PredictionResponse = {
@@ -179,6 +189,7 @@ export type PredictionResponse = {
   cached: boolean;
   cache_age_minutes: number;
   universe_size: number;
+  model_metrics?: Record<string, number> | null;
   message?: string; // e.g. "Model training started..."
 };
 

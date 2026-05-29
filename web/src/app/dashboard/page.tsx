@@ -211,6 +211,7 @@ export default function DashboardPage() {
   const [symbolIndex, setSymbolIndex] = useState(0);
 
   const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  const topPredictions = predictions.slice(0, 3);
 
   const loadPrices = useCallback(async () => {
     setLoadingPrices(true);
@@ -458,7 +459,7 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Crosshair size={18} className="text-[var(--color-cta)]" /> ML Analysis
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Ensemble model: LightGBM + XGBoost + CatBoost</p>
+              <p className="text-xs text-slate-500 mt-0.5">Ensemble model: LightGBM + XGBoost + CatBoost · S&P 500</p>
             </div>
             <button
               onClick={handlePredict}
@@ -532,7 +533,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
                     {isComputing 
-                      ? "The ML ensemble is training on 150+ stocks. This will take ~3 minutes. You can safely close this page." 
+                      ? "The ML ensemble is training on ~100 stocks. This will take ~2–3 minutes. You can safely close this page." 
                       : "Fetching 1 year of OHLCV data and running 3 ML models."}
                   </p>
                   <div className="flex items-center justify-center gap-1.5 mt-3 text-amber-400/70 text-[10px]">
@@ -545,6 +546,28 @@ export default function DashboardPage() {
             {/* Results table */}
             {!loadingPreds && predictions.length > 0 && (
               <div className="flex flex-col">
+                {topPredictions.length > 0 && (
+                  <div className="grid md:grid-cols-3 gap-3 p-4 border-b border-[var(--border)] bg-black/20">
+                    {topPredictions.map((p, i) => (
+                      <div key={p.symbol} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 relative overflow-hidden">
+                        <div className="absolute -top-12 -right-10 h-24 w-24 rounded-full bg-[var(--color-cta)]/10 blur-2xl" />
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Rank {String(i + 1).padStart(2, "0")}</div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-xl font-black text-white">{p.symbol}</div>
+                          <Badge variant={p.side === "long" ? "success" : "danger"} className="uppercase">{p.side}</Badge>
+                        </div>
+                        <div className={`text-xs font-mono mt-2 ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
+                        </div>
+                        {p.explanations && p.explanations.length > 0 && (
+                          <div className="mt-2 text-[10px] text-slate-500">
+                            Drivers: {p.explanations.slice(0, 2).map((e) => e.feature).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-4 px-5 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-[var(--border)] bg-black/40">
                   <div>Rank</div>
                   <div>Symbol</div>
@@ -559,10 +582,20 @@ export default function DashboardPage() {
                     onClick={() => { selectSymbol(p.symbol); setActiveTab("portfolio"); }}
                   >
                     <div className="font-sans text-slate-600 text-xs">#{i + 1}</div>
-                    <div className="font-bold text-white text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
-                    <div><Badge variant="success" className="uppercase">{p.side}</Badge></div>
-                    <div className="text-right font-sans text-[var(--color-cta)] font-bold text-sm tabular-nums">
-                      +{p.strength.toFixed(3)}
+                    <div className="flex flex-col">
+                      <div className="font-bold text-white text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
+                      <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
+                      </div>
+                      {p.explanations && p.explanations.length > 0 && (
+                        <div className="text-[10px] text-slate-500 mt-1">
+                          Drivers: {p.explanations.slice(0, 2).map((e) => e.feature).join(", ")}
+                        </div>
+                      )}
+                    </div>
+                    <div><Badge variant={p.side === "long" ? "success" : "danger"} className="uppercase">{p.side}</Badge></div>
+                    <div className={`text-right font-sans font-bold text-sm tabular-nums ${p.strength >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {p.strength >= 0 ? "+" : ""}{p.strength.toFixed(3)}
                     </div>
                   </button>
                 ))}

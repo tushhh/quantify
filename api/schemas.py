@@ -184,6 +184,14 @@ class UserUpdate(BaseModel):
 # Prediction & Trade Tracking
 # ---------------------------------------------------------------------------
 
+class PredictionExplanation(BaseModel):
+    feature: str
+    zscore: float
+    value: Optional[float] = None
+    weight: Optional[float] = None
+    direction: str = "higher"
+    score: float = 0.0
+
 class PredictionItem(BaseModel):
     symbol: str
     strength: float
@@ -191,6 +199,7 @@ class PredictionItem(BaseModel):
     sector: str = "Unknown"
     name: str = ""
     predicted_return_pct: float = 0.0
+    explanations: List[PredictionExplanation] = Field(default_factory=list)
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
@@ -199,6 +208,7 @@ class PredictionResponse(BaseModel):
     cached: bool = False
     cache_age_minutes: float = 0.0
     universe_size: int = 0
+    model_metrics: Optional[Dict[str, float]] = None
     message: Optional[str] = None
 
 class TradeCreate(BaseModel):

@@ -198,6 +198,21 @@ body {
 .animate-fade-in { animation: elegant-fade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .animate-fade-in-up { animation: elegant-fade 1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+  50% { transform: translateY(-16px) translateX(10px) scale(1.03); }
+}
+
+.animate-float-slow { animation: float-slow 18s ease-in-out infinite; }
+.animate-float-slower { animation: float-slow 26s ease-in-out infinite; }
+
+.prediction-aurora {
+  background-image:
+    radial-gradient(600px 280px at 10% -10%, rgba(244, 114, 182, 0.12), transparent 60%),
+    radial-gradient(520px 240px at 90% 0%, rgba(34, 197, 94, 0.10), transparent 55%),
+    radial-gradient(420px 260px at 60% 120%, rgba(234, 179, 8, 0.12), transparent 60%);
+}
+
 /* ── Recharts Overrides (Luxury Mode) ── */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
   background: var(--surface) !important;

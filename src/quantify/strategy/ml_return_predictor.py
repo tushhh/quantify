@@ -75,6 +75,7 @@ _FORWARD_RETURN_DAYS: int = 5       # prediction target horizon
 _LONG_DECILE: float = 0.90          # top 10%
 _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
+_TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 
 # All available features from FeatureEngine
 _ALL_FEATURES: list[str] = [
@@ -144,6 +145,8 @@ class MLReturnPredictorStrategy(Strategy):
         Percentile cut-off for short signals (default 0.10).
     lgbm_params:
         Keyword arguments forwarded to LGBMRegressor (or fallback estimator).
+    target_winsor_q:
+        Quantile for winsorizing the training target (0 disables).
     """
 
     name: str = "ml_return_predictor"
@@ -160,6 +163,7 @@ class MLReturnPredictorStrategy(Strategy):
         long_decile: float = _LONG_DECILE,
         short_decile: float = _SHORT_DECILE,
         lgbm_params: Optional[dict[str, Any]] = None,
+        target_winsor_q: float = _TARGET_WINSOR_Q,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
@@ -169,14 +173,18 @@ class MLReturnPredictorStrategy(Strategy):
         self.long_decile = long_decile
         self.short_decile = short_decile
         self.lgbm_params = lgbm_params if lgbm_params is not None else dict(_LGBM_PARAMS)
+        self.target_winsor_q = target_winsor_q
 
         # Model state
         self._model: Any = None
         self._feature_importances: Optional[dict[str, float]] = None
         self._model_backends: list[str] = []
+        self._model_metrics: Optional[dict[str, float]] = None
         self._last_train_date: Optional[datetime] = None
         self._last_rebalance_date: Optional[datetime] = None
         self._signal_cache: list[Signal] = []
+        self._last_feature_values: dict[str, dict[str, float]] = {}
+        self._last_feature_zscores: dict[str, dict[str, float]] = {}
 
         # Accumulated training data (symbol-agnostic: stack all symbols)
         self._train_X: Optional[pd.DataFrame] = None
@@ -197,11 +205,14 @@ class MLReturnPredictorStrategy(Strategy):
         self._model = None
         self._feature_importances = None
         self._model_backends = []
+        self._model_metrics = None
         self._last_train_date = None
         self._last_rebalance_date = None
         self._signal_cache = []
         self._train_X = None
         self._train_y = None
+        self._last_feature_values = {}
+        self._last_feature_zscores = {}
         log.info("%s: model state reset on start", self.name)
 
     def generate_signals(self, data: dict[str, pd.DataFrame]) -> list[Signal]:
@@ -292,7 +303,8 @@ class MLReturnPredictorStrategy(Strategy):
         target vector from the available data.
         Features are cross-sectionally standardized per timestamp, while the
         target remains in raw return space so predictions stay interpretable.
-        Training data is limited to a sliding window of the last 1260 days.
+        Training data is limited to a sliding window of the last 1260 days and
+        the target is winsorized to reduce the impact of outliers.
         """
         data = self._filter_to_universe(data)
         X_parts: list[pd.DataFrame] = []
@@ -342,6 +354,15 @@ class MLReturnPredictorStrategy(Strategy):
             start_date = unique_dates[-1260]
             all_data = all_data[all_data.index >= start_date]
 
+        # Winsorize target tails to reduce outlier impact
+        if 0.0 < self.target_winsor_q < 0.5:
+            try:
+                low = float(all_data["target"].quantile(self.target_winsor_q))
+                high = float(all_data["target"].quantile(1.0 - self.target_winsor_q))
+                all_data["target"] = all_data["target"].clip(lower=low, upper=high)
+            except Exception:
+                log.debug("%s: target winsorization skipped", self.name)
+
         # Cross-sectional standardization (z-score per timestamp) for features only.
         def zscore(x):
             std = x.std()
@@ -382,10 +403,28 @@ class MLReturnPredictorStrategy(Strategy):
             log.error("%s: no ML backend available (LightGBM or sklearn)", self.name)
             return
 
+        X = X.sort_index()
+        y = y.loc[X.index]
+
+        # Time-ordered train/validation split for diagnostics
+        X_train = X
+        y_train = y
+        X_val = None
+        y_val = None
+        unique_dates = X.index.unique().sort_values()
+        if len(unique_dates) >= 50:
+            cutoff_idx = int(len(unique_dates) * 0.8)
+            cutoff_date = unique_dates[max(cutoff_idx, 1)]
+            train_mask = X.index < cutoff_date
+            X_train = X[train_mask]
+            y_train = y[train_mask]
+            X_val = X[~train_mask]
+            y_val = y[~train_mask]
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                model.fit(X[self.features].values, y.values)
+                model.fit(X_train[self.features].values, y_train.values)
             except Exception as exc:
                 log.exception("%s: model training failed: %s", self.name, exc)
                 return
@@ -431,6 +470,33 @@ class MLReturnPredictorStrategy(Strategy):
         log.info("%s: model training complete", self.name)
         log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
 
+        # Validation diagnostics (optional)
+        self._model_metrics = None
+        if X_val is not None and y_val is not None and not X_val.empty:
+            try:
+                pred_val = model.predict(X_val[self.features].values)
+                err = pred_val - y_val.values
+                rmse = float(np.sqrt(np.mean(err ** 2)))
+                mae = float(np.mean(np.abs(err)))
+                hit_rate = float(np.mean(np.sign(pred_val) == np.sign(y_val.values)))
+                ic = float(pd.Series(pred_val).corr(pd.Series(y_val.values), method="spearman"))
+                self._model_metrics = {
+                    "rmse": rmse,
+                    "mae": mae,
+                    "hit_rate": hit_rate,
+                    "spearman_ic": ic,
+                }
+                log.info(
+                    "%s: validation metrics rmse=%.4f mae=%.4f hit=%.2f ic=%.3f",
+                    self.name,
+                    rmse,
+                    mae,
+                    hit_rate,
+                    ic,
+                )
+            except Exception as exc:
+                log.debug("%s: validation metrics failed: %s", self.name, exc)
+
     # ------------------------------------------------------------------
     # Prediction
     # ------------------------------------------------------------------
@@ -469,6 +535,7 @@ class MLReturnPredictorStrategy(Strategy):
 
         # Build DataFrame for cross-sectional standardization
         feat_df = pd.DataFrame.from_dict(current_features, orient="index")
+        raw_df = feat_df.copy()
 
         # Z-score standardization across the cross-section
         if len(feat_df) > 1:
@@ -477,6 +544,9 @@ class MLReturnPredictorStrategy(Strategy):
             feat_df = (feat_df - feat_df.mean()) / stds
         else:
             feat_df = feat_df - feat_df.mean()
+
+        self._last_feature_values = raw_df.to_dict(orient="index")
+        self._last_feature_zscores = feat_df.to_dict(orient="index")
 
         predictions: dict[str, float] = {}
 
@@ -529,6 +599,8 @@ class MLReturnPredictorStrategy(Strategy):
             pred_ret = pred_series[symbol]
             norm_strength = float(np.clip(abs(pred_ret) / max_abs, 0.0, 1.0))
 
+            explanations = self._build_explanations(symbol)
+
             if pct_rank >= self.long_decile:
                 direction = "long"
                 strength = norm_strength
@@ -549,9 +621,14 @@ class MLReturnPredictorStrategy(Strategy):
                 ),
                 "n_predictions": len(predictions),
                 "model_backends": list(self._model_backends),
+                "target_winsor_q": self.target_winsor_q,
             }
             if fi_meta is not None:
                 meta["feature_importance_top10"] = fi_meta
+            if explanations:
+                meta["explanations"] = explanations
+            if self._model_metrics:
+                meta["model_metrics"] = dict(self._model_metrics)
 
             signals.append(
                 Signal(
@@ -581,6 +658,43 @@ class MLReturnPredictorStrategy(Strategy):
             return True
         delta = timestamp - self._last_train_date
         return delta.days >= self.retrain_interval_days
+
+    def _build_explanations(self, symbol: str) -> list[dict[str, Any]]:
+        zscores = self._last_feature_zscores.get(symbol)
+        raw_vals = self._last_feature_values.get(symbol, {})
+        if not zscores:
+            return []
+
+        use_importance = bool(self._feature_importances)
+        importances = self._feature_importances or {}
+        items: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
+
+        for feat in self.features:
+            z = zscores.get(feat)
+            if z is None or pd.isna(z):
+                continue
+            weight = float(importances.get(feat, 0.0)) if use_importance else None
+            score = abs(float(z)) * (weight if weight and weight > 0 else 1.0)
+            raw = raw_vals.get(feat)
+            raw_val = None if raw is None or pd.isna(raw) else float(raw)
+            items.append((score, feat, float(z), raw_val, weight))
+
+        if not items:
+            return []
+
+        items.sort(key=lambda x: x[0], reverse=True)
+        top = items[:3]
+        explanations: list[dict[str, Any]] = []
+        for score, feat, z, raw_val, weight in top:
+            explanations.append({
+                "feature": feat,
+                "zscore": round(z, 4),
+                "value": None if raw_val is None else round(raw_val, 6),
+                "weight": None if weight is None else round(weight, 4),
+                "direction": "higher" if z >= 0 else "lower",
+                "score": round(float(score), 4),
+            })
+        return explanations
 
     def _filter_to_universe(self, data: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
         universe_set = set(self.universe)

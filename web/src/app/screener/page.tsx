@@ -5,7 +5,7 @@ import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Clock, Database,
   AlertTriangle, ChevronDown, Filter, Info, ArrowUpRight, Plus,
 } from "lucide-react";
-import { api, PredictionItem, PredictionResponse } from "@/lib/api";
+import { api, PredictionExplanation, PredictionItem, PredictionResponse } from "@/lib/api";
 import { Card, CardHeader, Badge, Alert, Skeleton } from "@/components/ui";
 import Link from "next/link";
 
@@ -48,6 +48,28 @@ function SectorBadge({ sector }: { sector: string }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-semibold tracking-wide ${cls}`}>
       {sector.replace("Information Technology", "Tech").replace("Communication Services", "Comms").replace("Consumer ", "Cons. ")}
     </span>
+  );
+}
+
+function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
+  if (!items || items.length === 0) {
+    return <span className="text-[10px] text-slate-600">No drivers</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.slice(0, 3).map((item) => (
+        <span
+          key={`${item.feature}-${item.zscore}`}
+          className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[10px] text-slate-300"
+        >
+          <span className={item.direction === "higher" ? "text-emerald-400" : "text-red-400"}>
+            {item.direction === "higher" ? "▲" : "▼"}
+          </span>
+          <span className="font-mono">{item.feature}</span>
+          <span className="text-slate-500">z={item.zscore.toFixed(2)}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -105,31 +127,47 @@ export default function ScreenerPage() {
     return true;
   }).slice(0, topN);
 
+  const topSignals = signals.slice(0, 3);
   const longs = signals.filter(s => s.side === "long").length;
   const shorts = signals.filter(s => s.side === "short").length;
 
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in">
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-6">
+    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in relative overflow-hidden prediction-aurora">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 right-[-8%] h-72 w-72 rounded-full bg-amber-400/10 blur-3xl animate-float-slow" />
+        <div className="absolute top-24 left-[-6%] h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl animate-float-slower" />
+        <div className="absolute bottom-[-20%] right-1/3 h-80 w-80 rounded-full bg-rose-400/10 blur-[120px] animate-float-slow" />
+      </div>
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-6 relative z-10">
 
         {/* ── Page Header ──────────────────────────────────────────────── */}
-        <div className="animate-fade-in-up flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
-                <Sparkles size={17} className="text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">ML Stock Screener</h1>
+        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/20 bg-amber-400/10 text-[10px] uppercase tracking-[0.22em] text-amber-200">
+              Prediction Lab
             </div>
-            <p className="text-slate-500 text-xs ml-12">
-              Forward-looking predictions from ensemble ML (LightGBM + XGBoost + CatBoost) · Russell 1000 universe
+            <div className="flex items-center gap-3 mt-3">
+              <div className="w-10 h-10 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
+                <Sparkles size={18} className="text-white" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">ML Stock Screener</h1>
+            </div>
+            <p className="text-slate-400 text-sm mt-3">
+              Ranked S&P 500 signals for the next 5 trading days, with drivers pulled from the top ML features.
             </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {["3Y history", "Top/Bottom decile", "5D horizon", "S&P 500 only"].map((chip) => (
+                <span key={chip} className="text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border border-slate-700 bg-slate-900/40 text-slate-400">
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Cache status + re-run button */}
-          <div className="flex items-center gap-3 ml-12 md:ml-0 flex-wrap">
+          <div className="flex items-center gap-3 ml-12 lg:ml-0 flex-wrap">
             {result && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[11px] text-slate-500">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[11px] text-slate-500">
                 {result.cached ? (
                   <>
                     <Clock size={11} className="text-amber-400" />
@@ -163,7 +201,7 @@ export default function ScreenerPage() {
         {/* ── Re-run warning ───────────────────────────────────────────── */}
         {(forcing || isComputing) && (
           <Alert variant="warning">
-            <strong>Training Models in Background</strong> — the ML ensemble is training on 150+ stocks. This will take ~3 minutes. You can safely close this page, it will auto-refresh when ready.
+            <strong>Training Models in Background</strong> — the ML ensemble is training on ~100 stocks. This will take ~2–3 minutes. You can safely close this page, it will auto-refresh when ready.
           </Alert>
         )}
 
@@ -278,6 +316,24 @@ export default function ScreenerPage() {
                     <span className="text-slate-500">Model date</span>
                     <span className="text-slate-300 font-mono">{result.date}</span>
                   </div>
+                  {result.model_metrics && (
+                    <>
+                      <div className="h-px bg-[var(--border)] my-1" />
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Validation</div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Hit rate</span>
+                        <span className="text-slate-300 font-mono">{((result.model_metrics.hit_rate ?? 0) * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Spearman IC</span>
+                        <span className="text-slate-300 font-mono">{(result.model_metrics.spearman_ic ?? 0).toFixed(3)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">RMSE</span>
+                        <span className="text-slate-300 font-mono">{(result.model_metrics.rmse ?? 0).toFixed(4)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Card>
             )}
@@ -286,8 +342,9 @@ export default function ScreenerPage() {
             <Card>
               <CardHeader title="How it works" />
               <div className="flex flex-col gap-3 text-xs text-slate-400 leading-relaxed">
-                <p>The ML ensemble trains on <strong className="text-slate-200">3 years of price & feature data</strong> from the Russell 1000, then predicts each stock's 5-day forward return.</p>
+                <p>The ML ensemble trains on <strong className="text-slate-200">3 years of price & feature data</strong> from the S&P 500, then predicts each stock's 5-day forward return.</p>
                 <p>Stocks are ranked by predicted return, and the <strong className="text-slate-200">top decile → Long</strong>, <strong className="text-slate-200">bottom decile → Short</strong>.</p>
+                <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
                 <p>Results are <strong className="text-slate-200">cached daily</strong>. Use Re-run to get fresh signals.</p>
                 <div className="h-px bg-[var(--border)] my-1" />
                 <Link
@@ -303,6 +360,40 @@ export default function ScreenerPage() {
 
           {/* ── Results Table ────────────────────────────────────────── */}
           <div className="lg:col-span-3 animate-fade-in-up">
+            {topSignals.length > 0 && (
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
+                {topSignals.map((s, i) => (
+                  <div
+                    key={s.symbol}
+                    className={`relative overflow-hidden rounded-3xl border bg-[var(--surface)]/60 p-4 shadow-xl animate-fade-in-up ${
+                      i === 0 ? "border-amber-400/40" : "border-[var(--border)]"
+                    }`}
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    <div className="absolute -top-16 -right-12 h-32 w-32 rounded-full bg-amber-400/10 blur-2xl" />
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-500">
+                      <span>Rank {String(i + 1).padStart(2, "0")}</span>
+                      <span className={s.side === "long" ? "text-emerald-300" : "text-red-300"}>{s.side}</span>
+                    </div>
+                    <div className="mt-3 text-3xl font-black text-white tracking-tight">
+                      {s.symbol}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1 truncate">{s.name || s.symbol}</div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className={`font-mono font-semibold ${
+                        s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
+                      }`}>
+                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 5d
+                      </span>
+                      <span className="text-slate-400">Strength {Math.abs(s.strength).toFixed(2)}</span>
+                    </div>
+                    <div className="mt-3">
+                      <ExplanationPills items={s.explanations} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <Card>
               <CardHeader
                 title="Top Predictions"
@@ -324,7 +415,7 @@ export default function ScreenerPage() {
                   <table className="w-full text-xs min-w-[640px]">
                     <thead>
                       <tr className="border-b border-[var(--border)]">
-                        {["#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d"].map(h => (
+                        {"#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d", "Drivers"].map(h => (
                           <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                             {h}
                           </th>
@@ -371,6 +462,9 @@ export default function ScreenerPage() {
                             }`}>
                               {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
                             </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <ExplanationPills items={s.explanations} />
                           </td>
                         </tr>
                       ))}

@@ -150,6 +150,44 @@ def test_ml_predictor_ignores_non_universe_symbols():
     assert {sig.symbol for sig in signals} == {"AAPL", "MSFT", "GOOG"}
     assert "CIEN" not in {sig.symbol for sig in signals}
 
+
+def test_ml_predictor_emits_explanations():
+    """
+    Test that signal metadata includes feature explanations for ranking.
+    """
+    strat = MLReturnPredictorStrategy(
+        features=["return_5d", "volatility_20d"],
+        min_train_bars=1,
+    )
+
+    class DummyModel:
+        def fit(self, X, y):
+            pass
+
+        def predict(self, X):
+            return X.sum(axis=1)
+
+    strat._model = DummyModel()
+    strat._last_train_date = datetime(2024, 1, 10, tzinfo=timezone.utc)
+    strat._feature_importances = {"return_5d": 2.0, "volatility_20d": 1.0}
+
+    start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    data = {
+        "AAPL": _make_dummy_data("AAPL", start_date, 200),
+        "MSFT": _make_dummy_data("MSFT", start_date, 200),
+        "GOOG": _make_dummy_data("GOOG", start_date, 200),
+    }
+
+    signals = strat.generate_signals(data)
+    assert signals
+
+    meta = signals[0].metadata
+    explanations = meta.get("explanations")
+    assert explanations is not None
+    assert len(explanations) > 0
+    assert "feature" in explanations[0]
+    assert "zscore" in explanations[0]
+
 def test_ml_predictor_predict_cross_sectional_standardization():
     """
     Test that _predict applies the same cross-sectional standardization to the final bar.

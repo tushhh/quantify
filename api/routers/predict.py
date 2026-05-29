@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -23,13 +24,13 @@ _cache: dict = {
     "timestamp": None,   # float epoch seconds
 }
 _is_computing = False
-CACHE_TTL_SECONDS = 300  # 5 minutes
+CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_CACHE_TTL_SECONDS", "86400"))
 
 # S&P 500 universe size (top ~100 liquid constituents)
 _SCREENER_UNIVERSE_SIZE = 100
 
 # ---------------------------------------------------------------------------
-# Ticker name lookup (top 150 most common tickers)
+# Ticker name lookup (common tickers)
 # ---------------------------------------------------------------------------
 _TICKER_NAMES: dict[str, str] = {
     "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "NVDA": "NVIDIA Corp.",
@@ -107,6 +108,7 @@ def _get_ticker_name(symbol: str) -> str:
 def _run_prediction_sync() -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
+    from quantify.data.cache import ParquetCache
     from quantify.data.features import FeatureEngine
     from quantify.data.universe import get_sp500, get_sector_map
     from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
@@ -121,7 +123,8 @@ def _run_prediction_sync() -> PredictionResponse:
     strat = MLReturnPredictorStrategy(universe=universe)
 
     log.info("Screener: fetching data for %d symbols from S&P 500…", len(universe))
-    provider = YFinanceProvider()
+    cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
+    provider = YFinanceProvider(cache=ParquetCache(cache_dir=cache_dir))
     data = provider.get_multiple(universe, start=start_dt, end=end_dt)
 
     if not data:
@@ -159,6 +162,7 @@ def _run_prediction_sync() -> PredictionResponse:
         sym = s.symbol
         sector = sector_map.get(sym, "Unknown")
         pred_return = s.metadata.get("predicted_return_5d", 0.0) if s.metadata else 0.0
+        explanations = s.metadata.get("explanations", []) if s.metadata else []
         items.append(PredictionItem(
             symbol=sym,
             strength=s.strength,
@@ -166,6 +170,7 @@ def _run_prediction_sync() -> PredictionResponse:
             sector=sector,
             name=_get_ticker_name(sym),
             predicted_return_pct=round(float(pred_return) * 100, 2),
+            explanations=explanations,
         ))
 
     return PredictionResponse(
@@ -175,11 +180,16 @@ def _run_prediction_sync() -> PredictionResponse:
         cached=False,
         cache_age_minutes=0.0,
         universe_size=len(universe),
+        model_metrics=strat._model_metrics,
     )
 
 
-def _run_and_cache_predictions():
+def _run_and_cache_predictions(source: str = "scheduler"):
     global _is_computing, _cache
+    if _is_computing and source != "api":
+        log.info("Screener: prediction already running, skipping.")
+        return
+    _is_computing = True
     log.info("Screener: starting background prediction task...")
     try:
         result = _run_prediction_sync()
@@ -212,7 +222,7 @@ def _run_and_cache_predictions():
 @router.get("/best")
 async def get_best_predictions(
     background_tasks: BackgroundTasks,
-    top_n: int = Query(10, ge=1, le=150, description="Number of top predictions to return"),
+    top_n: int = Query(10, ge=1, le=100, description="Number of top predictions to return"),
     sector: Optional[str] = Query(None, description="Filter by GICS sector"),
     force: bool = Query(False, description="Force re-run, ignoring the daily cache"),
     db: Session = Depends(get_db)
@@ -265,6 +275,7 @@ async def get_best_predictions(
             cached=True,
             cache_age_minutes=age_minutes,
             universe_size=cached_result.universe_size,
+            model_metrics=cached_result.model_metrics,
         )
 
     # Need to run predictions

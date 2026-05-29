@@ -197,6 +197,7 @@ class FeatureEngine:
                 fn = self._registry[feat_name]
                 try:
                     series = fn(df)
+                    series = series.replace([np.inf, -np.inf], np.nan)
                     # Enforce consistent name
                     series.name = feat_name
                     feature_series[feat_name] = series
