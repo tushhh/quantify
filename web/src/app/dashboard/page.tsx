@@ -19,6 +19,37 @@ function fmt$(v: number) {
   return `$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function DriverLegend() {
+  const items = [
+    { label: "▲ Higher is favorable", tone: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    { label: "▼ Lower is favorable", tone: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
+    { label: "z-score shows how unusual the feature is", tone: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20" },
+  ];
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500 font-semibold">
+          Driver legend
+        </p>
+        <p className="text-[10px] text-slate-600">
+          Drivers reflect the most influential feature z-scores behind each prediction.
+        </p>
+      </div>
+      <div className="flex flex-col md:flex-row md:flex-wrap gap-2">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] ${item.bg} ${item.border} ${item.tone}`}
+          >
+            <span className="font-semibold">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Loading state ─────────────────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -605,6 +636,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+            {!loadingPreds && predictions.length > 0 && <DriverLegend />}
           </Card>
 
           {/* Info card */}

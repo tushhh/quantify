@@ -58,11 +58,11 @@ function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
     return <span className="text-[10px] text-slate-600">No drivers</span>;
   }
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1.5">
       {items.slice(0, 3).map((item) => (
         <span
           key={`${item.feature}-${item.zscore}`}
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-700/50 bg-slate-800/40 px-2.5 py-1 text-[10px] text-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/50 bg-slate-900/55 px-2.5 py-1 text-[10px] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
           <span className={item.direction === "higher" ? "text-emerald-400" : "text-red-400"}>
             {item.direction === "higher" ? "▲" : "▼"}
@@ -71,6 +71,37 @@ function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
           <span className="text-slate-500">z={item.zscore.toFixed(2)}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+function DriverLegend() {
+  const items = [
+    { label: "▲ Higher is favorable", tone: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    { label: "▼ Lower is favorable", tone: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
+    { label: "z-score = how unusual the value is", tone: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20" },
+  ];
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500 font-semibold">
+          Driver legend
+        </p>
+        <p className="text-[10px] text-slate-600">
+          Each pill shows the feature name plus its z-score contribution.
+        </p>
+      </div>
+      <div className="flex flex-col md:flex-row md:flex-wrap gap-2">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] ${item.bg} ${item.border} ${item.tone}`}
+          >
+            <span className="font-semibold">{item.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -415,11 +446,11 @@ export default function ScreenerPage() {
               {/* Results */}
               {(!loading || hasLoaded) && signals.length > 0 && (
                 <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-black/20">
-                  <table className="w-full text-xs min-w-[640px] border-collapse">
+                  <table className="w-full text-xs min-w-[720px] border-collapse">
                     <thead>
-                      <tr className="border-b border-[var(--border)] bg-white/[0.02]">
+                      <tr className="border-b border-[var(--border)] bg-white/[0.03]">
                         {TABLE_HEADERS.map(h => (
-                          <th key={h} className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                          <th key={h} className="text-left px-3.5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">
                             {h}
                           </th>
                         ))}
@@ -429,22 +460,22 @@ export default function ScreenerPage() {
                       {signals.map((s, i) => (
                         <tr
                           key={s.symbol}
-                          className="border-b border-[var(--border)]/40 hover:bg-white/[0.025] transition-colors animate-fade-in-up"
+                          className="border-b border-[var(--border)]/40 hover:bg-white/[0.03] transition-colors animate-fade-in-up"
                           style={{ animationDelay: `${i * 40}ms` }}
                         >
-                          <td className="px-4 py-4 text-slate-600 font-mono text-[10px]">
+                          <td className="px-3.5 py-3.5 text-slate-600 font-mono text-[10px]">
                             {String(i + 1).padStart(2, "0")}
                           </td>
-                          <td className="px-4 py-4">
-                            <span className="font-mono font-bold text-white tracking-wide">{s.symbol}</span>
+                          <td className="px-3.5 py-3.5">
+                            <span className="font-mono font-bold text-white tracking-[0.06em]">{s.symbol}</span>
                           </td>
-                          <td className="px-4 py-4 text-slate-400 max-w-[160px] truncate">
+                          <td className="px-3.5 py-3.5 text-slate-400 max-w-[180px] truncate">
                             {s.name || s.symbol}
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-3.5 py-3.5">
                             <SectorBadge sector={s.sector} />
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-3.5 py-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${
                               s.side === "long"
                                 ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
@@ -456,17 +487,17 @@ export default function ScreenerPage() {
                               {s.side.toUpperCase()}
                             </span>
                           </td>
-                          <td className="px-4 py-4 w-32">
+                          <td className="px-3.5 py-3.5 w-36">
                             <StrengthBar value={s.strength} side={s.side} />
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-3.5 py-3.5">
                             <span className={`font-mono font-semibold tabular-nums ${
                               s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
                               {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
                             </span>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-3.5 py-3.5">
                             <ExplanationPills items={s.explanations} />
                           </td>
                         </tr>
@@ -475,6 +506,8 @@ export default function ScreenerPage() {
                   </table>
                 </div>
               )}
+
+              {(!loading || hasLoaded) && signals.length > 0 && <DriverLegend />}
 
               {/* Empty state */}
               {(!loading || hasLoaded) && signals.length === 0 && !error && (
