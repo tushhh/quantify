@@ -29,6 +29,15 @@ CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_CACHE_TTL_SECONDS", "86400"))
 # S&P 500 universe size (top ~100 liquid constituents)
 _SCREENER_UNIVERSE_SIZE = 100
 
+
+def _should_force_run_synchronously() -> bool:
+    override = os.getenv("PREDICTION_FORCE_SYNC")
+    if override is not None:
+        return override.strip().lower() in {"1", "true", "yes", "on"}
+
+    dyno_type = os.getenv("DYNO", "")
+    return not dyno_type.startswith("web.")
+
 # ---------------------------------------------------------------------------
 # Ticker name lookup (common tickers)
 # ---------------------------------------------------------------------------
@@ -273,8 +282,9 @@ async def get_best_predictions(
         if cached_ts is not None and (now - cached_ts) < 180:
             raise HTTPException(status_code=429, detail="Please wait at least 3 minutes between manual re-runs.")
 
-    # If the caller requested a forced re-run, run synchronously and return fresh results
-    if force and not _is_computing:
+    # If the caller requested a forced re-run, run synchronously on local/dev workers,
+    # but queue work on Heroku web dynos to avoid request timeouts.
+    if force and not _is_computing and _should_force_run_synchronously():
         log.info("Screener: performing forced synchronous recompute (api request)...")
         try:
             result = _run_prediction_sync()
@@ -314,6 +324,15 @@ async def get_best_predictions(
         except Exception as e:
             log.exception("Forced synchronous prediction failed")
             raise HTTPException(status_code=500, detail="Forced prediction failed")
+    if force and not _is_computing:
+        log.info("Screener: forcing async recompute on web dyno to avoid timeout...")
+        _is_computing = True
+        background_tasks.add_task(_run_and_cache_predictions, source="api")
+
+        return JSONResponse(
+            status_code=202,
+            content={"status": "computing", "message": "Model training started. Please check back in a few minutes."}
+        )
     if cache_valid and cached_result is not None:
         age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
         log.info("Screener: serving from cache (age=%.1f min)", age_minutes)
