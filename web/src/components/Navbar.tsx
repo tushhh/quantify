@@ -65,11 +65,6 @@ export function Navbar() {
         </div>
 
         <div className="ml-auto flex items-center gap-4 pl-5 border-l border-[var(--border)]">
-          {/* Status indicator */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(255,255,255,0.03)] border border-[var(--border)] text-[11px] text-slate-400 font-medium tracking-wide">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-cta)]" />
-            Paper Trading
-          </div>
 
           {loggedIn ? (
             <>

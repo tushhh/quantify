@@ -9,7 +9,7 @@ import { api, PredictionExplanation, PredictionItem, PredictionResponse } from "
 import { Card, CardHeader, Badge, Alert, Skeleton } from "@/components/ui";
 import Link from "next/link";
 
-const TABLE_HEADERS = ["#", "Ticker", "Company", "Sector", "Signal", "Strength", "Pred. Return 5d", "Drivers"];
+const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 5d", "Drivers"];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,28 +77,32 @@ function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
 
 function DriverLegend() {
   const items = [
-    { label: "▲ Higher is favorable", tone: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { label: "▼ Lower is favorable", tone: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-    { label: "z-score = how unusual the value is", tone: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20" },
+    { label: "sma_crossover", desc: "Short MA vs long MA. Bullish when shorter averages are above longer ones.", tone: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    { label: "rsi_14", desc: "14-day Relative Strength Index. Higher values show stronger momentum; extremes can signal overbought/oversold conditions.", tone: "text-blue-300", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+    { label: "macd_histogram", desc: "MACD momentum spread. Positive values often mean momentum is improving; negative values mean it is weakening.", tone: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    { label: "return_63d / return_126d", desc: "Medium-term price trend over roughly 3 to 6 months.", tone: "text-cyan-300", bg: "bg-cyan-500/10", border: "border-cyan-500/20" },
+    { label: "volatility_*", desc: "How much the stock has been moving. Higher volatility means larger swings and less stability.", tone: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/20" },
+    { label: "amihud_illiquidity", desc: "Liquidity proxy. Higher values mean the stock is harder to trade without moving price.", tone: "text-rose-300", bg: "bg-rose-500/10", border: "border-rose-500/20" },
   ];
 
   return (
-    <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-2.5">
+    <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500 font-semibold">
-          Driver legend
+        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500 font-semibold">
+          Feature guide
         </p>
-        <p className="text-[10px] text-slate-600">
-          Each pill shows the feature name plus its z-score contribution.
+        <p className="text-[12px] md:text-[13px] text-slate-500 max-w-2xl leading-relaxed">
+          The pills show the top features that pushed the model toward a long or short signal. The z-score tells you how unusual the value is versus the recent history.
         </p>
       </div>
-      <div className="flex flex-col md:flex-row md:flex-wrap gap-2">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <div
             key={item.label}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] ${item.bg} ${item.border} ${item.tone}`}
+            className={`rounded-2xl border px-3 py-2 text-[11px] md:text-[12px] ${item.bg} ${item.border} ${item.tone}`}
           >
-            <span className="font-semibold">{item.label}</span>
+            <div className="font-semibold uppercase tracking-[0.18em] text-[10px]">{item.label}</div>
+            <div className="mt-1 text-slate-200/90 leading-relaxed">{item.desc}</div>
           </div>
         ))}
       </div>
@@ -171,11 +175,11 @@ export default function ScreenerPage() {
         <div className="absolute top-24 left-[-6%] h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl animate-float-slower" />
         <div className="absolute bottom-[-20%] right-1/3 h-80 w-80 rounded-full bg-rose-400/10 blur-[120px] animate-float-slow" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3 relative z-10">
+      <div className="max-w-[1800px] mx-auto px-3 lg:px-5 flex flex-col gap-3 relative z-10">
 
         {/* ── Page Header ──────────────────────────────────────────────── */}
-        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-          <div className="max-w-2xl">
+        <div className="animate-fade-in-up flex flex-col xl:flex-row xl:items-end xl:justify-between gap-3">
+          <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/20 bg-amber-400/10 text-[10px] uppercase tracking-[0.22em] text-amber-200">
               Prediction Lab
             </div>
@@ -183,14 +187,14 @@ export default function ScreenerPage() {
               <div className="w-10 h-10 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
                 <Sparkles size={18} className="text-white" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">ML Stock Screener</h1>
+              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">ML Stock Screener</h1>
             </div>
-            <p className="text-slate-400 text-sm mt-3">
+            <p className="text-slate-300 text-base mt-3 max-w-2xl leading-relaxed">
               Ranked S&P 500 signals for the next 5 trading days, with drivers pulled from the top ML features.
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
               {["3Y history", "Top/Bottom decile", "5D horizon", "S&P 500 only"].map((chip) => (
-                <span key={chip} className="text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border border-slate-700 bg-slate-900/40 text-slate-400">
+                <span key={chip} className="text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900/40 text-slate-300">
                   {chip}
                 </span>
               ))}
@@ -198,9 +202,9 @@ export default function ScreenerPage() {
           </div>
 
           {/* Cache status + re-run button */}
-          <div className="flex items-center gap-3 ml-12 lg:ml-0 flex-wrap">
+          <div className="flex items-center gap-3 ml-0 flex-wrap xl:justify-end">
             {result && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[11px] text-slate-500">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[12px] text-slate-400">
                 {result.cached ? (
                   <>
                     <Clock size={11} className="text-amber-400" />
@@ -252,10 +256,10 @@ export default function ScreenerPage() {
         )}
 
         {/* ── Main grid ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
 
           {/* ── Sidebar ─────────────────────────────────────────────── */}
-          <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
+          <div className="flex flex-col gap-4 animate-slide-in-left">
 
             {/* Filters */}
             <Card variant="compact">
@@ -392,27 +396,27 @@ export default function ScreenerPage() {
           </div>
 
           {/* ── Results Table ────────────────────────────────────────── */}
-          <div className="lg:col-span-3 animate-fade-in-up">
+          <div className="animate-fade-in-up min-w-0">
             {topSignals.length > 0 && (
               <div className="grid md:grid-cols-3 gap-4 mb-6">
                 {topSignals.map((s, i) => (
                   <div
                     key={s.symbol}
-                    className={`relative overflow-hidden rounded-3xl border bg-[var(--surface)]/60 p-4 shadow-xl animate-fade-in-up ${
+                    className={`relative overflow-hidden rounded-3xl border bg-[var(--surface)]/60 p-6 shadow-xl animate-fade-in-up ${
                       i === 0 ? "border-amber-400/40" : "border-[var(--border)]"
                     }`}
                     style={{ animationDelay: `${i * 60}ms` }}
                   >
                     <div className="absolute -top-16 -right-12 h-32 w-32 rounded-full bg-amber-400/10 blur-2xl" />
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-500">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
                       <span>Rank {String(i + 1).padStart(2, "0")}</span>
                       <span className={s.side === "long" ? "text-emerald-300" : "text-red-300"}>{s.side}</span>
                     </div>
-                    <div className="mt-3 text-3xl font-black text-white tracking-tight">
+                    <div className="mt-3 text-[2.15rem] font-black text-white tracking-tight leading-none">
                       {s.symbol}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 truncate">{s.name || s.symbol}</div>
-                    <div className="mt-3 flex items-center justify-between text-xs">
+                    <div className="text-sm text-slate-400 mt-1 truncate">{s.name || s.symbol}</div>
+                    <div className="mt-3 flex items-center justify-between text-sm">
                       <span className={`font-mono font-semibold ${
                         s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
                       }`}>
@@ -445,38 +449,44 @@ export default function ScreenerPage() {
 
               {/* Results */}
               {(!loading || hasLoaded) && signals.length > 0 && (
-                <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-black/20">
-                  <table className="w-full text-xs min-w-[720px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-[var(--border)] bg-white/[0.03]">
-                        {TABLE_HEADERS.map(h => (
-                          <th key={h} className="text-left px-3.5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-black/20">
+                  <div className="min-w-[1120px]">
+                    <div className="grid grid-cols-[18rem_8rem_8rem_11rem_9rem_1fr] gap-x-4 px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 border-b border-[var(--border)] bg-black/30">
+                      {TABLE_HEADERS.map((h) => (
+                        <div
+                          key={h}
+                          className={`whitespace-nowrap ${h === "Return 5d" ? "text-center justify-self-center" : ""}`}
+                        >
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-col gap-4 py-3">
                       {signals.map((s, i) => (
-                        <tr
+                        <div
                           key={s.symbol}
-                          className="border-b border-[var(--border)]/40 hover:bg-white/[0.03] transition-colors animate-fade-in-up"
+                          className={`grid grid-cols-[18rem_8rem_8rem_11rem_9rem_1fr] gap-x-4 px-5 py-4.5 items-center rounded-2xl border border-[var(--border)]/50 animate-fade-in-up ${
+                            i % 2 === 0 ? "bg-white/[0.03]" : "bg-white/[0.015]"
+                          } hover:bg-white/[0.05] transition-colors`}
                           style={{ animationDelay: `${i * 40}ms` }}
                         >
-                          <td className="px-3.5 py-3.5 text-slate-600 font-mono text-[10px]">
-                            {String(i + 1).padStart(2, "0")}
-                          </td>
-                          <td className="px-3.5 py-3.5">
-                            <span className="font-mono font-bold text-white tracking-[0.06em]">{s.symbol}</span>
-                          </td>
-                          <td className="px-3.5 py-3.5 text-slate-400 max-w-[180px] truncate">
-                            {s.name || s.symbol}
-                          </td>
-                          <td className="px-3.5 py-3.5">
+                          <div className="min-w-0">
+                            <div className="flex flex-col gap-1 min-w-0">
+                              <span className="text-[11px] font-mono text-slate-400">#{String(i + 1).padStart(2, "0")}</span>
+                              <div className="flex items-baseline gap-2 min-w-0">
+                                <span className="font-mono font-bold text-white text-[15px] tracking-[0.06em]">{s.symbol}</span>
+                                <span className="text-slate-300 text-[13px] truncate">{s.name || s.symbol}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pr-2">
                             <SectorBadge sector={s.sector} />
-                          </td>
-                          <td className="px-3.5 py-3.5">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${
+                          </div>
+
+                          <div className="pr-2">
+                            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-bold border ${
                               s.side === "long"
                                 ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/25"
                                 : "text-red-300 bg-red-500/10 border-red-500/25"
@@ -486,24 +496,27 @@ export default function ScreenerPage() {
                                 : <TrendingDown size={12} />}
                               {s.side.toUpperCase()}
                             </span>
-                          </td>
-                          <td className="px-3.5 py-3.5 w-36">
+                          </div>
+
+                          <div className="pr-2">
                             <StrengthBar value={s.strength} side={s.side} />
-                          </td>
-                          <td className="px-3.5 py-3.5">
-                            <span className={`font-mono font-semibold tabular-nums ${
+                          </div>
+
+                          <div className="pr-2 flex items-center justify-center h-full text-center">
+                            <span className={`font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap ${
                               s.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"
                             }`}>
                               {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
                             </span>
-                          </td>
-                          <td className="px-3.5 py-3.5">
+                          </div>
+
+                          <div className="pl-1">
                             <ExplanationPills items={s.explanations} />
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
               )}
 
