@@ -123,14 +123,15 @@ export default function ScreenerPage() {
   const [directionFilter, setDirectionFilter] = useState<"all" | "long" | "short">("all");
   const [sectors, setSectors] = useState<string[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [predictionMode, setPredictionMode] = useState<"live" | "previous_close">("previous_close");
 
-  const fetchPredictions = useCallback(async (force = false) => {
+  const fetchPredictions = useCallback(async (force = false, mode: "live" | "previous_close" = predictionMode) => {
     setError(null);
     if (force) setForcing(true);
     else if (!isComputing) setLoading(true);
 
     try {
-      const data = await api.predict.best(50, sectorFilter || undefined, force);
+      const data = await api.predict.best(50, sectorFilter || undefined, force, mode);
       if (data.status === "computing") {
         setIsComputing(true);
         setTimeout(() => fetchPredictions(false), 10000);
@@ -147,7 +148,13 @@ export default function ScreenerPage() {
       setLoading(false);
       setForcing(false);
     }
-  }, [sectorFilter, isComputing]);
+  }, [predictionMode, sectorFilter, isComputing]);
+
+  const handleModeChange = useCallback((nextMode: "live" | "previous_close") => {
+    if (nextMode === predictionMode) return;
+    setPredictionMode(nextMode);
+    fetchPredictions(false, nextMode);
+  }, [fetchPredictions, predictionMode]);
 
   useEffect(() => {
     fetchPredictions(false);
@@ -223,9 +230,35 @@ export default function ScreenerPage() {
                 <span>{result.universe_size} stocks scanned</span>
               </div>
             )}
+            <div className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <button
+                type="button"
+                onClick={() => handleModeChange("previous_close")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all ${
+                  predictionMode === "previous_close"
+                    ? "bg-white/12 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Clock size={11} className={predictionMode === "previous_close" ? "text-amber-300" : "text-slate-500"} />
+                Previous Close
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("live")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all ${
+                  predictionMode === "live"
+                    ? "bg-white/12 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <ArrowUpRight size={11} className={predictionMode === "live" ? "text-emerald-300" : "text-slate-500"} />
+                Live
+              </button>
+            </div>
             <button
               id="screener-rerun-btn"
-              onClick={() => fetchPredictions(true)}
+              onClick={() => fetchPredictions(true, predictionMode)}
               disabled={forcing || isComputing || loading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-900/30"
             >

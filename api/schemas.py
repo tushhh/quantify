@@ -203,6 +203,7 @@ class PredictionItem(BaseModel):
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
+    mode: str = "previous_close"
     date: str = ""
     signals: List[PredictionItem] = Field(default_factory=list)
     cached: bool = False

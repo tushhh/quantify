@@ -3,8 +3,8 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import date, datetime, timezone, timedelta
+from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -19,12 +19,15 @@ log = logging.getLogger("quantify.api.predict")
 # ---------------------------------------------------------------------------
 # 24-hour in-memory cache
 # ---------------------------------------------------------------------------
-_cache: dict = {
-    "result": None,
-    "timestamp": None,   # float epoch seconds
+PredictionMode = Literal["live", "previous_close"]
+
+_cache: dict[PredictionMode, dict[str, object | None]] = {
+    "live": {"result": None, "timestamp": None},
+    "previous_close": {"result": None, "timestamp": None},
 }
 _is_computing = False
-CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_CACHE_TTL_SECONDS", "86400"))
+_LIVE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_LIVE_CACHE_TTL_SECONDS", "300"))
+_PREVIOUS_CLOSE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_PREVIOUS_CLOSE_CACHE_TTL_SECONDS", "604800"))
 
 # S&P 500 universe size (top ~100 liquid constituents)
 _SCREENER_UNIVERSE_SIZE = 100
@@ -114,7 +117,138 @@ def _get_ticker_name(symbol: str) -> str:
     return _TICKER_NAMES.get(symbol, symbol)
 
 
-def _run_prediction_sync() -> PredictionResponse:
+def _cache_bucket(mode: PredictionMode) -> dict[str, object | None]:
+    return _cache[mode]
+
+
+def _cache_ttl_seconds(mode: PredictionMode) -> int:
+    return _LIVE_CACHE_TTL_SECONDS if mode == "live" else _PREVIOUS_CLOSE_CACHE_TTL_SECONDS
+
+
+def _previous_weekday(check_date: date) -> date:
+    current = check_date
+    while current.weekday() >= 5:
+        current -= timedelta(days=1)
+    return current
+
+
+def _latest_completed_session_date(now_utc: datetime) -> date:
+    """Return the most recent completed NYSE trading session date."""
+    current_date = now_utc.astimezone(timezone.utc).date()
+
+    try:
+        import pandas_market_calendars as mcal  # type: ignore[import]
+    except Exception:
+        return current_date if current_date.weekday() < 5 else _previous_weekday(current_date)
+
+    try:
+        nyse = mcal.get_calendar("NYSE")
+        schedule = nyse.schedule(
+            start_date=str(current_date - timedelta(days=14)),
+            end_date=str(current_date),
+        )
+        if schedule.empty:
+            return current_date if current_date.weekday() < 5 else _previous_weekday(current_date)
+
+        session_dates = [ts.date() for ts in schedule.index]
+        if current_date in session_dates:
+            close_ts = schedule.loc[schedule.index.date == current_date, "market_close"].iloc[0]
+            close_utc = close_ts.tz_convert(timezone.utc) if getattr(close_ts, "tzinfo", None) else close_ts.replace(tzinfo=timezone.utc)
+            if now_utc >= close_utc:
+                return current_date
+
+        for session_date in reversed(session_dates):
+            if session_date < current_date:
+                return session_date
+
+        return session_dates[0]
+    except Exception as exc:
+        log.warning("Screener: failed to resolve NYSE session date (%s); falling back to weekday logic.", exc)
+        return current_date if current_date.weekday() < 5 else _previous_weekday(current_date)
+
+
+def _resolve_prediction_window(mode: PredictionMode, now_utc: datetime) -> tuple[date, datetime, datetime]:
+    if mode == "live":
+        session_date = now_utc.astimezone(timezone.utc).date()
+        if session_date.weekday() >= 5:
+            session_date = _previous_weekday(session_date)
+        end_dt = now_utc
+    else:
+        session_date = _latest_completed_session_date(now_utc)
+        end_dt = datetime.combine(session_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+
+    start_dt = end_dt - timedelta(days=365 * 3)
+    return session_date, start_dt, end_dt
+
+
+def _cache_payload(mode: PredictionMode, result: PredictionResponse) -> str:
+    return json.dumps({"mode": mode, "result": result.model_dump()})
+
+
+def _persist_prediction_cache(mode: PredictionMode, result: PredictionResponse) -> None:
+    db = SessionLocal()
+    try:
+        existing_rows = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).all()
+        for row in existing_rows:
+            try:
+                payload = json.loads(row.result_json)
+            except Exception:
+                continue
+
+            cached_mode = payload.get("mode", "previous_close")
+            if cached_mode == mode:
+                db.delete(row)
+
+        db.add(PredictionCache(result_json=_cache_payload(mode, result)))
+        db.commit()
+        log.info("Screener: %s predictions saved to DB successfully.", mode)
+    except Exception as e:
+        log.error("Failed to save %s prediction cache to DB: %s", mode, e)
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _load_prediction_cache(db: Session, mode: PredictionMode) -> tuple[Optional[PredictionResponse], Optional[float]]:
+    db_rows = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).all()
+    for db_cache in db_rows:
+        try:
+            payload = json.loads(db_cache.result_json)
+        except Exception:
+            continue
+
+        cached_mode = payload.get("mode", "previous_close")
+        if cached_mode != mode:
+            continue
+
+        result_dict = payload.get("result", payload)
+        try:
+            cached_result = PredictionResponse(**result_dict)
+        except Exception:
+            continue
+
+        cached_ts = db_cache.created_at.replace(tzinfo=timezone.utc).timestamp() if db_cache.created_at.tzinfo is None else db_cache.created_at.timestamp()
+        return cached_result, cached_ts
+
+    return None, None
+
+
+def _cache_is_valid(mode: PredictionMode, cached_result: Optional[PredictionResponse], cached_ts: Optional[float], now: float, now_utc: datetime) -> bool:
+    if cached_result is None or cached_ts is None:
+        return False
+
+    if mode == "live":
+        if now - cached_ts >= _cache_ttl_seconds(mode):
+            return False
+        return cached_result.date == now_utc.astimezone(timezone.utc).date().isoformat()
+
+    session_date = _latest_completed_session_date(now_utc)
+    if now - cached_ts >= _cache_ttl_seconds(mode):
+        return False
+    return cached_result.date == session_date.isoformat()
+
+
+def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
     from quantify.data.cache import ParquetCache
@@ -122,8 +256,8 @@ def _run_prediction_sync() -> PredictionResponse:
     from quantify.data.universe import get_sp500, get_sector_map
     from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 
-    end_dt = datetime.now(timezone.utc)
-    start_dt = end_dt - timedelta(days=365 * 3)
+    now_utc = datetime.now(timezone.utc)
+    session_date, start_dt, end_dt = _resolve_prediction_window(mode, now_utc)
 
     full_universe = get_sp500()
     universe = full_universe[:_SCREENER_UNIVERSE_SIZE]
@@ -184,7 +318,8 @@ def _run_prediction_sync() -> PredictionResponse:
 
     return PredictionResponse(
         status="ok",
-        date=end_dt.strftime("%Y-%m-%d"),
+        mode=mode,
+        date=session_date.strftime("%Y-%m-%d"),
         signals=items,
         cached=False,
         cache_age_minutes=0.0,
@@ -193,34 +328,22 @@ def _run_prediction_sync() -> PredictionResponse:
     )
 
 
-def _run_and_cache_predictions(source: str = "scheduler"):
+def _run_and_cache_predictions(source: str = "scheduler", mode: PredictionMode = "previous_close"):
     global _is_computing, _cache
     if _is_computing and source != "api":
         log.info("Screener: prediction already running, skipping.")
         return
     _is_computing = True
-    log.info("Screener: starting background prediction task...")
+    log.info("Screener: starting background prediction task for mode=%s...", mode)
     try:
-        result = _run_prediction_sync()
-        
-        # Save to database
-        db = SessionLocal()
-        try:
-            db.query(PredictionCache).delete()
-            cache_entry = PredictionCache(
-                result_json=result.model_dump_json()
-            )
-            db.add(cache_entry)
-            db.commit()
-            log.info("Screener: predictions saved to DB successfully.")
-        except Exception as e:
-            log.error(f"Failed to save prediction cache to DB: {e}")
-        finally:
-            db.close()
+        result = _run_prediction_sync(mode=mode)
+
+        _persist_prediction_cache(mode, result)
 
         # Update in-memory
-        _cache["result"] = result
-        _cache["timestamp"] = time.time()
+        cache_slot = _cache_bucket(mode)
+        cache_slot["result"] = result
+        cache_slot["timestamp"] = time.time()
         
     except Exception as e:
         log.exception("Screener prediction failed in background task")
@@ -233,6 +356,7 @@ async def get_best_predictions(
     background_tasks: BackgroundTasks,
     top_n: int = Query(10, ge=1, le=100, description="Number of top predictions to return"),
     sector: Optional[str] = Query(None, description="Filter by GICS sector"),
+    mode: PredictionMode = Query("previous_close", description="Prediction data mode: live or previous_close"),
     force: bool = Query(False, description="Force re-run, ignoring the daily cache"),
     db: Session = Depends(get_db)
 ):
@@ -250,32 +374,22 @@ async def get_best_predictions(
 
     now = time.time()
     
-    cached_result: Optional[PredictionResponse] = _cache.get("result")
-    cached_ts: Optional[float] = _cache.get("timestamp")
+    cache_slot = _cache_bucket(mode)
+    cached_result: Optional[PredictionResponse] = cache_slot.get("result")  # type: ignore[assignment]
+    cached_ts: Optional[float] = cache_slot.get("timestamp")  # type: ignore[assignment]
 
-    cache_valid = (
-        cached_result is not None
-        and cached_ts is not None
-        and (now - cached_ts) < CACHE_TTL_SECONDS
-        and not force
-    )
+    cache_valid = _cache_is_valid(mode, cached_result, cached_ts, now, datetime.now(timezone.utc)) and not force
 
     if not cache_valid and not force:
-        # Check DB cache
-        db_cache = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).first()
-        if db_cache:
-            cache_age = (datetime.now(timezone.utc).replace(tzinfo=None) - db_cache.created_at).total_seconds()
-            if cache_age < CACHE_TTL_SECONDS:
-                try:
-                    result_dict = json.loads(db_cache.result_json)
-                    cached_result = PredictionResponse(**result_dict)
-                    cached_ts = now - cache_age
-                    _cache["result"] = cached_result
-                    _cache["timestamp"] = cached_ts
-                    cache_valid = True
-                    log.info("Screener: loaded cache from database (age=%.1f min)", cache_age / 60)
-                except Exception as e:
-                    log.error(f"Failed to parse DB cache: {e}")
+        db_cache_result, db_cache_ts = _load_prediction_cache(db, mode)
+        if db_cache_result is not None and _cache_is_valid(mode, db_cache_result, db_cache_ts, now, datetime.now(timezone.utc)):
+            cached_result = db_cache_result
+            cached_ts = db_cache_ts
+            cache_slot["result"] = cached_result
+            cache_slot["timestamp"] = cached_ts
+            cache_valid = True
+            cache_age = (now - cached_ts) / 60 if cached_ts else 0.0
+            log.info("Screener: loaded %s cache from database (age=%.1f min)", mode, cache_age)
 
     if force:
         # Check if 3 minutes have passed since the last computation
@@ -285,26 +399,15 @@ async def get_best_predictions(
     # If the caller requested a forced re-run, run synchronously on local/dev workers,
     # but queue work on Heroku web dynos to avoid request timeouts.
     if force and not _is_computing and _should_force_run_synchronously():
-        log.info("Screener: performing forced synchronous recompute (api request)...")
+        log.info("Screener: performing forced synchronous recompute (api request, mode=%s)...", mode)
         try:
-            result = _run_prediction_sync()
+            result = _run_prediction_sync(mode=mode)
 
-            # Save to database
-            db_obj = SessionLocal()
-            try:
-                db_obj.query(PredictionCache).delete()
-                cache_entry = PredictionCache(result_json=result.model_dump_json())
-                db_obj.add(cache_entry)
-                db_obj.commit()
-                log.info("Screener: forced predictions saved to DB successfully.")
-            except Exception as e:
-                log.error(f"Failed to save forced prediction cache to DB: {e}")
-            finally:
-                db_obj.close()
+            _persist_prediction_cache(mode, result)
 
             # Update in-memory cache
-            _cache["result"] = result
-            _cache["timestamp"] = time.time()
+            cache_slot["result"] = result
+            cache_slot["timestamp"] = time.time()
 
             # Apply sector filter and top_n
             filtered = result.signals
@@ -314,6 +417,7 @@ async def get_best_predictions(
 
             return PredictionResponse(
                 status="ok",
+                mode=mode,
                 date=result.date,
                 signals=filtered,
                 cached=False,
@@ -325,9 +429,9 @@ async def get_best_predictions(
             log.exception("Forced synchronous prediction failed")
             raise HTTPException(status_code=500, detail="Forced prediction failed")
     if force and not _is_computing:
-        log.info("Screener: forcing async recompute on web dyno to avoid timeout...")
+        log.info("Screener: forcing async recompute on web dyno to avoid timeout... mode=%s", mode)
         _is_computing = True
-        background_tasks.add_task(_run_and_cache_predictions, source="api")
+        background_tasks.add_task(_run_and_cache_predictions, source="api", mode=mode)
 
         return JSONResponse(
             status_code=202,
@@ -342,6 +446,7 @@ async def get_best_predictions(
         filtered = filtered[:top_n]
         return PredictionResponse(
             status="ok",
+            mode=mode,
             date=cached_result.date,
             signals=filtered,
             cached=True,
@@ -350,9 +455,9 @@ async def get_best_predictions(
             model_metrics=cached_result.model_metrics,
         )
 
-    log.info("Screener: cache miss or force. Queuing background prediction task…")
+    log.info("Screener: cache miss or force. Queuing background prediction task… mode=%s", mode)
     _is_computing = True
-    background_tasks.add_task(_run_and_cache_predictions, source="api")
+    background_tasks.add_task(_run_and_cache_predictions, source="api", mode=mode)
     
     return JSONResponse(
         status_code=202,
@@ -374,8 +479,8 @@ async def get_prediction_sectors():
 async def clear_prediction_cache(db: Session = Depends(get_db)):
     """Clear the prediction cache (admin use). Next request will recompute."""
     global _cache
-    _cache["result"] = None
-    _cache["timestamp"] = None
+    _cache["live"] = {"result": None, "timestamp": None}
+    _cache["previous_close"] = {"result": None, "timestamp": None}
     db.query(PredictionCache).delete()
     db.commit()
     return {"status": "cleared"}

@@ -184,6 +184,7 @@ export type PredictionExplanation = {
 
 export type PredictionResponse = {
   status: string; // "ok" or "computing"
+  mode?: "live" | "previous_close";
   date: string;
   signals?: PredictionItem[]; // Now optional since it's omitted in computing state
   cached: boolean;
@@ -246,10 +247,11 @@ export const api = {
       apiFetch<BacktestResponse>("/api/backtest", { method: "POST", body: req, signal }),
   },
   predict: {
-    best: (top_n: number = 10, sector?: string, force?: boolean) => {
+    best: (top_n: number = 10, sector?: string, force?: boolean, mode: "live" | "previous_close" = "previous_close") => {
       const params = new URLSearchParams({ top_n: String(top_n) });
       if (sector) params.set("sector", sector);
       if (force) params.set("force", "true");
+      params.set("mode", mode);
       return apiFetch<PredictionResponse>(`/api/predict/best?${params}`);
     },
     sectors: () => apiFetch<string[]>("/api/predict/sectors"),
