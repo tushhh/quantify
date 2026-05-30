@@ -165,16 +165,16 @@ export default function ScreenerPage() {
   const shorts = signals.filter(s => s.side === "short").length;
 
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in relative overflow-hidden prediction-aurora">
+    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in relative overflow-hidden prediction-aurora">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 right-[-8%] h-72 w-72 rounded-full bg-amber-400/10 blur-3xl animate-float-slow" />
         <div className="absolute top-24 left-[-6%] h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl animate-float-slower" />
         <div className="absolute bottom-[-20%] right-1/3 h-80 w-80 rounded-full bg-rose-400/10 blur-[120px] animate-float-slow" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3 relative z-10">
 
         {/* ── Page Header ──────────────────────────────────────────────── */}
-        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div className="animate-fade-in-up flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/20 bg-amber-400/10 text-[10px] uppercase tracking-[0.22em] text-amber-200">
               Prediction Lab

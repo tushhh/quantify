@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
-      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-sans selection:bg-[var(--accent)] selection:text-[#050505]">
+      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-sans selection:bg-[var(--accent)] selection:text-[#050505] overflow-x-hidden">
         <Navbar />
-        <main className="min-h-screen relative z-10 pt-24 pb-12">
+        <main className="min-h-[100svh] relative z-10">
           {children}
         </main>
       </body>

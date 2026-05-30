@@ -30,11 +30,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[100svh] flex items-start justify-center px-4 pt-16 pb-16">
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors mb-8">
+      <div className="relative w-full max-w-md mt-2">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors mb-6">
           <ArrowLeft size={14} />
           Back to home
         </Link>

@@ -50,6 +50,29 @@ function DriverLegend() {
   );
 }
 
+function DriverPills({ items }: { items?: PredictionItem["explanations"] }) {
+  if (!items || items.length === 0) {
+    return <span className="text-[10px] text-slate-600">No drivers</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.slice(0, 3).map((item) => (
+        <span
+          key={`${item.feature}-${item.zscore}`}
+          className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/50 bg-slate-900/55 px-2.5 py-1 text-[10px] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+        >
+          <span className={item.direction === "higher" ? "text-emerald-400" : "text-red-400"}>
+            {item.direction === "higher" ? "▲" : "▼"}
+          </span>
+          <span className="font-mono">{item.feature}</span>
+          <span className="text-slate-500">z={item.zscore.toFixed(2)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Loading state ─────────────────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -419,10 +442,10 @@ export default function DashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-20 pb-24 md:pb-12 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 pt-16 pb-16 md:pb-10 animate-fade-in">
 
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
         <div className="flex items-center gap-4">
           <div className="w-11 h-11 gradient-accent rounded-3xl flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/20 shrink-0">
             <UserCircle className="text-white" size={22} />
@@ -590,11 +613,9 @@ export default function DashboardPage() {
                         <div className={`text-xs font-mono mt-2 ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                           {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
                         </div>
-                        {p.explanations && p.explanations.length > 0 && (
-                          <div className="mt-2 text-[10px] text-slate-500">
-                            Drivers: {p.explanations.slice(0, 2).map((e) => e.feature).join(", ")}
-                          </div>
-                        )}
+                        <div className="mt-2">
+                          <DriverPills items={p.explanations} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -618,11 +639,9 @@ export default function DashboardPage() {
                       <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                         {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
                       </div>
-                      {p.explanations && p.explanations.length > 0 && (
-                        <div className="text-[10px] text-slate-500 mt-1">
-                          Drivers: {p.explanations.slice(0, 2).map((e) => e.feature).join(", ")}
-                        </div>
-                      )}
+                      <div className="mt-1.5">
+                        <DriverPills items={p.explanations} />
+                      </div>
                     </div>
                     <div><Badge variant={p.side === "long" ? "success" : "danger"} className="uppercase">{p.side}</Badge></div>
                     <div className={`text-right font-sans font-bold text-sm tabular-nums ${p.strength >= 0 ? "text-emerald-400" : "text-red-400"}`}>

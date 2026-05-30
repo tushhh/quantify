@@ -45,11 +45,11 @@ const METRICS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in text-slate-100 selection:bg-blue-500/30 relative">
+    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in text-slate-100 selection:bg-blue-500/30 relative">
 
-      <main className="pt-4 pb-0">
-        <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-7 animate-fade-in-up">
+      <main className="pt-0 pb-0">
+        <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-10 items-center">
+          <div className="space-y-6 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/50 text-xs text-blue-300">
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               Modern trading platform, rebuilt
@@ -62,7 +62,7 @@ export default function LandingPage() {
                   Cleaner execution.
                 </span>
               </h1>
-              <p className="max-w-xl text-slate-400 text-lg md:text-xl leading-relaxed">
+              <p className="max-w-xl text-slate-400 text-lg md:text-xl leading-relaxed mt-2">
                 Quantify combines portfolio tracking, Telegram automation, strategy research, and backtesting in a sharper interface with working controls, clearer feedback, and a simplified backtest flow.
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="pt-6">
+            <div className="pt-4">
               <div className="border border-slate-700 rounded-2xl p-1 stats-row bg-slate-800/20">
                 {METRICS.map((item, i) => (
                   <div 
@@ -152,7 +152,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-20 md:mt-28">
+        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
           <div className="flex items-end justify-between gap-6 mb-8">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-blue-400">What changed</p>
@@ -176,7 +176,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-20 md:mt-28">
+        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
           <div className="bg-slate-800/30 rounded-[32px] p-8 md:p-12 border border-slate-700 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 ">
             <div className="max-w-2xl relative z-10">
               <p className="text-xs uppercase tracking-[0.22em] text-blue-400">Next step</p>

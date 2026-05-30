@@ -53,11 +53,11 @@ export default function UniversePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pt-20 pb-24 md:pb-12 flex flex-col gap-4 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 pt-16 pb-16 md:pb-10 flex flex-col gap-3 animate-fade-in">
 
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2.5 mb-1">
+        <div className="flex items-center gap-2.5 mb-0.5">
           <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
             <Globe size={15} className="text-white" />
           </div>

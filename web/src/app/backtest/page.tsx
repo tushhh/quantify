@@ -109,18 +109,18 @@ export default function BacktestPage() {
   const m = backtestResult?.metrics;
 
   return (
-    <div className="min-h-screen pt-20 pb-24 md:pb-12 animate-fade-in">
+    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in">
       {/* Subtle bg gradient */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <div className="absolute inset-0 bg-[var(--bg)]" />
         <div className="absolute top-0 left-1/3 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4">
+      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="animate-fade-in-up">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-0.5">
             <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
               <Zap size={17} className="text-white" />
             </div>
