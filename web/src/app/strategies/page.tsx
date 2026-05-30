@@ -23,7 +23,7 @@ function StrategyCard({ info }: { info: StrategyInfo }) {
   const c = STRATEGY_COLORS[info.name] ?? DEFAULT_COLOR;
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden hover:border-[var(--border-bright)] transition-all">
+    <Card variant="compact" className="overflow-hidden hover:border-[var(--border-bright)] transition-all">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors"
@@ -66,7 +66,7 @@ function StrategyCard({ info }: { info: StrategyInfo }) {
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -192,7 +192,7 @@ export default function StrategiesPage() {
       )}
 
       {/* Info footer */}
-      <Card>
+      <Card variant="compact">
         <p className="text-xs text-slate-500 leading-relaxed">
           All strategy parameters are fully configurable on the{" "}
           <a href="/backtest" className="text-blue-400 hover:text-blue-300 transition-colors">Backtest</a> page.

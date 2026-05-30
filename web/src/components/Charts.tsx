@@ -45,8 +45,8 @@ export function EquityCurveChart({ data }: { data: EquityPoint[] }) {
   const hasBenchmark = data.some((d) => d.benchmark_pct !== undefined);
 
   return (
-    <Card>
-      <CardHeader title="Equity Curve" subtitle="Portfolio vs benchmark (% return from start)" />
+    <Card variant="compact">
+      <CardHeader title="Equity Curve" subtitle="Portfolio vs benchmark (% return from start)" density="compact" />
       <div className="h-64 sm:h-72">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -122,8 +122,8 @@ export function DrawdownChart({ data }: { data: DrawdownPoint[] }) {
   }));
 
   return (
-    <Card>
-      <CardHeader title="Drawdown" subtitle="Underwater percentage from peak equity" />
+    <Card variant="compact">
+      <CardHeader title="Drawdown" subtitle="Underwater percentage from peak equity" density="compact" />
       <div className="h-44 sm:h-56">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={normalizedData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>

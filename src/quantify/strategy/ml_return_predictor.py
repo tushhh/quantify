@@ -404,7 +404,18 @@ class MLReturnPredictorStrategy(Strategy):
             return
 
         X = X.sort_index()
-        y = y.loc[X.index]
+        # Prefer positional alignment: the training data (X, y) are built together
+        # in _build_training_data and should have the same length. Reindexing
+        # against duplicate timestamp labels can fail, so align by position.
+        if len(y) != len(X):
+            log.error(
+                "%s: training length mismatch: X=%d rows, y=%d rows — aborting training",
+                self.name,
+                len(X),
+                len(y),
+            )
+            return
+        y = pd.Series(y.values, index=X.index)
 
         # Time-ordered train/validation split for diagnostics
         X_train = X

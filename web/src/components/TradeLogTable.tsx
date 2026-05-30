@@ -74,8 +74,8 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
   };
 
   return (
-    <Card>
-      <CardHeader title="Trade Log" subtitle={`${filtered.length} of ${trades.length} trades`}>
+    <Card variant="compact">
+      <CardHeader title="Trade Log" subtitle={`${filtered.length} of ${trades.length} trades`} density="compact">
         <input
           type="text"
           placeholder="Search symbol / strategy…"

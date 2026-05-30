@@ -90,7 +90,7 @@ function TradeCard({
   };
 
   return (
-    <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
+    <Card variant="compact" className="shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {/* alert stripe */}
       {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-red-500 animate-pulse" />}
 
@@ -180,7 +180,7 @@ function TradeCard({
           <span className="text-right text-[var(--color-cta)]">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -475,7 +475,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Result panel */}
-          <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden flex flex-col min-h-[340px]">
+          <Card variant="compact" className="overflow-hidden flex flex-col min-h-[340px]">
 
             {/* Error state */}
             {predError && !loadingPreds && (
@@ -605,16 +605,16 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Info card */}
           {!loadingPreds && predictions.length > 0 && (
-            <div className="rounded-3xl bg-[var(--color-cta)]/[0.04] border border-[var(--color-cta)]/15 p-4 flex items-start gap-3 animate-fade-in">
+            <Card variant="compact" className="bg-[var(--color-cta)]/[0.04] p-4 flex items-start gap-3 animate-fade-in">
               <Zap size={14} className="text-[var(--color-cta)] mt-0.5 shrink-0" />
               <p className="text-xs text-slate-500 leading-relaxed">
                 Signals reflect expected return over the next trading window. These are model predictions, not financial advice.
               </p>
-            </div>
+            </Card>
           )}
         </div>
 
@@ -649,7 +649,7 @@ export default function DashboardPage() {
           </div>
 
           {/* New trade form */}
-          <div className="rounded-3xl bg-[var(--surface)] border border-[var(--border)] p-4">
+          <Card variant="compact" className="p-4">
             <h3 className="text-xs font-bold text-[var(--color-cta)] mb-4 flex items-center gap-2 uppercase tracking-wider">
               <Plus size={14} /> Log a New Trade
             </h3>
@@ -819,7 +819,7 @@ export default function DashboardPage() {
                 )}
               </button>
             </form>
-          </div>
+          </Card>
 
           {/* Active positions */}
           <div className="flex flex-col gap-3">

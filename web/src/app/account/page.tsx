@@ -118,7 +118,7 @@ export default function AccountPage() {
       )}
 
       {/* Profile Card */}
-      <Card className="bg-white/[0.02] border-white/5 p-6">
+      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <UserCircle className="text-white" size={32} />
@@ -131,7 +131,7 @@ export default function AccountPage() {
       </Card>
 
       {/* Telegram Settings */}
-      <Card className="bg-white/[0.02] border-white/5 p-6">
+      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
         <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
           <Send size={18} className="text-blue-400" />
           Telegram Alerts
@@ -166,7 +166,7 @@ export default function AccountPage() {
       </Card>
 
       {/* Change Password */}
-      <Card className="bg-white/[0.02] border-white/5 p-6">
+      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
         <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
           <Lock size={18} className="text-blue-400" />
           Change Password
@@ -211,7 +211,7 @@ export default function AccountPage() {
       </Card>
 
       {/* Danger Zone */}
-      <Card className="bg-rose-500/[0.02] border-rose-500/10 p-6">
+      <Card variant="compact" className="bg-rose-500/[0.02] border-rose-500/10 p-6">
         <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
           <Shield size={18} className="text-rose-400" />
           Session

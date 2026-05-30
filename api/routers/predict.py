@@ -273,6 +273,47 @@ async def get_best_predictions(
         if cached_ts is not None and (now - cached_ts) < 180:
             raise HTTPException(status_code=429, detail="Please wait at least 3 minutes between manual re-runs.")
 
+    # If the caller requested a forced re-run, run synchronously and return fresh results
+    if force and not _is_computing:
+        log.info("Screener: performing forced synchronous recompute (api request)...")
+        try:
+            result = _run_prediction_sync()
+
+            # Save to database
+            db_obj = SessionLocal()
+            try:
+                db_obj.query(PredictionCache).delete()
+                cache_entry = PredictionCache(result_json=result.model_dump_json())
+                db_obj.add(cache_entry)
+                db_obj.commit()
+                log.info("Screener: forced predictions saved to DB successfully.")
+            except Exception as e:
+                log.error(f"Failed to save forced prediction cache to DB: {e}")
+            finally:
+                db_obj.close()
+
+            # Update in-memory cache
+            _cache["result"] = result
+            _cache["timestamp"] = time.time()
+
+            # Apply sector filter and top_n
+            filtered = result.signals
+            if sector:
+                filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
+            filtered = filtered[:top_n]
+
+            return PredictionResponse(
+                status="ok",
+                date=result.date,
+                signals=filtered,
+                cached=False,
+                cache_age_minutes=0.0,
+                universe_size=result.universe_size,
+                model_metrics=result.model_metrics,
+            )
+        except Exception as e:
+            log.exception("Forced synchronous prediction failed")
+            raise HTTPException(status_code=500, detail="Forced prediction failed")
     if cache_valid and cached_result is not None:
         age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
         log.info("Screener: serving from cache (age=%.1f min)", age_minutes)

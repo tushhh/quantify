@@ -10,6 +10,28 @@
 
 ---
 
+## What's New (May 2026)
+
+- Prediction API: added `/api/predict/best` endpoint that returns ML-ranked signals (5‑day horizon). Responses include per-symbol driver explanations and optional `model_metrics` (rmse, mae, hit_rate, spearman_ic).
+- Cache & re-run: predictions are cached (in-memory + DB) and a manual re-run is supported via `?force=true` — the API now performs a synchronous recompute for forced requests and writes fresh results to the cache. Use the `PREDICTION_CACHE_TTL_SECONDS` and `PREDICTION_DATA_CACHE_DIR` env vars to control cache TTL and market-data cache location.
+- ML backends: LightGBM/XGBoost/CatBoost are optional. If they are not installed the project falls back to an sklearn ensemble; install the preferred libraries for better performance:
+  - `pip install lightgbm xgboost catboost`
+- Feature engineering: feature NaN/Inf handling improved to avoid corrupt z-scores. Targets are winsorized by default to reduce outlier impact.
+- Frontend: `web` UI updated with a compact card variant for dense tables, global spacing tokens (8/12/16px grid), and driver/explanation pills in the screener UI. The Next.js app uses `next` 16 and Turbopack; run `npm run dev` for local development and `npm run build` for production builds.
+- Dev notes: when running locally, start the backend with a local SQLite DB if you want to avoid optional Postgres/psycopg dependencies:
+
+```powershell
+$env:DATABASE_URL='sqlite:///./data/quantify.db'; \
+\.venv\Scripts\python.exe -m uvicorn api.main:app --port 8000
+```
+
+Also install `uvicorn` in the virtualenv if it's missing: `pip install uvicorn[standard]`.
+
+If you rely on indicator backfills, install `pandas-ta` (`pip install pandas-ta`) to enable ta helpers.
+
+These changes improve transparency (explanations), reliability (cache + stable training), and UI density (compact cards and spacing tokens).
+
+
 Quantify is a modular, research-driven **quantitative trading framework** built in Python. It ships with six production-ready strategies, a full backtesting engine with realistic cost modeling, a multi-layered risk management system, and seamless integration with [Alpaca Markets](https://alpaca.markets/) for paper and live trading.
 
 ## Highlights

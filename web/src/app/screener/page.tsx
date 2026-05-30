@@ -227,8 +227,8 @@ export default function ScreenerPage() {
           <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
 
             {/* Filters */}
-            <Card>
-              <CardHeader title="Filters" subtitle="Narrow your results" />
+            <Card variant="compact">
+              <CardHeader title="Filters" subtitle="Narrow your results" density="compact" />
               <div className="flex flex-col gap-4">
 
                 <div>
@@ -294,8 +294,8 @@ export default function ScreenerPage() {
 
             {/* Summary stats */}
             {result && !loading && (
-              <Card>
-                <CardHeader title="Summary" />
+              <Card variant="compact">
+                <CardHeader title="Summary" density="compact" />
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-500">Showing</span>
@@ -341,8 +341,8 @@ export default function ScreenerPage() {
             )}
 
             {/* How it works */}
-            <Card>
-              <CardHeader title="How it works" />
+            <Card variant="compact">
+              <CardHeader title="How it works" density="compact" />
               <div className="flex flex-col gap-3 text-xs text-slate-400 leading-relaxed">
                 <p>The ML ensemble trains on <strong className="text-slate-200">3 years of price & feature data</strong> from the S&P 500, then predicts each stock's 5-day forward return.</p>
                 <p>Stocks are ranked by predicted return, and the <strong className="text-slate-200">top decile → Long</strong>, <strong className="text-slate-200">bottom decile → Short</strong>.</p>

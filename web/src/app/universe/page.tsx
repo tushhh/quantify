@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { Search, Globe } from "lucide-react";
 import { api } from "@/lib/api";
 import type { TickerInfo } from "@/lib/api";
-import { Skeleton, Badge } from "@/components/ui";
+import { Skeleton, Badge, Card } from "@/components/ui";
 
 const SECTOR_COLORS: Record<string, string> = {
   "Technology":              "bg-blue-500/15   text-blue-400   border border-blue-500/20",
@@ -154,7 +154,7 @@ export default function UniversePage() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+        <Card variant="compact" className="overflow-hidden">
           <div className="grid grid-cols-3 px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[var(--border)] bg-black/20">
             <span>Symbol</span>
             <span>Company</span>
@@ -174,7 +174,7 @@ export default function UniversePage() {
               <div className="text-center py-12 text-slate-600 text-sm">No tickers match your filters</div>
             )}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

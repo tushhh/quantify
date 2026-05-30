@@ -137,8 +137,8 @@ export default function BacktestPage() {
           <div className="lg:col-span-1 flex flex-col gap-4 animate-slide-in-left">
 
             {/* Basic parameters */}
-            <Card>
-              <CardHeader title="Configuration" subtitle="Simulation parameters" />
+            <Card variant="compact">
+              <CardHeader title="Configuration" subtitle="Simulation parameters" density="compact" />
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -190,8 +190,8 @@ export default function BacktestPage() {
             </Card>
 
             {/* Risk profile */}
-            <Card>
-              <CardHeader title="Risk Profile" subtitle="Portfolio limits & position sizing" />
+            <Card variant="compact">
+              <CardHeader title="Risk Profile" subtitle="Portfolio limits & position sizing" density="compact" />
               {presets.length > 0 ? (
                 <RiskProfileSelector presets={presets} />
               ) : (
@@ -216,8 +216,8 @@ export default function BacktestPage() {
 
             {showAdvanced && (
               <div className="animate-fade-in-up flex flex-col gap-4">
-                <Card>
-                  <CardHeader title="Trading Costs" subtitle="Slippage, spread, and commission" />
+                <Card variant="compact">
+                  <CardHeader title="Trading Costs" subtitle="Slippage, spread, and commission" density="compact" />
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Comm. ($/sh)</label>
@@ -255,8 +255,8 @@ export default function BacktestPage() {
                   </div>
                 </Card>
 
-                <Card>
-                  <CardHeader title="Strategy Allocations" subtitle="Enable strategies & set weights" />
+                <Card variant="compact">
+                  <CardHeader title="Strategy Allocations" subtitle="Enable strategies & set weights" density="compact" />
                   {strategyInfos.length > 0 ? (
                     <StrategyConfigurator strategies={strategyInfos} />
                   ) : (
@@ -417,8 +417,8 @@ export default function BacktestPage() {
                 )}
 
                 {/* Metadata */}
-                <Card>
-                  <CardHeader title="Run Metadata" />
+                <Card variant="compact">
+                  <CardHeader title="Run Metadata" density="compact" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                     {Object.entries(backtestResult.metadata).map(([k, v]) => {
                       if (Array.isArray(v)) return null;
