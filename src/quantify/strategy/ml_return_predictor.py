@@ -212,6 +212,20 @@ class MLReturnPredictorStrategy(Strategy):
         self._last_feature_zscores: dict[str, dict[str, float]] = {}
         self._last_prediction_dispersion: dict[str, float] = {}
 
+        # Persistence paths
+        self._model_path = "./models/ml_return_predictor.joblib"
+        self._model_meta_path = "./models/ml_return_predictor_meta.json"
+
+        # Try to load persisted model if present
+        try:
+            import joblib
+
+            self._model = joblib.load(self._model_path)
+            log.info("%s: loaded persisted model from %s", self.name, self._model_path)
+        except Exception:
+            # No persisted model available — will train on demand
+            self._model = None
+
         # Accumulated training data (symbol-agnostic: stack all symbols)
         self._train_X: Optional[pd.DataFrame] = None
         self._train_y: Optional[pd.Series] = None
@@ -488,14 +502,17 @@ class MLReturnPredictorStrategy(Strategy):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
+                # Fit using DataFrame/Series to preserve feature names where
+                # possible. Many ML backends accept pandas objects and this
+                # preserves column names for later prediction.
                 if sample_weight is not None:
                     model.fit(
-                        X_train[self.features].values,
-                        y_train.values,
+                        X_train[self.features],
+                        y_train,
                         sample_weight=sample_weight,
                     )
                 else:
-                    model.fit(X_train[self.features].values, y_train.values)
+                    model.fit(X_train[self.features], y_train)
             except Exception as exc:
                 log.exception("%s: model training failed: %s", self.name, exc)
                 return
@@ -540,6 +557,26 @@ class MLReturnPredictorStrategy(Strategy):
         self._last_train_date = datetime.now(timezone.utc)
         log.info("%s: model training complete", self.name)
         log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
+
+        # Persist model and metadata for fast startup in production
+        try:
+            import joblib
+            import json
+            import os
+
+            os.makedirs(os.path.dirname(self._model_path), exist_ok=True)
+            joblib.dump(self._model, self._model_path)
+            meta = {
+                "last_train_date": self._last_train_date.isoformat() if self._last_train_date else None,
+                "model_backends": self._model_backends,
+                "feature_importances": self._feature_importances,
+                "model_metrics": self._model_metrics,
+            }
+            with open(self._model_meta_path, "w") as fh:
+                json.dump(meta, fh)
+            log.info("%s: persisted model and metadata", self.name)
+        except Exception:
+            log.debug("%s: model persistence failed", self.name)
 
         # Validation diagnostics (optional)
         self._model_metrics = None
@@ -622,7 +659,9 @@ class MLReturnPredictorStrategy(Strategy):
         predictions: dict[str, float] = {}
 
         try:
-            model_preds = self._model.predict(feat_df.values)
+            # Prefer passing a DataFrame to preserve feature names
+            model_input = feat_df[self.features] if all(f in feat_df.columns for f in self.features) else feat_df
+            model_preds = self._model.predict(model_input)
             for symbol, pred in zip(feat_df.index, model_preds):
                 predictions[symbol] = float(pred)
         except Exception as exc:

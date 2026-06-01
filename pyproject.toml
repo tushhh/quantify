@@ -33,6 +33,8 @@ dev = [
     "pytest-cov>=4.1",
     "ruff>=0.1",
     "mypy>=1.5",
+    "optuna>=3.0",
+    "joblib>=1.3",
 ]
 dashboard = [
     "streamlit>=1.28",
@@ -50,6 +52,9 @@ packages = ["src/quantify"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.poetry.extras]
+optuna = ["optuna"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
