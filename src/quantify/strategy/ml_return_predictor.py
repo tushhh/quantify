@@ -37,15 +37,15 @@ Model:
     to tune for a specific universe
 
 Walk-forward:
-  - Minimum 504 bars (2 trading years) before initial training
-  - Re-train monthly (every ~21 trading days)
-  - Expanding window: all history from inception is used
+    - Minimum 504 bars (2 trading years) before initial training
+    - Re-train monthly (every ~21 trading days)
+    - Rolling training window (default ~3 years) with time-decay weighting
 
 Prediction → Signal:
-  - Predict 5-day return for each symbol
-  - Rank by predicted return, go long top decile, short bottom decile
-  - Strength: normalized predicted return in [-1, 1] using the max absolute
-    predicted return in the cross-section as the scale factor
+    - Predict 5-day return for each symbol
+    - Center predictions cross-sectionally before ranking
+    - Rank by centered predicted return, go long top decile, short bottom decile
+    - Strength: normalized centered return in [-1, 1] scaled by ensemble agreement
 
 Feature importance is embedded in signal metadata for transparency.
 """
@@ -76,6 +76,9 @@ _LONG_DECILE: float = 0.90          # top 10%
 _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
 _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
+_FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
+_TRAIN_WINDOW_DAYS: int = 756       # ~3 years of history for model training
+_DECAY_HALFLIFE_DAYS: int = 252     # time-decay half-life for sample weights
 
 # All available features from FeatureEngine
 _ALL_FEATURES: list[str] = [
@@ -147,6 +150,14 @@ class MLReturnPredictorStrategy(Strategy):
         Keyword arguments forwarded to LGBMRegressor (or fallback estimator).
     target_winsor_q:
         Quantile for winsorizing the training target (0 disables).
+    feature_winsor_q:
+        Quantile for winsorizing features per date (0 disables).
+    train_window_days:
+        Max number of trading days to keep in the training window.
+    sample_decay_half_life_days:
+        Exponential time-decay half-life in days for sample weights.
+    center_predictions:
+        If True, subtract the cross-sectional mean prediction before ranking.
     """
 
     name: str = "ml_return_predictor"
@@ -164,6 +175,10 @@ class MLReturnPredictorStrategy(Strategy):
         short_decile: float = _SHORT_DECILE,
         lgbm_params: Optional[dict[str, Any]] = None,
         target_winsor_q: float = _TARGET_WINSOR_Q,
+        feature_winsor_q: float = _FEATURE_WINSOR_Q,
+        train_window_days: int = _TRAIN_WINDOW_DAYS,
+        sample_decay_half_life_days: int = _DECAY_HALFLIFE_DAYS,
+        center_predictions: bool = True,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
@@ -174,6 +189,14 @@ class MLReturnPredictorStrategy(Strategy):
         self.short_decile = short_decile
         self.lgbm_params = lgbm_params if lgbm_params is not None else dict(_LGBM_PARAMS)
         self.target_winsor_q = target_winsor_q
+        self.feature_winsor_q = feature_winsor_q
+        self.train_window_days = train_window_days
+        self.sample_decay_half_life_days = sample_decay_half_life_days
+        self.center_predictions = center_predictions
+
+        # Ensure lookback window is large enough for the training horizon
+        min_lookback = max(self.min_train_bars + 30, self.train_window_days + 30)
+        self.lookback_days = max(self.lookback_days, min_lookback)
 
         # Model state
         self._model: Any = None
@@ -185,6 +208,7 @@ class MLReturnPredictorStrategy(Strategy):
         self._signal_cache: list[Signal] = []
         self._last_feature_values: dict[str, dict[str, float]] = {}
         self._last_feature_zscores: dict[str, dict[str, float]] = {}
+        self._last_prediction_dispersion: dict[str, float] = {}
 
         # Accumulated training data (symbol-agnostic: stack all symbols)
         self._train_X: Optional[pd.DataFrame] = None
@@ -213,6 +237,7 @@ class MLReturnPredictorStrategy(Strategy):
         self._train_y = None
         self._last_feature_values = {}
         self._last_feature_zscores = {}
+        self._last_prediction_dispersion = {}
         log.info("%s: model state reset on start", self.name)
 
     def generate_signals(self, data: dict[str, pd.DataFrame]) -> list[Signal]:
@@ -303,7 +328,7 @@ class MLReturnPredictorStrategy(Strategy):
         target vector from the available data.
         Features are cross-sectionally standardized per timestamp, while the
         target remains in raw return space so predictions stay interpretable.
-        Training data is limited to a sliding window of the last 1260 days and
+        Training data is limited to a sliding window of the last train_window_days and
         the target is winsorized to reduce the impact of outliers.
         """
         data = self._filter_to_universe(data)
@@ -348,11 +373,22 @@ class MLReturnPredictorStrategy(Strategy):
 
         all_data = pd.concat(X_parts, axis=0)
 
-        # Constrain to sliding window of ~5 years (1260 trading days)
+        # Constrain to sliding window (defaults to ~3 years)
         unique_dates = all_data.index.unique().sort_values()
-        if len(unique_dates) > 1260:
-            start_date = unique_dates[-1260]
+        if len(unique_dates) > self.train_window_days:
+            start_date = unique_dates[-self.train_window_days]
             all_data = all_data[all_data.index >= start_date]
+
+        # Winsorize feature tails per date to control outliers before z-scoring
+        if 0.0 < self.feature_winsor_q < 0.5:
+            q = self.feature_winsor_q
+            try:
+                winsorized = all_data[self.features].groupby(level=0).transform(
+                    lambda s: s.clip(lower=s.quantile(q), upper=s.quantile(1.0 - q))
+                )
+                all_data[self.features] = winsorized
+            except Exception:
+                log.debug("%s: feature winsorization skipped", self.name)
 
         # Winsorize target tails to reduce outlier impact
         if 0.0 < self.target_winsor_q < 0.5:
@@ -432,10 +468,19 @@ class MLReturnPredictorStrategy(Strategy):
             X_val = X[~train_mask]
             y_val = y[~train_mask]
 
+        sample_weight = self._compute_sample_weights(X_train.index)
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                model.fit(X_train[self.features].values, y_train.values)
+                if sample_weight is not None:
+                    model.fit(
+                        X_train[self.features].values,
+                        y_train.values,
+                        sample_weight=sample_weight,
+                    )
+                else:
+                    model.fit(X_train[self.features].values, y_train.values)
             except Exception as exc:
                 log.exception("%s: model training failed: %s", self.name, exc)
                 return
@@ -561,15 +606,39 @@ class MLReturnPredictorStrategy(Strategy):
 
         predictions: dict[str, float] = {}
 
-        for symbol in feat_df.index:
-            try:
-                row = feat_df.loc[symbol].values.reshape(1, -1)
-                pred = self._model.predict(row)[0]
+        try:
+            model_preds = self._model.predict(feat_df.values)
+            for symbol, pred in zip(feat_df.index, model_preds):
                 predictions[symbol] = float(pred)
+        except Exception as exc:
+            log.debug("%s: prediction batch failed: %s", self.name, exc)
+            for symbol in feat_df.index:
+                try:
+                    row = feat_df.loc[symbol].values.reshape(1, -1)
+                    pred = self._model.predict(row)[0]
+                    predictions[symbol] = float(pred)
+                except Exception as exc2:
+                    log.debug(
+                        "%s: prediction failed for %s: %s", self.name, symbol, exc2
+                    )
+
+        self._last_prediction_dispersion = {}
+        if hasattr(self._model, "estimators_"):
+            try:
+                estimator_preds: list[np.ndarray] = []
+                for estimator in self._model.estimators_:
+                    if estimator is None:
+                        continue
+                    estimator_preds.append(estimator.predict(feat_df.values))
+                if estimator_preds:
+                    stacked = np.vstack(estimator_preds)
+                    dispersion = np.nanstd(stacked, axis=0)
+                    self._last_prediction_dispersion = {
+                        symbol: float(disp)
+                        for symbol, disp in zip(feat_df.index, dispersion)
+                    }
             except Exception as exc:
-                log.debug(
-                    "%s: prediction failed for %s: %s", self.name, symbol, exc
-                )
+                log.debug("%s: prediction dispersion failed: %s", self.name, exc)
 
         return predictions
 
@@ -586,12 +655,22 @@ class MLReturnPredictorStrategy(Strategy):
         Rank predicted returns and emit signals for top/bottom decile.
         """
         pred_series = pd.Series(predictions)
-        pct_ranks = pred_series.rank(pct=True)
+        pred_for_rank = pred_series
+        if self.center_predictions and len(pred_series) > 1:
+            pred_for_rank = pred_series - pred_series.mean()
+        pct_ranks = pred_for_rank.rank(pct=True)
 
         # Normalise predictions to [-1, 1] for strength
-        max_abs = pred_series.abs().max()
+        max_abs = pred_for_rank.abs().max()
         if max_abs < 1e-10:
             max_abs = 1.0
+
+        dispersion_scale = None
+        if self._last_prediction_dispersion:
+            dispersion_vals = np.array(list(self._last_prediction_dispersion.values()))
+            dispersion_scale = float(np.median(dispersion_vals)) if dispersion_vals.size else None
+            if dispersion_scale is not None and dispersion_scale <= 0:
+                dispersion_scale = None
 
         signals: list[Signal] = []
 
@@ -608,22 +687,29 @@ class MLReturnPredictorStrategy(Strategy):
 
         for symbol, pct_rank in pct_ranks.items():
             pred_ret = pred_series[symbol]
-            norm_strength = float(np.clip(abs(pred_ret) / max_abs, 0.0, 1.0))
+            norm_strength = float(np.clip(abs(pred_for_rank[symbol]) / max_abs, 0.0, 1.0))
+
+            dispersion = self._last_prediction_dispersion.get(symbol)
+            confidence = 1.0
+            if dispersion is not None and dispersion_scale is not None:
+                confidence = float(1.0 / (1.0 + (dispersion / dispersion_scale)))
+                confidence = float(np.clip(confidence, 0.2, 1.0))
 
             explanations = self._build_explanations(symbol)
 
             if pct_rank >= self.long_decile:
                 direction = "long"
-                strength = norm_strength
+                strength = norm_strength * confidence
             elif pct_rank <= self.short_decile:
                 direction = "short"
-                strength = -norm_strength
+                strength = -norm_strength * confidence
             else:
                 direction = "close"
                 strength = 0.0
 
             meta: dict[str, Any] = {
                 "predicted_return_5d": round(pred_ret, 6),
+                "predicted_return_5d_centered": round(float(pred_for_rank[symbol]), 6),
                 "percentile_rank": round(float(pct_rank), 4),
                 "last_train_date": (
                     self._last_train_date.isoformat(timespec="seconds")
@@ -633,7 +719,12 @@ class MLReturnPredictorStrategy(Strategy):
                 "n_predictions": len(predictions),
                 "model_backends": list(self._model_backends),
                 "target_winsor_q": self.target_winsor_q,
+                "feature_winsor_q": self.feature_winsor_q,
+                "train_window_days": self.train_window_days,
             }
+            if dispersion is not None:
+                meta["prediction_dispersion"] = round(float(dispersion), 6)
+                meta["prediction_confidence"] = round(float(confidence), 4)
             if fi_meta is not None:
                 meta["feature_importance_top10"] = fi_meta
             if explanations:
@@ -706,6 +797,23 @@ class MLReturnPredictorStrategy(Strategy):
                 "score": round(float(score), 4),
             })
         return explanations
+
+    def _compute_sample_weights(self, index: pd.Index) -> Optional[np.ndarray]:
+        if self.sample_decay_half_life_days <= 0:
+            return None
+        if not isinstance(index, pd.Index) or index.empty:
+            return None
+        try:
+            dates = pd.to_datetime(index).normalize()
+            last_date = dates.max()
+            age_days = (last_date - dates).days.astype(float)
+            weights = np.power(0.5, age_days / float(self.sample_decay_half_life_days))
+            mean_weight = float(np.mean(weights)) if len(weights) else 1.0
+            if mean_weight > 0:
+                weights = weights / mean_weight
+            return weights
+        except Exception:
+            return None
 
     def _filter_to_universe(self, data: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
         universe_set = set(self.universe)
