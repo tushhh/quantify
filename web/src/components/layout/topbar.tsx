@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Sun, Moon, Menu, X } from "lucide-react";
+import { Bell, Sun, Moon, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useThemeStore, useThemeEffect } from "@/lib/themeStore";
 import { useAppStore } from "@/lib/store";
@@ -26,11 +26,7 @@ export default function Topbar({ title }: { title?: string }) {
           className="p-2 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-raised)]"
           aria-label="Toggle sidebar"
         >
-          {useAppStore.getState().sidebarOpen ? (
-            <X className="h-5 w-5 text-[var(--color-text-secondary)]" />
-          ) : (
-            <Menu className="h-5 w-5 text-[var(--color-text-secondary)]" />
-          )}
+          <Menu className="h-5 w-5 text-[var(--color-text-secondary)]" />
         </button>
         <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{inferredTitle}</h2>
       </div>
