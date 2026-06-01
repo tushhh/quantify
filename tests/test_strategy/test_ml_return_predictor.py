@@ -225,3 +225,21 @@ def test_ml_predictor_predict_cross_sectional_standardization():
     # and our dummy model is linear sum
     sum_preds = sum(predictions.values())
     assert abs(sum_preds) < 1e-7, f"Sum of predictions should be near 0 due to CS normalization, got {sum_preds}"
+
+
+def test_compute_sample_weights_returns_numpy():
+    """
+    Ensure `_compute_sample_weights` returns a numpy array of floats
+    (CatBoost and sklearn expect array-like, not pandas.Index).
+    """
+    strat = MLReturnPredictorStrategy(features=["return_5d", "volatility_20d"], min_train_bars=1)
+    import pandas as pd
+    import numpy as np
+
+    dates = pd.date_range("2020-01-01", periods=10, freq="D")
+    weights = strat._compute_sample_weights(dates)
+
+    assert weights is not None
+    assert isinstance(weights, np.ndarray), f"weights should be numpy.ndarray, got {type(weights)}"
+    assert weights.dtype == float or np.issubdtype(weights.dtype, np.floating)
+    assert len(weights) == len(dates)

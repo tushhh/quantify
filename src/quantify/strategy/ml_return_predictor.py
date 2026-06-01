@@ -179,6 +179,7 @@ class MLReturnPredictorStrategy(Strategy):
         train_window_days: int = _TRAIN_WINDOW_DAYS,
         sample_decay_half_life_days: int = _DECAY_HALFLIFE_DAYS,
         center_predictions: bool = True,
+        allow_fallback: bool = True,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
@@ -193,6 +194,7 @@ class MLReturnPredictorStrategy(Strategy):
         self.train_window_days = train_window_days
         self.sample_decay_half_life_days = sample_decay_half_life_days
         self.center_predictions = center_predictions
+        self.allow_fallback = allow_fallback
 
         # Ensure lookback window is large enough for the training horizon
         min_lookback = max(self.min_train_bars + 30, self.train_window_days + 30)
@@ -273,13 +275,26 @@ class MLReturnPredictorStrategy(Strategy):
         X_all, y_all = self._build_training_data(data)
 
         if X_all is None or len(X_all) < self.min_train_bars:
-            log.info(
-                "%s: only %d training samples available (need %d); "
-                "skipping signal generation",
+            n_samples = 0 if X_all is None else len(X_all)
+            log.warning(
+                "%s: only %d training samples available (need %d)",
                 self.name,
-                0 if X_all is None else len(X_all),
+                n_samples,
                 self.min_train_bars,
             )
+            # Fall back to a lightweight cross-sectional scorer if enabled
+            if self.allow_fallback:
+                log.info("%s: using lightweight fallback scorer", self.name)
+                predictions = self._fallback_predict(data)
+                if not predictions:
+                    self._last_rebalance_date = timestamp
+                    return []
+
+                signals = self._rank_and_signal(predictions, timestamp)
+                self._signal_cache = signals
+                self._last_rebalance_date = timestamp
+                return signals
+
             self._last_rebalance_date = timestamp
             return []
 
@@ -642,6 +657,48 @@ class MLReturnPredictorStrategy(Strategy):
 
         return predictions
 
+    def _fallback_predict(self, data: dict[str, pd.DataFrame]) -> dict[str, float]:
+        """
+        Lightweight fallback predictor used when there isn't enough training data.
+        Uses recent short-horizon returns (5-day) and adjusts by volatility.
+        Returns a dict of {symbol: score} where larger = more bullish.
+        """
+        data = self._filter_to_universe(data)
+        scores: dict[str, float] = {}
+
+        for symbol, df in data.items():
+            try:
+                if df.empty or len(df) < 5:
+                    continue
+
+                # Prefer feature if present
+                if "return_5d" in df.columns:
+                    recent_ret = float(df["return_5d"].iloc[-1])
+                else:
+                    recent_ret = float(df["close"].pct_change(5).iloc[-1])
+
+                # Simple volatility normaliser (20-day std of returns)
+                vol = float(df["close"].pct_change().rolling(20).std().iloc[-1])
+                if vol <= 0 or pd.isna(vol):
+                    vol = 1.0
+
+                score = recent_ret / vol
+                scores[symbol] = float(score)
+            except Exception:
+                continue
+
+        if not scores:
+            return {}
+
+        # Cross-sectional z-score to align with existing pipeline
+        s = pd.Series(scores)
+        if len(s) > 1:
+            s = (s - s.mean()) / (s.std() if s.std() > 0 else 1.0)
+        else:
+            s = s - s.mean()
+
+        return {k: float(v) for k, v in s.to_dict().items()}
+
     # ------------------------------------------------------------------
     # Signal generation
     # ------------------------------------------------------------------
@@ -811,7 +868,9 @@ class MLReturnPredictorStrategy(Strategy):
             mean_weight = float(np.mean(weights)) if len(weights) else 1.0
             if mean_weight > 0:
                 weights = weights / mean_weight
-            return weights
+            # Ensure we return a plain numpy array (CatBoost and some sklearn
+            # impls reject pandas Index objects as sample_weight).
+            return np.asarray(weights, dtype=float)
         except Exception:
             return None
 
