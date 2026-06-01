@@ -11,7 +11,7 @@ interface ThemeState {
   toggle: () => void;
 }
 
-const initialTheme: Theme = typeof window !== "undefined" ? ((localStorage.getItem("theme") as Theme) || "light") : "light";
+const initialTheme: Theme = typeof window !== "undefined" ? ((localStorage.getItem("theme") as Theme) || "dark") : "dark";
 
 export const useThemeStore = create<ThemeState>((set) => ({
   theme: initialTheme,

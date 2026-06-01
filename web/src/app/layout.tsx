@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme="light">
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme="dark">
       <body className="antialiased min-h-screen text-[var(--color-text-primary)] bg-[var(--color-bg)] selection:bg-[var(--color-accent)] selection:text-[var(--color-text-inverse)] overflow-hidden">
         <script
           dangerouslySetInnerHTML={{
