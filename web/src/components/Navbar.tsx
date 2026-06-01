@@ -18,7 +18,9 @@ export function Navbar() {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const loggedIn = typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
+  const [loggedIn, setLoggedIn] = useState<boolean>(() =>
+    typeof window !== "undefined" ? !!localStorage.getItem("token") : false
+  );
 
   const logout = () => {
     localStorage.removeItem("token");

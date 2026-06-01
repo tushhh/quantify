@@ -65,19 +65,23 @@ export function CardHeader({
   subtitle,
   children,
   density = "default",
+  className,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   children?: React.ReactNode;
   density?: "default" | "compact";
+  className?: string;
 }) {
   const spacing = density === "compact" ? "mb-3 pb-3" : "mb-4 pb-3";
   return (
-    <div className={clsx("flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-[var(--border)]", spacing)}>
-      <div className="space-y-1">
-        <h2 className="text-xl md:text-2xl font-heading text-[var(--color-text-primary)] font-medium tracking-wide">{title}</h2>
-        {subtitle && <p className="text-sm text-[var(--color-text-dim)]">{subtitle}</p>}
-      </div>
+    <div className={clsx("flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-[var(--border)]", spacing, className)}>
+      {title ? (
+        <div className="space-y-1">
+          <h2 className="text-xl md:text-2xl font-heading text-[var(--color-text-primary)] font-medium tracking-wide">{title}</h2>
+          {subtitle && <p className="text-sm text-[var(--color-text-dim)]">{subtitle}</p>}
+        </div>
+      ) : null}
       {children}
     </div>
   );
