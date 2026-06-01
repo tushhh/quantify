@@ -25,11 +25,11 @@ export function StrategyConfigurator({ strategies }: Props) {
     <div className="flex flex-col gap-2">
       {/* Allocation summary bar */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-slate-500">Total Allocation</span>
+        <span className="text-xs text-[var(--color-text-muted)]">Total Allocation</span>
         <span
           className={clsx(
             "text-xs font-mono font-bold",
-            allocationWarning ? "text-amber-400" : "text-emerald-400"
+            allocationWarning ? "text-[var(--color-warning)]" : "text-[var(--color-success)]"
           )}
         >
           {(totalAllocation * 100).toFixed(0)}%
@@ -48,18 +48,18 @@ export function StrategyConfigurator({ strategies }: Props) {
             className={clsx(
               "rounded-lg glass transition-all overflow-hidden",
               cfg.enabled
-                ? "border-blue-500/30"
-                : "border-slate-700/30 opacity-50"
+                ? "border-[var(--color-cta)]/30"
+                : "border-[var(--color-border)]/30 opacity-50"
             )}
           >
             {/* Header row */}
-            <div className="flex items-center gap-3 p-3 hover:bg-blue-500/5 transition-colors">
+            <div className="flex items-center gap-3 p-3 hover:bg-[var(--color-cta)]/10 transition-colors">
               {/* Enable toggle */}
               <button
                 onClick={() => setStrategy(info.name, { enabled: !cfg.enabled })}
                 className={clsx(
                   "w-9 h-5 rounded-full transition-colors shrink-0 relative",
-                  cfg.enabled ? "bg-blue-600" : "bg-slate-700"
+                  cfg.enabled ? "bg-[var(--color-cta)]" : "bg-[var(--color-surface-raised)]"
                 )}
                 aria-label={`${cfg.enabled ? "Disable" : "Enable"} ${info.label}`}
                 aria-pressed={cfg.enabled}
@@ -67,7 +67,7 @@ export function StrategyConfigurator({ strategies }: Props) {
               >
                 <span
                   className={clsx(
-                    "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all",
+                    "absolute top-0.5 w-4 h-4 rounded-full bg-[var(--color-surface)] shadow transition-all",
                     cfg.enabled ? "left-4" : "left-0.5"
                   )}
                 />
@@ -75,18 +75,18 @@ export function StrategyConfigurator({ strategies }: Props) {
 
               {/* Name */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{info.label}</p>
-                <p className="text-[10px] text-slate-500 line-clamp-1">{info.description}</p>
+                <p className="text-sm font-medium text-[var(--color-text-inverse)] truncate">{info.label}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)] line-clamp-1">{info.description}</p>
               </div>
 
               {/* Allocation */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-mono text-blue-400">
+                <span className="text-xs font-mono text-[var(--color-cta)]">
                   {(cfg.allocation * 100).toFixed(0)}%
                 </span>
                 <button
                   onClick={() => setExpanded(isOpen ? null : info.name)}
-                  className="text-slate-500 hover:text-white transition-colors"
+                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-colors"
                   disabled={!cfg.enabled}
                 >
                   {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -96,7 +96,7 @@ export function StrategyConfigurator({ strategies }: Props) {
 
             {/* Expanded params */}
             {isOpen && cfg.enabled && (
-              <div className="px-4 pb-4 pt-1 flex flex-col gap-3 border-t border-slate-700/30">
+              <div className="px-4 pb-4 pt-1 flex flex-col gap-3 border-t border-[var(--color-border)]/30">
                 {/* Allocation slider */}
                 <Slider
                   label="Allocation"
@@ -113,7 +113,7 @@ export function StrategyConfigurator({ strategies }: Props) {
                   if (p.type === "bool") {
                     return (
                       <div key={p.key} className="flex items-center justify-between">
-                        <label className="text-xs text-slate-400">{p.label}</label>
+                        <label className="text-xs text-[var(--color-text-secondary)]">{p.label}</label>
                         <button
                           onClick={() =>
                             setStrategy(info.name, {
@@ -122,12 +122,12 @@ export function StrategyConfigurator({ strategies }: Props) {
                           }
                           className={clsx(
                             "w-8 h-4 rounded-full transition-colors relative",
-                            currentVal ? "bg-blue-600" : "bg-slate-700"
+                            currentVal ? "bg-[var(--color-cta)]" : "bg-[var(--color-surface-raised)]"
                           )}
                         >
                           <span
                             className={clsx(
-                              "absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all",
+                              "absolute top-0.5 w-3 h-3 rounded-full bg-[var(--color-surface)] shadow transition-all",
                               currentVal ? "left-4" : "left-0.5"
                             )}
                           />
@@ -139,7 +139,7 @@ export function StrategyConfigurator({ strategies }: Props) {
                   if (p.type === "select" && p.options) {
                     return (
                       <div key={p.key} className="flex flex-col gap-1.5">
-                        <label className="text-xs text-slate-400">{p.label}</label>
+                        <label className="text-xs text-[var(--color-text-secondary)]">{p.label}</label>
                         <div className="flex gap-1.5 flex-wrap">
                           {p.options.map((opt) => (
                             <button
@@ -152,8 +152,8 @@ export function StrategyConfigurator({ strategies }: Props) {
                               className={clsx(
                                 "px-2.5 py-1 rounded text-[10px] font-semibold border transition-all",
                                 currentVal === opt
-                                  ? "bg-blue-600 border-blue-500 text-white"
-                                  : "bg-slate-700/30 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600"
+                                  ? "bg-[var(--color-cta)] border-[var(--color-cta)] text-[var(--color-text-inverse)]"
+                                  : "bg-[var(--color-surface-raised)]/30 border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
                               )}
                             >
                               {opt}

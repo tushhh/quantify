@@ -92,7 +92,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -101,42 +101,42 @@ export default function AccountPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-24 pb-24 md:pb-12 flex flex-col gap-4 animate-fade-in">
-      <h1 className="text-3xl font-black text-white">Account Settings</h1>
+      <h1 className="text-3xl font-black text-[var(--color-text-primary)]">Account Settings</h1>
 
       {/* Success/Error Feedback */}
       {success && (
-        <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-400 text-sm font-medium animate-fade-in">
+        <div className="flex items-center gap-3 bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 rounded-xl p-4 text-[var(--color-success)] text-sm font-medium animate-fade-in">
           <Check size={18} />
           {success}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm font-medium animate-fade-in">
+        <div className="flex items-center gap-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-xl p-4 text-[var(--color-danger)] text-sm font-medium animate-fade-in">
           <AlertCircle size={18} />
           {error}
         </div>
       )}
 
       {/* Profile Card */}
-      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
+      <Card variant="compact" className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] p-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <UserCircle className="text-white" size={32} />
+          <div className="w-16 h-16 bg-[var(--color-accent)] rounded-2xl flex items-center justify-center shadow-lg shadow-[rgba(0,0,0,0.08)]">
+            <UserCircle className="text-[var(--color-text-inverse)]" size={32} />
           </div>
           <div>
-            <p className="text-xl font-black text-white">{user.username}</p>
-            <p className="text-sm text-slate-500">User ID: #{user.id}</p>
+            <p className="text-xl font-black text-[var(--color-text-inverse)]">{user.username}</p>
+            <p className="text-sm text-[var(--color-text-muted)]">User ID: #{user.id}</p>
           </div>
         </div>
       </Card>
 
       {/* Telegram Settings */}
-      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
-        <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <Send size={18} className="text-blue-400" />
+      <Card variant="compact" className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] p-6">
+        <h2 className="text-lg font-bold text-[var(--color-text-inverse)] mb-1 flex items-center gap-2">
+          <Send size={18} className="text-[var(--color-accent)]" />
           Telegram Alerts
         </h2>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-[var(--color-text-muted)] mb-5">
           Connect your Telegram to receive automated buy/sell alerts when your trade holding period expires.
         </p>
 
@@ -144,21 +144,21 @@ export default function AccountPage() {
           <input
             type="text"
             placeholder="@yourusername"
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+            className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
             value={telegram}
             onChange={(e) => setTelegram(e.target.value)}
           />
           <button
             onClick={handleSaveTelegram}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 shrink-0"
+            className="bg-[var(--color-accent)] hover:brightness-95 text-[var(--color-text-inverse)] font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 shrink-0"
           >
             {saving ? "Saving..." : "Save"}
           </button>
         </div>
 
         {user.telegram_username && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400">
+          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--color-success)]">
             <Check size={12} />
             <span>Currently connected as <strong>{user.telegram_username}</strong></span>
           </div>
@@ -166,36 +166,36 @@ export default function AccountPage() {
       </Card>
 
       {/* Change Password */}
-      <Card variant="compact" className="bg-white/[0.02] border-white/5 p-6">
-        <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <Lock size={18} className="text-blue-400" />
+      <Card variant="compact" className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] p-6">
+        <h2 className="text-lg font-bold text-[var(--color-text-inverse)] mb-1 flex items-center gap-2">
+          <Lock size={18} className="text-[var(--color-accent)]" />
           Change Password
         </h2>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-[var(--color-text-muted)] mb-5">
           Update your account password. Must be at least 6 characters (max 72 for security).
         </p>
 
         <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">New Password</label>
+            <label className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">New Password</label>
             <input
               required
               type="password"
               maxLength={72}
               placeholder="Enter new password"
-              className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+              className="w-full mt-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Confirm New Password</label>
+            <label className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Confirm New Password</label>
             <input
               required
               type="password"
               maxLength={72}
               placeholder="Confirm new password"
-              className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+              className="w-full mt-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
@@ -203,7 +203,7 @@ export default function AccountPage() {
           <button
             type="submit"
             disabled={saving || !newPassword || !confirmPassword}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
+            className="w-full bg-[var(--color-accent)] hover:brightness-95 text-[var(--color-text-inverse)] font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
           >
             {saving ? "Updating..." : "Update Password"}
           </button>
@@ -211,17 +211,17 @@ export default function AccountPage() {
       </Card>
 
       {/* Danger Zone */}
-      <Card variant="compact" className="bg-rose-500/[0.02] border-rose-500/10 p-6">
-        <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <Shield size={18} className="text-rose-400" />
+      <Card variant="compact" className="p-6 bg-[var(--color-surface)] border-[var(--color-border)]">
+        <h2 className="text-lg font-bold text-[var(--color-text-inverse)] mb-1 flex items-center gap-2">
+          <Shield size={18} className="text-[var(--color-danger)]" />
           Session
         </h2>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-[var(--color-text-muted)] mb-5">
           Sign out of your account on this device.
         </p>
         <button
           onClick={logout}
-          className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold px-6 py-3 rounded-xl border border-rose-500/20 transition-all active:scale-95"
+          className="flex items-center gap-2 bg-[var(--color-danger)]/10 hover:bg-[var(--color-danger)]/20 text-[var(--color-danger)] font-bold px-6 py-3 rounded-xl border border-[var(--color-danger)]/20 transition-all active:scale-95"
         >
           <LogOut size={16} />
           Sign Out
@@ -230,22 +230,22 @@ export default function AccountPage() {
 
       {/* Telegram Activation Popup */}
       {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative text-center">
-            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Send size={28} className="text-blue-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-bg)]/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl p-8 relative text-center">
+            <div className="w-16 h-16 bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Send size={28} className="text-[var(--color-accent)]" />
             </div>
             
-            <h2 className="text-2xl font-black text-white mb-3">Activate Alerts</h2>
+            <h2 className="text-2xl font-black text-[var(--color-text-primary)] mb-3">Activate Alerts</h2>
             
-            <p className="text-slate-400 text-sm mb-4 leading-relaxed">
+            <p className="text-[var(--color-text-muted)] text-sm mb-4 leading-relaxed">
               To receive instant buy/sell alerts, you must connect your device to our Telegram bot.
             </p>
 
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-4 text-left">
-              <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
+            <div className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-xl p-4 mb-4 text-left">
+              <ol className="list-decimal list-inside text-sm text-[var(--color-text-muted)] space-y-2 font-medium">
                 <li>Click the button below to open Telegram.</li>
-                <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>
+                <li>Tap <span className="text-[var(--color-accent)] font-mono text-xs bg-[var(--color-accent)]/10 px-1.5 py-0.5 rounded">START</span> at the bottom of the chat.</li>
                 <li>Your device will be linked instantly.</li>
               </ol>
             </div>
@@ -255,13 +255,13 @@ export default function AccountPage() {
                 href="https://t.me/QuantifyAlertbot?start=start" 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[var(--color-accent)] hover:brightness-95 text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
               >
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>
               <button 
                 onClick={() => setShowPopup(false)}
-                className="w-full text-slate-500 hover:text-white font-semibold py-3 text-sm transition-colors"
+                className="w-full text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] font-semibold py-3 text-sm transition-colors"
               >
                 Close
               </button>

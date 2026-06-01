@@ -112,8 +112,8 @@ export default function BacktestPage() {
     <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in">
       {/* Subtle bg gradient */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
-        <div className="absolute inset-0 bg-[var(--bg)]" />
-        <div className="absolute top-0 left-1/3 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-[var(--color-bg)]" />
+        <div className="absolute top-0 left-1/3 w-80 h-80 bg-[var(--color-cta)]/10 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3">
@@ -121,12 +121,12 @@ export default function BacktestPage() {
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="animate-fade-in-up">
           <div className="flex items-center gap-3 mb-0.5">
-            <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-blue-900/30">
-              <Zap size={17} className="text-white" />
+            <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-[var(--color-cta)]/30">
+              <Zap size={17} className="text-[var(--color-text-inverse)]" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Backtest Engine</h1>
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Backtest engine</h1>
           </div>
-          <p className="text-slate-500 text-xs ml-12">
+          <p className="text-[var(--color-text-muted)] text-xs ml-12">
             Simulate strategies on historical data and analyze risk-adjusted performance metrics
           </p>
         </div>
@@ -142,27 +142,27 @@ export default function BacktestPage() {
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Start Date</label>
+                    <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Start Date</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                      className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">End Date</label>
+                    <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">End Date</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                      className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Initial Capital ($)</label>
+                  <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Initial Capital ($)</label>
                   <input
                     type="number"
                     value={initialCapital}
@@ -170,16 +170,16 @@ export default function BacktestPage() {
                     max={100_000_000}
                     step={1000}
                     onChange={(e) => setInitialCapital(Number(e.target.value))}
-                    className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                    className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Benchmark</label>
+                  <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Benchmark</label>
                   <select
                     value={benchmark}
                     onChange={(e) => setBenchmark(e.target.value)}
-                    className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                    className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                   >
                     <option value="SPY">SPY — S&P 500</option>
                     <option value="QQQ">QQQ — Nasdaq 100</option>
@@ -205,13 +205,13 @@ export default function BacktestPage() {
             {/* Advanced toggle */}
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-bright)] text-sm font-medium text-slate-300 hover:text-white transition-all"
+              className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border)] hover:border-[var(--border-bright)] text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-all"
             >
               <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-                {showAdvanced ? <ChevronUp size={14} className="text-blue-400" /> : <ChevronDown size={14} />}
+                {showAdvanced ? <ChevronUp size={14} className="text-[var(--color-cta)]" /> : <ChevronDown size={14} />}
                 Advanced Settings
               </span>
-              {showAdvanced && <span className="text-[10px] bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded-md border border-blue-500/20">Open</span>}
+              {showAdvanced && <span className="text-[10px] bg-[var(--color-cta)]/15 text-[var(--color-cta)] px-2 py-0.5 rounded-md border border-[var(--color-cta)]/20">Open</span>}
             </button>
 
             {showAdvanced && (
@@ -220,36 +220,36 @@ export default function BacktestPage() {
                   <CardHeader title="Trading Costs" subtitle="Slippage, spread, and commission" density="compact" />
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Comm. ($/sh)</label>
+                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Comm. ($/sh)</label>
                       <input
                         type="number"
                         step={0.001}
                         min={0}
                         value={costs.commission_per_share}
                         onChange={(e) => setCosts({ commission_per_share: Number(e.target.value) })}
-                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                        className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Spread (bps)</label>
+                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Spread (bps)</label>
                       <input
                         type="number"
                         step={1}
                         min={0}
                         value={costs.spread_bps}
                         onChange={(e) => setCosts({ spread_bps: Number(e.target.value) })}
-                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                        className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block mb-1.5">Slippage (%)</label>
+                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Slippage (%)</label>
                       <input
                         type="number"
                         step={0.01}
                         min={0}
                         value={costs.slippage_pct}
                         onChange={(e) => setCosts({ slippage_pct: Number(e.target.value) })}
-                        className="w-full rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-white focus:ring-blue-500/40 focus:ring-1 focus:outline-none transition-all"
+                        className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -285,8 +285,8 @@ export default function BacktestPage() {
                 disabled={!!dateError}
                 className={`w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${
                   isRunning
-                    ? "bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/15"
-                    : "gradient-accent text-white shadow-sm shadow-blue-900/30 hover:opacity-90"
+                    ? "bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/30 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/15"
+                    : "gradient-accent text-[var(--color-text-inverse)] shadow-sm shadow-[var(--color-cta)]/30 hover:opacity-90"
                 }`}
               >
                 {isRunning ? (
@@ -296,7 +296,7 @@ export default function BacktestPage() {
                 )}
               </button>
               {isRunning && progressMsg && (
-                <div className="text-center text-xs font-mono text-blue-400 animate-pulse">
+                <div className="text-center text-xs font-mono text-[var(--color-cta)] animate-pulse">
                   {progressMsg}
                 </div>
               )}
@@ -324,9 +324,9 @@ export default function BacktestPage() {
             {/* Running skeleton */}
             {isRunning && (
               <div className="flex flex-col gap-4 animate-fade-in-up">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <div className="w-3.5 h-3.5 border-2 border-blue-400/40 border-t-blue-400 rounded-full animate-spin shrink-0" />
-                  <span className="text-xs text-blue-300 font-medium">Running simulation…</span>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20">
+                  <div className="w-3.5 h-3.5 border-2 border-[var(--color-cta)]/40 border-t-[var(--color-cta)] rounded-full animate-spin shrink-0" />
+                  <span className="text-xs text-[var(--color-cta)] font-medium">Running simulation…</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 9 }).map((_, i) => (
@@ -342,14 +342,14 @@ export default function BacktestPage() {
             {backtestResult && m && !isRunning && (
               <div className="flex flex-col gap-5 animate-fade-in-up">
                 {/* Success banner */}
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span className="text-xs text-emerald-300 font-semibold">Backtest completed successfully</span>
+                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
+                  <div className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse shrink-0" />
+                  <span className="text-xs text-[var(--color-success)] font-semibold">Backtest completed successfully</span>
                 </div>
 
                 {/* Key metrics */}
                 <div>
-                  <p className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold mb-2">Performance Metrics</p>
+                  <p className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-semibold mb-2">Performance Metrics</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <MetricCard label="Total Return"   value={pct(m.total_return)}      positive={m.total_return > 0} size="lg" />
                     <MetricCard label="Ann. Return"    value={pct(m.annualized_return)} positive={m.annualized_return > 0} />
@@ -379,35 +379,38 @@ export default function BacktestPage() {
                   }, {} as Record<string, { trades: number; wins: number; pnl: number }>);
                   const rows = Object.entries(byStrategy).sort((a: any, b: any) => b[1].pnl - a[1].pnl);
                   return (
-                    <Card variant="compact">
-                      <CardHeader title="Strategy Breakdown" subtitle="P&L and win rate per strategy" density="compact" />
-                      <div className="overflow-x-auto -mx-1">
-                        <table className="w-full text-xs min-w-[420px]">
-                          <thead>
-                            <tr className="border-b border-[var(--border)]">
-                              {["Strategy", "Trades", "Win Rate", "Total P&L"].map(h => (
-                                <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map(([name, s]: [string, any]) => {
-                              const isPos = s.pnl >= 0;
-                              return (
-                                <tr key={name} className="border-b border-[var(--border)]/40 hover:bg-white/[0.02]">
-                                  <td className="px-3 py-2.5 text-slate-300 capitalize">{name.replace(/_/g, " ")}</td>
-                                  <td className="px-3 py-2.5 text-slate-400 tabular-nums">{s.trades}</td>
-                                  <td className="px-3 py-2.5 tabular-nums text-slate-300">{((s.wins / s.trades) * 100).toFixed(0)}%</td>
-                                  <td className={`px-3 py-2.5 font-mono font-semibold tabular-nums ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                                    {isPos ? "+" : ""}${s.pnl.toFixed(0)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </Card>
+                    <Card>
+                        <CardHeader className="p-4 pb-0">
+                          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Strategy Breakdown</h3>
+                          <p className="text-xs text-[var(--color-text-muted)]">P&L and win rate per strategy</p>
+                        </CardHeader>
+                        <div className="overflow-x-auto -mx-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+                          <table className="w-full text-sm min-w-[420px]">
+                            <thead>
+                              <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
+                                {["Strategy", "Trades", "Win Rate", "Total P&L"].map(h => (
+                                  <th key={h} className="align-middle text-left px-3 py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                              {rows.map(([name, s]: [string, any]) => {
+                                const isPos = s.pnl >= 0;
+                                return (
+                                  <tr key={name} className="hover:bg-[var(--color-surface-raised)] transition-colors">
+                                    <td className="px-3 py-2.5 text-[var(--color-text-primary)] capitalize">{name.replace(/_/g, " ")}</td>
+                                    <td className="px-3 py-2.5 text-[var(--color-text-secondary)] tabular-nums">{s.trades}</td>
+                                    <td className="px-3 py-2.5 tabular-nums text-[var(--color-text-primary)]">{((s.wins / s.trades) * 100).toFixed(0)}%</td>
+                                    <td className={`px-3 py-2.5 font-mono font-semibold tabular-nums ${isPos ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                                      {isPos ? "+" : ""}${s.pnl.toFixed(0)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </Card>
                   );
                 })()}
 
@@ -424,14 +427,14 @@ export default function BacktestPage() {
                       if (Array.isArray(v)) return null;
                       return (
                         <div key={k}>
-                          <span className="text-slate-600 block capitalize text-[10px] uppercase tracking-wider">{k.replace(/_/g, " ")}</span>
-                          <span className="font-mono text-slate-300 text-sm">{String(v)}</span>
+                          <span className="text-[var(--color-text-secondary)] block capitalize text-[10px] uppercase tracking-wider">{k.replace(/_/g, " ")}</span>
+                          <span className="font-mono text-[var(--color-text-primary)] text-sm">{String(v)}</span>
                         </div>
                       );
                     })}
                     <div>
-                      <span className="text-slate-600 block text-[10px] uppercase tracking-wider">Signals generated</span>
-                      <span className="font-mono text-slate-300 text-sm">{backtestResult.signals_count}</span>
+                      <span className="text-[var(--color-text-secondary)] block text-[10px] uppercase tracking-wider">Signals generated</span>
+                      <span className="font-mono text-[var(--color-text-primary)] text-sm">{backtestResult.signals_count}</span>
                     </div>
                   </div>
                 </Card>
@@ -441,20 +444,20 @@ export default function BacktestPage() {
             {/* Empty state */}
             {!backtestResult && !isRunning && !error && (
               <div className="flex flex-col items-center justify-center h-96 gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
-                  <TrendingUp size={36} className="text-blue-500/40" />
+                <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface)] border border-[var(--border)] flex items-center justify-center">
+                  <TrendingUp size={36} className="text-[var(--color-cta)]/40" />
                 </div>
                 <div className="text-center">
-                  <p className="text-slate-400 text-sm font-semibold">Ready to run</p>
-                  <p className="text-slate-600 text-xs mt-1.5 max-w-xs">
+                  <p className="text-[var(--color-text-secondary)] text-sm font-semibold">Ready to run</p>
+                  <p className="text-[var(--color-text-muted)] text-xs mt-1.5 max-w-xs">
                     Configure parameters on the left, then click{" "}
-                    <span className="text-blue-400 font-semibold">Run Backtest</span>
+                    <span className="text-[var(--color-cta)] font-semibold">Run Backtest</span>
                   </p>
                 </div>
-                <div className="flex gap-3 text-[10px] text-slate-600">
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">Up to 3 years of data</span>
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">6 strategies</span>
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">Full risk controls</span>
+                <div className="flex gap-3 text-[10px] text-[var(--color-text-secondary)]">
+                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">Up to 3 years of data</span>
+                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">6 strategies</span>
+                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">Full risk controls</span>
                 </div>
               </div>
             )}

@@ -16,7 +16,7 @@ type MetricCardProps = {
 export function MetricCard({ label, value, sub, positive, size = "md", className }: MetricCardProps) {
   const valueColor =
     positive === null || positive === undefined
-      ? "text-white"
+      ? "text-[var(--color-text-primary)]"
       : positive
       ? "text-[var(--color-cta)]"
       : "text-[var(--color-danger)]";
@@ -73,9 +73,9 @@ export function CardHeader({
 }) {
   const spacing = density === "compact" ? "mb-3 pb-3" : "mb-4 pb-3";
   return (
-    <div className={clsx("flex flex-col md:flex-row md:items-end md:justify-between gap-3 border-b border-[var(--border)]", spacing)}>
+    <div className={clsx("flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-[var(--border)]", spacing)}>
       <div className="space-y-1">
-        <h2 className="text-xl md:text-2xl font-heading text-white font-medium tracking-wide">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-heading text-[var(--color-text-primary)] font-medium tracking-wide">{title}</h2>
         {subtitle && <p className="text-sm text-[var(--color-text-dim)]">{subtitle}</p>}
       </div>
       {children}
@@ -99,11 +99,11 @@ export function Badge({
       className={clsx(
         "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase border backdrop-blur-md",
         {
-          "bg-[rgba(255,255,255,0.03)] text-[var(--color-text-dim)] border-[rgba(255,255,255,0.1)]": variant === "default",
-          "bg-[rgba(212,175,55,0.05)] text-[var(--color-cta)] border-[rgba(212,175,55,0.2)]":       variant === "success",
-          "bg-[rgba(224,122,95,0.05)] text-[var(--color-danger)] border-[rgba(224,122,95,0.2)]":    variant === "danger",
-          "bg-[rgba(245,158,11,0.05)] text-amber-500 border-[rgba(245,158,11,0.2)]":                variant === "warning",
-          "bg-[rgba(129,161,193,0.05)] text-[var(--color-info)] border-[rgba(129,161,193,0.2)]":    variant === "blue",
+          "bg-[var(--color-surface)]/10 text-[var(--color-text-dim)] border-[var(--color-border-subtle)]": variant === "default",
+          "bg-[var(--color-cta)]/10 text-[var(--color-cta)] border-[var(--color-cta)]/20":       variant === "success",
+          "bg-[var(--color-danger)]/10 text-[var(--color-danger)] border-[var(--color-danger)]/20":    variant === "danger",
+          "bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/20":                variant === "warning",
+          "bg-[var(--color-info)]/10 text-[var(--color-info)] border-[var(--color-info)]/20":    variant === "blue",
         },
         className
       )}
@@ -142,9 +142,9 @@ export function Button({
         {
           "btn-primary": variant === "primary",
           "btn-secondary": variant === "secondary",
-          "hover:bg-[rgba(255,255,255,0.03)] text-[var(--color-text-dim)] hover:text-white rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
+          "hover:bg-[var(--color-surface)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-text-inverse)] rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
             variant === "ghost",
-          "bg-transparent hover:bg-[rgba(224,122,95,0.1)] text-[var(--color-danger)] border border-[var(--color-danger)] rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
+          "bg-transparent hover:bg-[var(--color-danger)]/10 text-[var(--color-danger)] border border-[var(--color-danger)] rounded-full px-6 py-3 text-sm font-medium transition-all duration-300":
             variant === "danger",
         },
         className
@@ -195,7 +195,7 @@ export function Slider({
         <label className="text-xs font-medium text-[var(--color-text-dim)] uppercase tracking-wider">{label}</label>
         <span className="text-sm font-medium text-[var(--color-cta)]">{display}</span>
       </div>
-      <div className="relative h-1.5 rounded-full bg-[rgba(255,255,255,0.05)]">
+      <div className="relative h-1.5 rounded-full bg-[var(--color-border-subtle)]">
         <div
           className="absolute top-0 left-0 h-full rounded-full bg-[var(--color-cta)] shadow-[0_0_10px_var(--color-cta)]"
           style={{ width: `${pct}%` }}
@@ -227,10 +227,10 @@ export function Alert({
   className?: string;
 }) {
   const styles = {
-    info:    "bg-[rgba(129,161,193,0.05)] border-[var(--color-info)] text-[var(--color-info)]",
-    success: "bg-[rgba(212,175,55,0.05)] border-[var(--color-cta)] text-[var(--color-cta)]",
-    danger:  "bg-[rgba(224,122,95,0.05)] border-[var(--color-danger)] text-[var(--color-danger)]",
-    warning: "bg-[rgba(212,175,55,0.05)] border-[var(--color-cta)] text-[var(--color-cta)]",
+    info:    "bg-[var(--color-info)]/10 border-[var(--color-info)] text-[var(--color-info)]",
+    success: "bg-[var(--color-cta)]/10 border-[var(--color-cta)] text-[var(--color-cta)]",
+    danger:  "bg-[var(--color-danger)]/10 border-[var(--color-danger)] text-[var(--color-danger)]",
+    warning: "bg-[var(--color-warning)]/10 border-[var(--color-warning)] text-[var(--color-warning)]",
   };
   return (
     <div className={clsx("flex items-start gap-4 p-5 rounded-2xl border text-sm leading-relaxed animate-fade-in shadow-xl backdrop-blur-md", styles[variant], className)}>

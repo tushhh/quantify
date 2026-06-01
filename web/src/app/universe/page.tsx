@@ -8,18 +8,18 @@ import type { TickerInfo } from "@/lib/api";
 import { Skeleton, Badge, Card } from "@/components/ui";
 
 const SECTOR_COLORS: Record<string, string> = {
-  "Technology":              "bg-blue-500/15   text-blue-400   border border-blue-500/20",
-  "Consumer Discretionary":  "bg-violet-500/15 text-violet-400 border border-violet-500/20",
-  "Financials":              "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
-  "Healthcare":              "bg-rose-500/15   text-rose-400   border border-rose-500/20",
-  "Energy":                  "bg-amber-500/15  text-amber-400  border border-amber-500/20",
-  "Consumer Staples":        "bg-lime-500/15   text-lime-400   border border-lime-500/20",
-  "Industrials":             "bg-orange-500/15 text-orange-400 border border-orange-500/20",
-  "Communication Services":  "bg-cyan-500/15   text-cyan-400   border border-cyan-500/20",
-  "ETF":                     "bg-slate-500/15  text-slate-400  border border-slate-500/20",
+  "Technology":              "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Consumer Discretionary":  "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Financials":              "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Healthcare":              "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Energy":                  "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Consumer Staples":        "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Industrials":             "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "Communication Services":  "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
+  "ETF":                     "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]",
 };
 
-const DEFAULT_SECTOR = "bg-slate-500/15 text-slate-400 border border-slate-500/20";
+const DEFAULT_SECTOR = "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--border)]";
 
 export default function UniversePage() {
   const [tickers, setTickers] = useState<TickerInfo[]>([]);
@@ -59,11 +59,11 @@ export default function UniversePage() {
       <div>
         <div className="flex items-center gap-2.5 mb-0.5">
           <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-            <Globe size={15} className="text-white" />
+            <Globe size={15} className="text-[var(--color-text-inverse)]" />
           </div>
-          <h1 className="text-xl font-bold text-white">Universe</h1>
+          <h1 className="text-xl font-bold text-[var(--color-text-inverse)]">Universe</h1>
         </div>
-        <p className="text-xs text-slate-500 ml-10.5">
+        <p className="text-xs text-[var(--color-text-muted)] ml-10.5">
           {tickers.length} tickers across {sectors.length - 1} sectors — the pool used in all backtests.
         </p>
       </div>
@@ -78,8 +78,8 @@ export default function UniversePage() {
             className={clsx(
               "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider border transition-all",
               view === v
-                ? "bg-blue-500/15 border-blue-400/30 text-blue-200"
-                : "border-[var(--border)] text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/30 text-[var(--color-cta)]"
+                : "border-[var(--border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] hover:bg-[var(--color-surface)]"
             )}
           >
             {v === "sectors" ? "By Sector" : "All Tickers"}
@@ -90,13 +90,13 @@ export default function UniversePage() {
       {/* Search + sector filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
           <input
             type="text"
             placeholder="Search ticker or company name…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] text-sm text-slate-300 placeholder-[var(--text-dim)] pl-9 pr-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500/40 transition-all"
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--color-surface-raised)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] pl-9 pr-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/40 transition-all"
           />
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 shrink-0">
@@ -107,8 +107,8 @@ export default function UniversePage() {
               className={clsx(
                 "px-3 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap transition-all",
                 filter === s
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-[var(--surface-raised)] border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)]"
+                  ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)] text-[var(--color-cta)]"
+                  : "bg-[var(--color-surface-raised)] border-[var(--border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
               )}
             >
               {s}
@@ -131,16 +131,16 @@ export default function UniversePage() {
                 <span className={clsx("text-xs font-semibold px-2.5 py-1 rounded-lg", SECTOR_COLORS[sector] ?? DEFAULT_SECTOR)}>
                   {sector}
                 </span>
-                <span className="text-xs text-slate-600">{items.length} tickers</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">{items.length} tickers</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
                 {items.map((t) => (
                   <div
                     key={t.symbol}
-                    className="flex flex-col gap-1 p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-bright)] hover:bg-[var(--surface-raised)] transition-all cursor-default"
+                    className="flex flex-col gap-1 p-3 rounded-xl border border-[var(--border)] bg-[var(--color-surface)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)] transition-all cursor-default"
                   >
-                    <span className="font-mono font-bold text-white text-sm">{t.symbol}</span>
-                    <span className="text-[10px] text-slate-500 leading-tight line-clamp-2">{t.name}</span>
+                    <span className="font-mono font-bold text-[var(--color-text-primary)] text-sm">{t.symbol}</span>
+                    <span className="text-[10px] text-[var(--color-text-secondary)] leading-tight line-clamp-2">{t.name}</span>
                   </div>
                 ))}
               </div>
@@ -148,30 +148,30 @@ export default function UniversePage() {
           ))}
 
           {visible.length === 0 && (
-            <div className="text-center py-16 text-slate-600 text-sm">
+            <div className="text-center py-16 text-[var(--color-text-secondary)] text-sm">
               No tickers match your filters
             </div>
           )}
         </div>
       ) : (
         <Card variant="compact" className="overflow-hidden">
-          <div className="grid grid-cols-3 px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-[var(--border)] bg-black/20">
+          <div className="grid grid-cols-3 px-4 py-3 text-[10px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest border-b border-[var(--border)] bg-[var(--color-surface)]">
             <span>Symbol</span>
             <span>Company</span>
             <span className="text-right">Sector</span>
           </div>
           <div className="max-h-[560px] overflow-y-auto">
             {visible.map((t) => (
-              <div key={t.symbol} className="grid grid-cols-3 px-4 py-3 text-xs border-b border-[var(--border)]/40 hover:bg-white/[0.02] transition-colors">
-                <span className="font-mono font-bold text-white">{t.symbol}</span>
-                <span className="text-slate-400 line-clamp-1">{t.name}</span>
+              <div key={t.symbol} className="grid grid-cols-3 px-4 py-3 text-xs border-b border-[var(--border)]/40 hover:bg-[var(--color-surface-raised)] transition-colors">
+                <span className="font-mono font-bold text-[var(--color-text-inverse)]">{t.symbol}</span>
+                <span className="text-[var(--color-text-secondary)] line-clamp-1">{t.name}</span>
                 <div className="text-right">
                   <Badge variant="default" className="text-[9px]">{t.sector.split(" ")[0]}</Badge>
                 </div>
               </div>
             ))}
             {visible.length === 0 && (
-              <div className="text-center py-12 text-slate-600 text-sm">No tickers match your filters</div>
+              <div className="text-center py-12 text-[var(--color-text-secondary)] text-sm">No tickers match your filters</div>
             )}
           </div>
         </Card>

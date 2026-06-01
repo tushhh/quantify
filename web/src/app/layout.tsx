@@ -1,26 +1,46 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
+import Sidebar from "@/components/layout/sidebar";
+import Topbar from "@/components/layout/topbar";
 
-const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-heading" });
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
-
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 export const metadata: Metadata = {
   title: "Quantify | Institutional ML Trading",
   description:
     "Exclusive machine learning quantitative platform for elite trading execution.",
   keywords: ["wealth management", "quantitative trading", "institutional", "algorithmic trading"],
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
-      <body className="antialiased min-h-screen text-[var(--text)] bg-[var(--bg)] font-sans selection:bg-[var(--accent)] selection:text-[#050505] overflow-x-hidden">
-        <Navbar />
-        <main className="min-h-[100svh] relative z-10">
-          {children}
-        </main>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme="light">
+      <body className="antialiased min-h-screen text-[var(--color-text-primary)] bg-[var(--color-bg)] selection:bg-[var(--color-accent)] selection:text-[var(--color-text-inverse)] overflow-hidden">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+              try {
+                const stored = localStorage.getItem('theme');
+                if (stored) document.documentElement.setAttribute('data-theme', stored);
+              } catch (e) {
+                // ignore
+              }
+            })();`,
+          }}
+        />
+        <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
+          <Sidebar />
+          <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+            <Topbar />
+            <main className="flex-1 p-6">
+              {children}
+            </main>
+          </div>
+        </div>
       </body>
     </html>
   );

@@ -22,14 +22,14 @@ function HeaderCell({
   return (
     <th
       onClick={onClick}
-      className="text-left px-3 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-300 transition-colors select-none"
+      className="align-middle text-left px-3 py-3 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--color-text-primary)] transition-colors select-none"
     >
       <span className="flex items-center gap-1">
         {label}
         <ArrowUpDown
           size={8}
           className={clsx(
-            active ? "text-blue-400" : "text-slate-700",
+            active ? "text-[var(--color-info)]" : "text-[var(--color-text-muted)]",
             ascending ? "rotate-180" : ""
           )}
         />
@@ -74,21 +74,27 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
   };
 
   return (
-    <Card variant="compact">
-      <CardHeader title="Trade Log" subtitle={`${filtered.length} of ${trades.length} trades`} density="compact">
-        <input
-          type="text"
-          placeholder="Search symbol / strategy…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          className="text-xs rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] text-slate-300 placeholder-[var(--text-dim)] px-3 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-500/40 transition-all"
-        />
+    <Card>
+      <CardHeader className="flex items-center justify-between gap-3 p-4 pb-0">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Trade Log</h3>
+          <p className="text-xs text-[var(--color-text-muted)]">{filtered.length} of {trades.length} trades</p>
+        </div>
+        <div>
+          <input
+            type="text"
+            placeholder="Search symbol / strategy…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            className="text-xs rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] px-3 py-1.5 w-44 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-all"
+          />
+        </div>
       </CardHeader>
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-black/20">
-        <table className="w-full text-xs min-w-[600px] border-collapse">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-xs)]">
+        <table className="w-full text-sm min-w-[600px] border-collapse">
           <thead>
-            <tr className="border-b border-[var(--border)] bg-white/[0.02]">
+            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
               <HeaderCell label="Symbol"   active={sortKey === "symbol"}        ascending={sortAsc} onClick={() => toggleSort("symbol")} />
               <HeaderCell label="Strategy" active={sortKey === "strategy_name"} ascending={sortAsc} onClick={() => toggleSort("strategy_name")} />
               <HeaderCell label="Side"     active={sortKey === "side"}          ascending={sortAsc} onClick={() => toggleSort("side")} />
@@ -99,37 +105,35 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
               <HeaderCell label="Days"     active={sortKey === "holding_days"}  ascending={sortAsc} onClick={() => toggleSort("holding_days")} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[var(--color-surface)] divide-y divide-[var(--color-border-subtle)]">
             {paged.map((t) => {
               const isWin = t.pnl > 0;
               const rowKey = `${t.symbol}-${t.strategy_name}-${t.entry_date ?? "open"}-${t.exit_date ?? "open"}`;
               return (
                 <tr
                   key={rowKey}
-                  className="border-b border-[var(--border)]/50 hover:bg-white/[0.02] transition-colors"
+                  className="hover:bg-[var(--color-surface-raised)] transition-colors cursor-default"
                 >
-                  <td className="px-4 py-3 font-mono font-bold text-white">{t.symbol}</td>
-                  <td className="px-4 py-3 text-slate-400 capitalize text-[11px]">
-                    {t.strategy_name.replace(/_/g, " ")}
-                  </td>
+                  <td className="px-4 py-3 font-mono font-semibold text-[var(--color-text-primary)]">{t.symbol}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)] capitalize text-[11px]">{t.strategy_name.replace(/_/g, " ")}</td>
                   <td className="px-4 py-3">
                     <Badge variant={t.side === "long" ? "success" : "danger"}>{t.side}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 font-mono">{t.entry_date ?? "–"}</td>
-                  <td className="px-4 py-3 text-slate-500 font-mono">{t.exit_date ?? "–"}</td>
-                  <td className={clsx("px-4 py-3 font-mono font-semibold tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className="px-4 py-3 text-[var(--color-text-muted)] font-mono">{t.entry_date ?? "–"}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-muted)] font-mono">{t.exit_date ?? "–"}</td>
+                  <td className={clsx("px-4 py-3 font-mono font-semibold tabular-nums", isWin ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
                     {isWin ? "+" : ""}${t.pnl.toFixed(2)}
                   </td>
-                  <td className={clsx("px-4 py-3 font-mono tabular-nums", isWin ? "text-emerald-400" : "text-red-400")}>
+                  <td className={clsx("px-4 py-3 font-mono tabular-nums", isWin ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
                     {isWin ? "+" : ""}{(t.return_pct * 100).toFixed(2)}%
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{t.holding_days}d</td>
+                  <td className="px-4 py-3 text-[var(--color-text-muted)]">{t.holding_days}d</td>
                 </tr>
               );
             })}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-slate-600">
+                <td colSpan={8} className="px-3 py-10 text-center text-[var(--color-text-muted)]">
                   No trades found
                 </td>
               </tr>
@@ -139,20 +143,20 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border)]">
-          <span className="text-xs text-slate-500">Page {page + 1} of {totalPages}</span>
-          <div className="flex gap-1.5">
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--color-border)]">
+          <span className="text-xs text-[var(--color-text-muted)]">Page {page + 1} of {totalPages}</span>
+          <div className="flex gap-2">
             <button
               disabled={page === 0}
               onClick={() => setPage(page - 1)}
-              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] text-slate-400 disabled:opacity-30 hover:text-white hover:border-[var(--border-bright)] transition-all"
+              className="px-3 py-1.5 rounded-[var(--radius-sm)] text-xs border border-[var(--color-border)] text-[var(--color-text-secondary)] disabled:opacity-40 hover:bg-[var(--color-surface-raised)] transition-all"
             >
               ← Prev
             </button>
             <button
               disabled={page >= totalPages - 1}
               onClick={() => setPage(page + 1)}
-              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] text-slate-400 disabled:opacity-30 hover:text-white hover:border-[var(--border-bright)] transition-all"
+              className="px-3 py-1.5 rounded-[var(--radius-sm)] text-xs border border-[var(--color-border)] text-[var(--color-text-secondary)] disabled:opacity-40 hover:bg-[var(--color-surface-raised)] transition-all"
             >
               Next →
             </button>

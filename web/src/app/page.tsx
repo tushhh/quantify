@@ -31,7 +31,7 @@ const FEATURES = [
   },
   {
     icon: Radar,
-    title: "Modern dashboard surface",
+    title: "Modern home surface",
     desc: "A bold visual system built around glass panels, gradients, and clear feedback states.",
   },
 ];
@@ -45,47 +45,47 @@ const METRICS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in text-slate-100 selection:bg-blue-500/30 relative">
+    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in text-[var(--color-text-primary)] selection:bg-[var(--color-accent)]/20 relative">
 
       <main className="pt-0 pb-0">
         <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-10 items-center">
           <div className="space-y-6 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/50 text-xs text-blue-300">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 text-xs text-[var(--color-accent)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
               Modern trading platform, rebuilt
             </div>
 
             <div className="space-y-4">
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
                 Faster research.
-                <span className="block text-blue-500">
+                <span className="block text-[var(--color-accent)]">
                   Cleaner execution.
                 </span>
               </h1>
-              <p className="max-w-xl text-slate-400 text-lg md:text-xl leading-relaxed mt-2">
+              <p className="max-w-xl text-[var(--color-text-muted)] text-lg md:text-xl leading-relaxed mt-2">
                 Quantify combines portfolio tracking, Telegram automation, strategy research, and backtesting in a sharper interface with working controls, clearer feedback, and a simplified backtest flow.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700 transition-colors">
+              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold shadow-sm hover:bg-[var(--color-accent-hover)] transition-colors">
                 Open Backtest Lab <ChevronRight size={18} />
               </Link>
-              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-slate-700 text-slate-200 font-semibold hover:bg-slate-800 transition-colors">
+              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
                 View Portfolio Tools
               </Link>
             </div>
 
             <div className="pt-4">
-              <div className="border border-slate-700 rounded-2xl p-1 stats-row bg-slate-800/20">
+              <div className="border border-[var(--color-border)] rounded-2xl p-1 stats-row bg-[var(--color-surface-raised)]/80">
                 {METRICS.map((item, i) => (
                   <div 
                     key={item.label} 
-                    className={`stat-card animate-fade-in-up ${i < METRICS.length - 1 ? 'border-r border-slate-700' : ''}`}
+                    className={`stat-card animate-fade-in-up ${i < METRICS.length - 1 ? 'border-r border-[var(--color-border)]' : ''}`}
                     style={{ animationDelay: `${300 + i * 60}ms` }}
                   >
-                    <div className="stat-value text-slate-100">{item.value}</div>
-                    <div className="stat-label mt-1 text-slate-500">{item.label}</div>
+                    <div className="stat-value text-[var(--color-text-primary)]">{item.value}</div>
+                    <div className="stat-label mt-1 text-[var(--color-text-muted)]">{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -93,61 +93,61 @@ export default function LandingPage() {
           </div>
 
           <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div className="relative bg-slate-800/30 rounded-[28px] p-6 md:p-8 border border-slate-700 shadow-xl overflow-hidden">
-              <div className="flex items-center justify-between mb-4 text-xs text-slate-400">
+            <div className="relative bg-[var(--color-surface)]/90 rounded-[28px] p-6 md:p-8 border border-[var(--color-border)] shadow-xl overflow-hidden">
+              <div className="flex items-center justify-between mb-4 text-xs text-[var(--color-text-muted)]">
                 <span>System overview</span>
-                <span className="text-emerald-400">Live + Paper ready</span>
+                <span className="text-[var(--color-success)]">Live + Paper ready</span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-5 min-h-36">
-                  <div className="text-xs text-slate-400">Active modules</div>
-                  <div className="mt-3 space-y-2">
-                    {FEATURES.slice(0, 3).map((feature) => (
-                      <div key={feature.title} className="flex items-center gap-3 text-sm text-slate-200">
-                        <feature.icon size={16} className="text-blue-400" />
-                        <span>{feature.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-5 min-h-36 flex flex-col justify-between">
-                  <div>
-                    <div className="text-xs text-slate-400">Backtest mode</div>
-                    <div className="mt-2 text-xl font-semibold">Simple by default</div>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Advanced controls stay collapsed until users intentionally open them.
-                    </p>
-                  </div>
-                  <div className="mt-4 h-2 rounded-full bg-slate-700 overflow-hidden">
-                    <div className="h-full w-[68%] bg-blue-500 rounded-full" />
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2 rounded-2xl border border-slate-700 bg-slate-800/50 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="text-xs text-slate-400">Automation</div>
-                      <div className="text-lg font-semibold text-slate-100">Portfolio alerts + Telegram</div>
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-5 min-h-36">
+                <div className="text-xs text-[var(--color-text-muted)]">Active modules</div>
+                <div className="mt-3 space-y-2">
+                  {FEATURES.slice(0, 3).map((feature) => (
+                    <div key={feature.title} className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)]">
+                      <feature.icon size={16} className="text-[var(--color-accent)]" />
+                      <span>{feature.title}</span>
                     </div>
-                    <div className="px-3 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Working
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      "Trade logging",
-                      "Hold reminders",
-                      "Telegram sync",
-                    ].map((item) => (
-                      <div key={item} className="rounded-xl bg-slate-800 border border-slate-700 p-3 text-xs text-slate-300">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-5 min-h-36 flex flex-col justify-between">
+                <div>
+                  <div className="text-xs text-[var(--color-text-muted)]">Backtest mode</div>
+                  <div className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">Simple by default</div>
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                    Advanced controls stay collapsed until users intentionally open them.
+                  </p>
+                </div>
+                <div className="mt-4 h-2 rounded-full bg-[var(--color-border)] overflow-hidden">
+                  <div className="h-full w-[68%] bg-[var(--color-accent)] rounded-full" />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-xs text-[var(--color-text-muted)]">Automation</div>
+                    <div className="text-lg font-semibold text-[var(--color-text-primary)]">Portfolio alerts + Telegram</div>
+                  </div>
+                  <div className="px-3 py-1 rounded-full text-xs bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/20">
+                    Working
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    "Trade logging",
+                    "Hold reminders",
+                    "Telegram sync",
+                  ].map((item) => (
+                    <div key={item} className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             </div>
           </div>
         </section>
@@ -155,44 +155,44 @@ export default function LandingPage() {
         <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
           <div className="flex items-end justify-between gap-6 mb-8">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-blue-400">What changed</p>
-              <h2 className="text-3xl md:text-4xl font-bold mt-2 text-slate-100">A sharper interface for the parts that already work.</h2>
-            </div>
-            <p className="hidden md:block max-w-xl text-sm text-slate-400">
+            <p className="text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">What changed</p>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2 text-[var(--color-text-primary)]">A sharper interface for the parts that already work.</h2>
+          </div>
+          <p className="hidden md:block max-w-xl text-sm text-[var(--color-text-muted)]">
               The platform now leans into the workflows that matter: portfolio customization, backtesting, and automated alerts.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {FEATURES.map((feature, index) => (
-              <div key={feature.title} className="border border-slate-700 bg-slate-800/30 rounded-2xl p-5 hover-lift animate-fade-in-up cursor-pointer" style={{ animationDelay: `${index * 60}ms` }}>
+              <div key={feature.title} className="border border-[var(--color-border)] bg-[var(--color-surface)]/90 rounded-2xl p-5 hover-lift animate-fade-in-up cursor-pointer" style={{ animationDelay: `${index * 60}ms` }}>
                 <div className="w-11 h-11 rounded-xl gradient-accent flex items-center justify-center mb-4">
-                  <feature.icon size={20} className="text-white" />
+                  <feature.icon size={20} className="text-[var(--color-text-inverse)]" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-slate-100">{feature.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{feature.desc}</p>
+                <h3 className="text-lg font-semibold mb-2 text-[var(--color-text-primary)]">{feature.title}</h3>
+                <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
-          <div className="bg-slate-800/30 rounded-[32px] p-8 md:p-12 border border-slate-700 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 ">
+          <div className="bg-[var(--color-surface)]/90 rounded-[32px] p-8 md:p-12 border border-[var(--color-border)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 ">
             <div className="max-w-2xl relative z-10">
-              <p className="text-xs uppercase tracking-[0.22em] text-blue-400">Next step</p>
-              <h2 className="text-3xl md:text-5xl font-black mt-3 leading-tight text-slate-100">
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">Next step</p>
+              <h2 className="text-3xl md:text-5xl font-black mt-3 leading-tight text-[var(--color-text-primary)]">
                 Start from the homepage, then go straight into backtests or portfolio tools.
               </h2>
-              <p className="mt-4 text-slate-400 text-base md:text-lg leading-relaxed">
+              <p className="mt-4 text-[var(--color-text-muted)] text-base md:text-lg leading-relaxed">
                 The landing page now reflects the new visual direction, and the backtest page exposes advanced controls only when requested.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto relative z-10">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 text-white font-semibold hover-lift">
+              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold hover-lift">
                 Create account <ArrowRight size={18} />
               </Link>
-              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 font-semibold hover:bg-slate-700 transition-colors">
+              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
                 Log in
               </Link>
             </div>

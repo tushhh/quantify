@@ -21,18 +21,18 @@ function fmt$(v: number) {
 
 function DriverLegend() {
   const items = [
-    { label: "▲ Higher is favorable", tone: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { label: "▼ Lower is favorable", tone: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-    { label: "z-score shows how unusual the feature is", tone: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20" },
+    { label: "▲ Higher is favorable", tone: "text-[var(--color-success)]", bg: "bg-[var(--color-success)]/10", border: "border-[var(--color-success)]/20" },
+    { label: "▼ Lower is favorable", tone: "text-[var(--color-danger)]", bg: "bg-[var(--color-danger)]/10", border: "border-[var(--color-danger)]/20" },
+    { label: "z-score shows how unusual the feature is", tone: "text-[var(--color-text-muted)]", bg: "bg-[var(--color-surface-raised)]/30", border: "border-[var(--color-border)]/20" },
   ];
 
   return (
     <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500 font-semibold">
+        <p className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-muted)] font-semibold">
           Driver legend
         </p>
-        <p className="text-[10px] text-slate-600">
+        <p className="text-[10px] text-[var(--color-text-secondary)]">
           Drivers reflect the most influential feature z-scores behind each prediction.
         </p>
       </div>
@@ -52,7 +52,7 @@ function DriverLegend() {
 
 function DriverPills({ items }: { items?: PredictionItem["explanations"] }) {
   if (!items || items.length === 0) {
-    return <span className="text-[10px] text-slate-600">No drivers</span>;
+    return <span className="text-[10px] text-[var(--color-text-secondary)]">No drivers</span>;
   }
 
   return (
@@ -60,13 +60,13 @@ function DriverPills({ items }: { items?: PredictionItem["explanations"] }) {
       {items.slice(0, 3).map((item) => (
         <span
           key={`${item.feature}-${item.zscore}`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/50 bg-slate-900/55 px-2.5 py-1 text-[10px] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)]/50 bg-[var(--color-surface-raised)]/55 px-2.5 py-1 text-[10px] text-[var(--color-text-muted)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          <span className={item.direction === "higher" ? "text-emerald-400" : "text-red-400"}>
+          <span className={item.direction === "higher" ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
             {item.direction === "higher" ? "▲" : "▼"}
           </span>
           <span className="font-mono">{item.feature}</span>
-          <span className="text-slate-500">z={item.zscore.toFixed(2)}</span>
+            <span className="text-[var(--color-text-muted)]">z={item.zscore.toFixed(2)}</span>
         </span>
       ))}
     </div>
@@ -79,7 +79,7 @@ function PageLoader() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-2 border-[var(--color-cta)]/50 border-t-[var(--color-cta)] rounded-full animate-spin" />
-        <p className="text-slate-500 text-sm">Loading dashboard…</p>
+        <p className="text-[var(--color-text-muted)] text-sm">Loading home…</p>
       </div>
     </div>
   );
@@ -146,11 +146,11 @@ function TradeCard({
   return (
     <Card variant="compact" className="shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {/* alert stripe */}
-      {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-red-500 animate-pulse" />}
+      {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-[var(--color-danger)] animate-pulse" />}
 
       {/* P&L accent stripe */}
       {!t.alert && hasPrice && (
-        <div className={`absolute top-0 left-0 w-full h-0.5 ${isGain ? "bg-emerald-500" : "bg-red-500"}`} />
+        <div className={`absolute top-0 left-0 w-full h-0.5 ${isGain ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`} />
       )}
 
       <div className="p-5">
@@ -158,31 +158,31 @@ function TradeCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-lg font-black text-white tracking-tight">{t.symbol}</span>
+              <span className="text-lg font-black text-[var(--color-text-inverse)] tracking-tight">{t.symbol}</span>
               {hasPrice && (
-                <span className="text-sm font-sans text-slate-300">{fmt$(currentPrice!)}</span>
+                <span className="text-sm font-sans text-[var(--color-text-secondary)]">{fmt$(currentPrice!)}</span>
               )}
               {pnlPct != null && (
-                <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-emerald-400" : "text-red-400"}`}>
+                <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                   {isGain ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                   {pct(pnlPct)}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5 font-sans">
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-sans">
               {t.shares} shares @ {fmt$(t.buy_price)}
             </p>
           </div>
 
           <div className="flex flex-col items-end gap-2 shrink-0">
             {pnlAbs != null && (
-              <span className={`text-sm font-bold tabular-nums ${isGain ? "text-emerald-400" : "text-red-400"}`}>
+              <span className={`text-sm font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                 {isGain ? "+" : "−"}{fmt$(pnlAbs)}
               </span>
             )}
             <button
               onClick={() => onClose(t.id)}
-              className="text-slate-500 hover:text-red-400 bg-[var(--surface-raised)] border border-[var(--border)] hover:border-red-500/30 hover:bg-red-500/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
             >
               Close
             </button>
@@ -191,17 +191,17 @@ function TradeCard({
 
         {/* Alert bar */}
         {alertText && (
-          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-2xl p-2.5 flex gap-2 items-start">
-            <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={14} />
-            <p className="text-xs text-red-300 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
+          <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-2xl p-2.5 flex gap-2 items-start">
+            <AlertTriangle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={14} />
+            <p className="text-xs text-[var(--color-danger)]/80 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
           </div>
         )}
 
         {/* Dip threshold editor */}
-        <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Dip Alert</p>
-            <span className="text-[10px] text-slate-600">0 disables</span>
+          <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Dip Alert</p>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">0 disables</span>
           </div>
           <div className="mt-2 flex items-center gap-2">
             <input
@@ -213,21 +213,21 @@ function TradeCard({
               value={dipDraft}
               onChange={(e) => setDipDraft(e.target.value)}
             />
-            <span className="text-[10px] text-slate-500">% from entry</span>
+            <span className="text-[10px] text-[var(--color-text-muted)]">% from entry</span>
             <button
               type="button"
               onClick={handleSaveDip}
               disabled={!dipDirty || dipSaving}
-              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)] hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {dipSaving ? "Saving" : "Save"}
             </button>
           </div>
-          {dipError && <p className="text-[10px] text-red-400 mt-1">{dipError}</p>}
+          {dipError && <p className="text-[10px] text-[var(--color-danger)] mt-1">{dipError}</p>}
         </div>
 
         {/* Footer metadata */}
-        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-slate-600 uppercase tracking-wider">
+        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)] uppercase tracking-wider">
           <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
           <span className="text-center">Hold: {t.hold_value ?? t.hold_days}d</span>
           <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
@@ -445,14 +445,14 @@ export default function DashboardPage() {
     <div className="max-w-7xl mx-auto px-4 pt-16 pb-16 md:pb-10 animate-fade-in">
 
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--border)]">
         <div className="flex items-center gap-4">
           <div className="w-11 h-11 gradient-accent rounded-3xl flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/20 shrink-0">
-            <UserCircle className="text-white" size={22} />
+            <UserCircle className="text-[var(--color-text-inverse)]" size={22} />
           </div>
           <div>
-            <p className="font-bold text-white leading-tight">{user.username}</p>
-            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+            <p className="font-bold text-[var(--color-text-inverse)] leading-tight">{user.username}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1.5">
               <Send size={9} className="text-[var(--color-cta)]" />
               {user.telegram_username
                 ? <span><span className="text-[var(--color-cta)]">{user.telegram_username}</span> connected</span>
@@ -461,12 +461,12 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/account" className="text-xs font-medium text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-2xl hover:bg-white/[0.05] border border-[var(--border)] hover:border-[var(--border-bright)]">
+          <Link href="/account" className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors px-3 py-1.5 rounded-2xl hover:bg-[var(--color-surface-raised)]/50 border border-[var(--border)] hover:border-[var(--border-bright)]">
             Settings
           </Link>
           <button
             onClick={logout}
-            className="text-xs font-medium text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-2xl hover:bg-red-500/10"
+            className="text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-danger)] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-2xl hover:bg-[var(--color-danger)]/10"
           >
             <LogOut size={13} /> Logout
           </button>
@@ -482,8 +482,8 @@ export default function DashboardPage() {
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2.5 rounded-3xl text-xs font-semibold uppercase tracking-wider border transition-all ${
               activeTab === tab
-                ? "bg-[var(--color-cta)]/20 border-[var(--color-cta)]/40 text-blue-200"
-                : "border-[var(--border)] text-slate-400 hover:text-white bg-[var(--surface)]"
+                ? "bg-[var(--color-cta)]/20 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
+                : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] bg-[var(--color-surface)]"
             }`}
           >
             {tab === "analysis" ? (
@@ -492,7 +492,7 @@ export default function DashboardPage() {
               <span className="flex items-center justify-center gap-1.5">
                 <Shield size={13} /> Portfolio
                 {trades.length > 0 && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--color-cta)] text-white text-[9px] font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--color-cta)] text-[var(--color-text-inverse)] text-[9px] font-bold">
                     {trades.length}
                   </span>
                 )}
@@ -510,18 +510,18 @@ export default function DashboardPage() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[var(--color-text-inverse)] flex items-center gap-2">
                 <Crosshair size={18} className="text-[var(--color-cta)]" /> ML Analysis
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Ensemble model: LightGBM + XGBoost + CatBoost · S&P 500</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Ensemble model: LightGBM + XGBoost + CatBoost · S&P 500</p>
             </div>
             <button
               onClick={handlePredict}
               disabled={loadingPreds}
-              className="gradient-accent text-white font-semibold py-2 px-4 rounded-3xl shadow-sm shadow-[var(--color-cta)]/20 transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-2 text-xs"
+              className="gradient-accent text-[var(--color-text-inverse)] font-semibold py-2 px-4 rounded-3xl shadow-sm shadow-[var(--color-cta)]/20 transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-2 text-xs"
             >
               {loadingPreds ? (
-                <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analyzing…</>
+                <><div className="w-3.5 h-3.5 border-2 border-[var(--color-border)]/30 border-t-[var(--color-text-inverse)] rounded-full animate-spin" /> Analyzing…</>
               ) : (
                 <><Zap size={13} /> Run ML Analysis</>
               )}
@@ -534,14 +534,14 @@ export default function DashboardPage() {
             {/* Error state */}
             {predError && !loadingPreds && (
               <div className="flex-1 flex flex-col gap-4 p-6">
-                <div className="flex items-start gap-3 p-4 rounded-3xl bg-red-500/10 border border-red-500/20">
-                  <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={16} />
+                <div className="flex items-start gap-3 p-4 rounded-3xl bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20">
+                  <AlertCircle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={16} />
                   <div>
-                    <p className="text-sm font-semibold text-red-300">Analysis failed</p>
-                    <p className="text-xs text-red-400/70 mt-1 leading-relaxed">{predError}</p>
+                    <p className="text-sm font-semibold text-[var(--color-danger)]/90">Analysis failed</p>
+                    <p className="text-xs text-[var(--color-danger)]/70 mt-1 leading-relaxed">{predError}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
                   This may happen if the ML model hasn&apos;t been trained yet or the data provider is temporarily unavailable. Try again in a moment.
                 </p>
                 <button
@@ -560,13 +560,13 @@ export default function DashboardPage() {
                   <Zap size={24} className="text-[var(--color-cta)] opacity-60" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-400">No predictions yet</p>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-xs">
+                  <p className="text-sm font-semibold text-[var(--color-text-secondary)]">No predictions yet</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-2 leading-relaxed max-w-xs">
                     Run the ML analysis to get today&apos;s top algorithmically ranked stocks. Click any result to pre-fill the trade form.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-slate-600 bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl px-3 py-2">
-                  <Clock size={10} className="text-amber-500/60" />
+                <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-2xl px-3 py-2">
+                  <Clock size={10} className="text-[var(--color-accent)]/60" />
                   Allow ~60–90 seconds on first run
                 </div>
               </div>
@@ -582,15 +582,15 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="text-center px-6">
-                  <p className="text-slate-300 text-sm font-semibold">
+                  <p className="text-[var(--color-text-primary)] text-sm font-semibold">
                     {isComputing ? "Training Models in Background…" : "Crunching market data…"}
                   </p>
-                  <p className="text-slate-500 text-xs mt-1.5 leading-relaxed">
+                  <p className="text-[var(--color-text-muted)] text-xs mt-1.5 leading-relaxed">
                     {isComputing 
                       ? "The ML ensemble is training on ~100 stocks. This will take ~2–3 minutes. You can safely close this page." 
                       : "Fetching 1 year of OHLCV data and running 3 ML models."}
                   </p>
-                  <div className="flex items-center justify-center gap-1.5 mt-3 text-amber-400/70 text-[10px]">
+                  <div className="flex items-center justify-center gap-1.5 mt-3 text-[var(--color-accent)]/70 text-[10px]">
                     <Clock size={10} /> Auto-refreshing every 10 seconds
                   </div>
                 </div>
@@ -601,16 +601,16 @@ export default function DashboardPage() {
             {!loadingPreds && predictions.length > 0 && (
               <div className="flex flex-col">
                 {topPredictions.length > 0 && (
-                  <div className="grid md:grid-cols-3 gap-3 p-4 border-b border-[var(--border)] bg-black/20">
+                  <div className="grid md:grid-cols-3 gap-3 p-4 border-b border-[var(--border)] bg-[var(--color-surface)]/95">
                     {topPredictions.map((p, i) => (
-                      <div key={p.symbol} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 relative overflow-hidden">
+                      <div key={p.symbol} className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 relative overflow-hidden">
                         <div className="absolute -top-12 -right-10 h-24 w-24 rounded-full bg-[var(--color-cta)]/10 blur-2xl" />
-                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Rank {String(i + 1).padStart(2, "0")}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Rank {String(i + 1).padStart(2, "0")}</div>
                         <div className="mt-2 flex items-center justify-between">
-                          <div className="text-xl font-black text-white">{p.symbol}</div>
+                          <div className="text-xl font-black text-[var(--color-text-inverse)]">{p.symbol}</div>
                           <Badge variant={p.side === "long" ? "success" : "danger"} className="uppercase">{p.side}</Badge>
                         </div>
-                        <div className={`text-xs font-mono mt-2 ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <div className={`text-xs font-mono mt-2 ${p.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                           {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
                         </div>
                         <div className="mt-2">
@@ -620,7 +620,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 )}
-                <div className="grid grid-cols-4 px-5 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-[var(--border)] bg-black/40">
+                <div className="grid grid-cols-4 px-5 py-2.5 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--border)] bg-[var(--color-surface)]/90">
                   <div>Rank</div>
                   <div>Symbol</div>
                   <div>Signal</div>
@@ -630,13 +630,13 @@ export default function DashboardPage() {
                   <button
                     key={p.symbol}
                     type="button"
-                    className="grid grid-cols-4 px-5 py-3.5 items-center hover:bg-white/[0.03] border-b border-[var(--border)] transition-colors cursor-pointer text-left w-full group"
+                    className="grid grid-cols-4 px-5 py-3.5 items-center hover:bg-[var(--color-surface-raised)]/50 border-b border-[var(--border)] transition-colors cursor-pointer text-left w-full group"
                     onClick={() => { selectSymbol(p.symbol); setActiveTab("portfolio"); }}
                   >
-                    <div className="font-sans text-slate-600 text-xs">#{i + 1}</div>
+                    <div className="font-sans text-[var(--color-text-secondary)] text-xs">#{i + 1}</div>
                     <div className="flex flex-col">
-                      <div className="font-bold text-white text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
-                      <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      <div className="font-bold text-[var(--color-text-inverse)] text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
+                      <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"`}>
                         {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
                       </div>
                       <div className="mt-1.5">
@@ -644,12 +644,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div><Badge variant={p.side === "long" ? "success" : "danger"} className="uppercase">{p.side}</Badge></div>
-                    <div className={`text-right font-sans font-bold text-sm tabular-nums ${p.strength >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    <div className={`text-right font-sans font-bold text-sm tabular-nums ${p.strength >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                       {p.strength >= 0 ? "+" : ""}{p.strength.toFixed(3)}
                     </div>
                   </button>
                 ))}
-                <div className="px-5 py-2.5 text-[10px] text-slate-600 border-t border-[var(--border)] bg-black/10 flex items-center gap-1.5">
+                <div className="px-5 py-2.5 text-[10px] text-[var(--color-text-secondary)] border-t border-[var(--border)] bg-[var(--color-surface)]/90 flex items-center gap-1.5">
                   <DollarSign size={9} className="text-[var(--color-cta)]/50" />
                   Click any row to pre-fill the trade form
                 </div>
@@ -663,7 +663,7 @@ export default function DashboardPage() {
           {!loadingPreds && predictions.length > 0 && (
             <Card variant="compact" className="bg-[var(--color-cta)]/[0.04] p-4 flex items-start gap-3 animate-fade-in">
               <Zap size={14} className="text-[var(--color-cta)] mt-0.5 shrink-0" />
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
                 Signals reflect expected return over the next trading window. These are model predictions, not financial advice.
               </p>
             </Card>
@@ -674,24 +674,24 @@ export default function DashboardPage() {
         <div className={`flex flex-col gap-4 ${activeTab !== "portfolio" ? "hidden xl:flex" : ""}`}>
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[var(--color-text-inverse)] flex items-center gap-2">
                 <Shield size={18} className="text-[var(--color-cta)]" /> Active Portfolio
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 {trades.length === 0 ? "No active positions" : `${trades.length} position${trades.length > 1 ? "s" : ""} tracked`}
               </p>
             </div>
             {trades.length > 0 && (
               <div className="flex items-center gap-2">
                 {lastPriceUpdate && !loadingPrices && (
-                  <span className="text-[10px] text-slate-600 font-sans">
+                  <span className="text-[10px] text-[var(--color-text-secondary)] font-sans">
                     Updated {Math.round((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
                   </span>
                 )}
                 <button
                   onClick={loadPrices}
                   disabled={loadingPrices}
-                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-2xl hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-2xl hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
                 >
                   <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
                   {loadingPrices ? "Refreshing…" : "Refresh"}
@@ -710,7 +710,7 @@ export default function DashboardPage() {
               {/* Symbol + Shares + Price */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Symbol</label>
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Symbol</label>
                   <div className="relative">
                     <input
                       required
@@ -739,7 +739,7 @@ export default function DashboardPage() {
                       }}
                     />
                     {symbolOpen && (
-                      <div className="absolute z-20 mt-1 w-full rounded-3xl bg-[var(--surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
+                      <div className="absolute z-20 mt-1 w-full rounded-3xl bg-[var(--color-surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
                         {filteredSymbols.length > 0 ? (
                           filteredSymbols.map((t, i) => (
                             <button
@@ -748,15 +748,15 @@ export default function DashboardPage() {
                               onClick={() => selectSymbol(t.symbol)}
                               onMouseEnter={() => setSymbolIndex(i)}
                               className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
-                                i === symbolIndex ? "bg-[var(--color-cta)]/20 text-white" : "hover:bg-white/[0.03] text-slate-300"
+                                i === symbolIndex ? "bg-[var(--color-cta)]/20 text-[var(--color-text-inverse)]" : "hover:bg-[var(--color-surface-raised)]/50 text-[var(--color-text-muted)]"
                               }`}
                             >
-                              <span className="font-sans font-bold text-white text-xs w-14 shrink-0">{t.symbol}</span>
-                              <span className="text-slate-500 truncate flex-1 text-[10px]">{t.name}</span>
+                              <span className="font-sans font-bold text-[var(--color-text-inverse)] text-xs w-14 shrink-0">{t.symbol}</span>
+                              <span className="text-[var(--color-text-muted)] truncate flex-1 text-[10px]">{t.name}</span>
                             </button>
                           ))
                         ) : symbolQuery ? (
-                          <div className="px-3 py-2.5 text-xs text-slate-500">No matches found.</div>
+                          <div className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">No matches found.</div>
                         ) : null}
                       </div>
                     )}
@@ -767,7 +767,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Shares</label>
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
                   <input
                     required
                     type="number"
@@ -781,7 +781,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Buy $</label>
+                  <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy $</label>
                   <input
                     required
                     type="number"
@@ -796,8 +796,8 @@ export default function DashboardPage() {
               </div>
 
               {/* Holding duration */}
-              <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Holding Duration</p>
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
+                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Holding Duration</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {(["days", "months", "years"] as const).map((unit) => (
                     <label
@@ -805,7 +805,7 @@ export default function DashboardPage() {
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
                         holdUnit === unit
                           ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
-                          : "border-[var(--border)] text-slate-500 hover:text-white hover:border-[var(--border-bright)]"
+                          : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
                       }`}
                     >
                       <input type="radio" name="hold_unit" className="accent-[var(--color-cta)] sr-only" checked={holdUnit === unit} onChange={() => setHoldUnit(unit)} />
@@ -821,14 +821,14 @@ export default function DashboardPage() {
                     value={holdValue}
                     onChange={(e) => setHoldValue(e.target.value)}
                   />
-                  <span className="text-xs text-slate-500">{holdUnit}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">{holdUnit}</span>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2.5">
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dip Alert Threshold</p>
-                  <span className="text-[10px] text-slate-600">Optional</span>
+                  <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Dip Alert Threshold</p>
+                  <span className="text-[10px] text-[var(--color-text-secondary)]">Optional</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -840,9 +840,9 @@ export default function DashboardPage() {
                     value={dipThresholdPct}
                     onChange={(e) => setDipThresholdPct(e.target.value)}
                   />
-                  <span className="text-xs text-slate-500">% drop from entry</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">% drop from entry</span>
                 </div>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
+                <p className="text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
                   Sends a Telegram alert if the price drops beyond this threshold.
                 </p>
               </div>
@@ -862,10 +862,10 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={!canSubmitTrade || submitting}
-                className="w-full gradient-accent text-white font-bold py-2.5 rounded-3xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-[var(--color-cta)]/20"
+                className="w-full gradient-accent text-[var(--color-text-inverse)] font-bold py-2.5 rounded-3xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-[var(--color-cta)]/20"
               >
                 {submitting ? (
-                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Validating…</>
+                  <><div className="w-4 h-4 border-2 border-[var(--color-border)]/30 border-t-[var(--color-text-inverse)] rounded-full animate-spin" /> Validating…</>
                 ) : (
                   <>Log Trade &amp; Activate Alerts</>
                 )}
@@ -876,7 +876,7 @@ export default function DashboardPage() {
           {/* Active positions */}
           <div className="flex flex-col gap-3">
             {trades.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-white/10 text-slate-600 gap-3">
+              <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-[var(--border)]/20 text-[var(--color-text-secondary)] gap-3">
                 <Shield size={28} className="opacity-20" />
                 <p className="text-sm">No active positions being tracked.</p>
               </div>

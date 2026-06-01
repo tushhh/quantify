@@ -6,17 +6,17 @@ import type { RiskPreset } from "@/lib/api";
 import { Slider } from "@/components/ui";
 
 const PRESET_STYLES: Record<string, string> = {
-  conservative: "text-emerald-400 border-emerald-500/30 bg-emerald-500/8 hover:border-emerald-500/50",
-  moderate:     "text-cyan-400   border-cyan-500/30   bg-cyan-500/8   hover:border-cyan-500/50",
-  aggressive:   "text-amber-400  border-amber-500/30  bg-amber-500/8  hover:border-amber-500/50",
-  custom:       "text-slate-400  border-slate-500/30  bg-slate-500/8  hover:border-slate-500/50",
+  conservative: "text-[var(--color-success)] border-[var(--color-success)]/30 bg-[var(--color-success-subtle)] hover:border-[var(--color-success)]/50",
+  moderate:     "text-[var(--color-info)] border-[var(--color-info)]/30 bg-[var(--color-info-subtle)] hover:border-[var(--color-info)]/50",
+  aggressive:   "text-[var(--color-warning)] border-[var(--color-warning)]/30 bg-[var(--color-warning-subtle)] hover:border-[var(--color-warning)]/50",
+  custom:       "text-[var(--color-text-secondary)] border-[var(--color-border)]/30 bg-[var(--color-surface-raised)] hover:border-[var(--color-border)]/50",
 };
 
 const SELECTED_RING: Record<string, string> = {
-  conservative: "ring-1 ring-emerald-500/40",
-  moderate:     "ring-1 ring-cyan-500/40",
-  aggressive:   "ring-1 ring-amber-500/40",
-  custom:       "ring-1 ring-slate-500/40",
+  conservative: "ring-1 ring-[var(--color-success)]/40",
+  moderate:     "ring-1 ring-[var(--color-info)]/40",
+  aggressive:   "ring-1 ring-[var(--color-warning)]/40",
+  custom:       "ring-1 ring-[var(--color-border)]/40",
 };
 
 type Props = { presets: RiskPreset[] };
@@ -58,7 +58,7 @@ export function RiskProfileSelector({ presets }: Props) {
       </div>
 
       {/* Sliders */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-border)]">
         <Slider
           label="Max Portfolio Drawdown"
           value={risk.max_portfolio_drawdown}
@@ -104,7 +104,7 @@ export function RiskProfileSelector({ presets }: Props) {
 
         {/* Position sizer */}
         <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <label className="text-xs text-slate-400">Position Sizer</label>
+          <label className="text-xs text-[var(--color-text-secondary)]">Position Sizer</label>
           <div className="flex gap-2 flex-wrap">
             {(["equal_weight", "volatility_target", "half_kelly"] as const).map((s) => (
               <button
@@ -113,8 +113,8 @@ export function RiskProfileSelector({ presets }: Props) {
                 className={clsx(
                   "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all active:scale-[0.97]",
                   risk.default_position_sizer === s
-                    ? "bg-blue-600 border-blue-500 text-white"
-                    : "bg-[var(--surface)] border-[var(--border)] text-slate-400 hover:text-white hover:border-[var(--border-bright)]"
+                    ? "bg-[var(--color-cta)] border-[var(--color-cta)] text-[var(--color-text-inverse)]"
+                    : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
                 )}
               >
                 {s === "equal_weight" ? "Equal Weight" : s === "volatility_target" ? "Vol Target" : "Half Kelly"}

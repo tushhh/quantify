@@ -44,56 +44,56 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-[100svh] flex items-start justify-center px-4 pt-16 pb-16">
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-900/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--color-cta)]/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md mt-2">
         {/* Back to home */}
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors mb-6">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-colors mb-6">
           <ArrowLeft size={14} />
           Back to home
         </Link>
 
-        <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-8 shadow-2xl shadow-black/40">
+        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--border)] p-8 shadow-2xl shadow-[var(--color-bg)]/20">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <TrendingUp size={28} className="text-white" />
+            <div className="w-14 h-14 rounded-2xl bg-[var(--color-cta)] flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/30">
+              <TrendingUp size={28} className="text-[var(--color-text-inverse)]" />
             </div>
           </div>
 
-          <h1 className="text-2xl font-black text-center text-white mb-1">Create Your Account</h1>
-          <p className="text-center text-slate-500 text-sm mb-8">Start trading with ML-powered predictions</p>
+          <h1 className="text-2xl font-black text-center text-[var(--color-text-inverse)] mb-1">Create Your Account</h1>
+          <p className="text-center text-[var(--color-text-muted)] text-sm mb-8">Start trading with ML-powered predictions</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Username</label>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Username</label>
               <input
                 required
                 type="text"
                 autoComplete="username"
                 placeholder="Choose a username"
-                className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Password</label>
               <div className="relative mt-1.5">
                 <input
                   required
                   type={showPw ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Create a password"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all pr-12"
+                  className="w-full bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all pr-12"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                 >
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -101,22 +101,22 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Send size={10} className="text-blue-400" /> Telegram Username
-                <span className="text-slate-600 normal-case font-normal">(optional)</span>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider flex items-center gap-2">
+                <Send size={10} className="text-[var(--color-cta)]" /> Telegram Username
+                <span className="text-[var(--color-text-muted)] normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="text"
                 placeholder="@yourusername"
-                className="w-full mt-1.5 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-all"
+                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
                 value={form.telegram}
                 onChange={(e) => setForm({ ...form, telegram: e.target.value })}
               />
-              <p className="text-[11px] text-slate-600 mt-1.5">We&apos;ll send buy/sell alerts directly to your Telegram.</p>
+              <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5">We&apos;ll send buy/sell alerts directly to your Telegram.</p>
             </div>
 
             {error && (
-              <div className="text-rose-400 text-sm bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+              <div className="text-[var(--color-danger)] text-sm bg-[var(--color-danger)]/10 p-3 rounded-xl border border-[var(--color-danger)]/20">
                 {error}
               </div>
             )}
@@ -124,15 +124,15 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:hover:shadow-none"
+              className="w-full bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:hover:shadow-none"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-500 mt-6">
+          <p className="text-center text-sm text-[var(--color-text-muted)] mt-6">
             Already have an account?{" "}
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            <Link href="/login" className="text-[var(--color-cta)] hover:text-[var(--color-accent)] font-medium transition-colors">
               Log in
             </Link>
           </p>
@@ -141,23 +141,23 @@ export default function SignUpPage() {
 
       {/* Telegram Activation Popup */}
       {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative">
-            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Send size={28} className="text-blue-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-bg)]/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[var(--color-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative">
+            <div className="w-16 h-16 bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Send size={28} className="text-[var(--color-cta)]" />
             </div>
             
-            <h2 className="text-2xl font-black text-white text-center mb-3">Activate Alerts</h2>
+            <h2 className="text-2xl font-black text-[var(--color-text-inverse)] text-center mb-3">Activate Alerts</h2>
             
-            <p className="text-slate-400 text-center text-sm mb-6 leading-relaxed">
+            <p className="text-[var(--color-text-muted)] text-center text-sm mb-6 leading-relaxed">
               Your account is created! To receive instant buy/sell alerts, connect your Telegram account to the Quantify bot.
             </p>
 
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mb-6">
-              <ol className="list-decimal list-inside text-sm text-slate-300 space-y-2 font-medium">
+            <div className="bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl p-4 mb-6">
+              <ol className="list-decimal list-inside text-sm text-[var(--color-text-primary)] space-y-2 font-medium">
                 <li>Open Telegram using the button below.</li>
-                <li>Tap <span className="text-blue-400 font-mono text-xs bg-blue-500/10 px-1.5 py-0.5 rounded">START</span> in the bot chat.</li>
-                <li>Return to the dashboard to confirm the connection.</li>
+                <li>Tap <span className="text-[var(--color-cta)] font-mono text-xs bg-[var(--color-cta)]/10 px-1.5 py-0.5 rounded">START</span> in the bot chat.</li>
+                <li>Return home to confirm the connection.</li>
               </ol>
             </div>
 
@@ -166,15 +166,15 @@ export default function SignUpPage() {
                 href="https://t.me/QuantifyAlertbot?start=start" 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
               >
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>
               <button 
                 onClick={() => router.push("/dashboard")}
-                className="w-full text-slate-500 hover:text-white font-semibold py-3 text-sm transition-colors"
+                className="w-full text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] font-semibold py-3 text-sm transition-colors"
               >
-                Go to Dashboard
+                Go home
               </button>
             </div>
           </div>
