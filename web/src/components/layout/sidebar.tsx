@@ -1,14 +1,23 @@
 "use client";
 
+import { useLayoutEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BarChart2, Activity, Layers, Settings, List } from "lucide-react";
 import { clsx } from "clsx";
+import { useAppStore } from "@/lib/store";
 
 export default function Sidebar() {
   const path = usePathname() || "/";
-  const sidebarOpen = require("@/lib/store").useAppStore((s: any) => s.sidebarOpen);
-  const cls = sidebarOpen ? "w-60" : "w-16";
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+
+  useLayoutEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth >= 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, [setSidebarOpen]);
 
   const nav = [
     { href: "/", label: "Home", icon: Home },
@@ -20,9 +29,24 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className={`${cls} h-screen bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col justify-between transition-all`}> 
+    <>
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] md:hidden"
+        />
+      )}
+
+      <aside
+        className={clsx(
+          "fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col justify-between shadow-xl transition-transform duration-200 md:sticky md:top-0 md:shadow-none md:transition-[width] md:translate-x-0",
+          sidebarOpen ? "translate-x-0 md:w-60" : "-translate-x-full md:w-16"
+        )}
+      >
       <div>
-        <div className="px-5 py-4">
+        <div className="px-4 py-4 md:px-5">
           <Link href="/" className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-[var(--radius-md)] bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-foreground)] font-bold">Q</div>
             {sidebarOpen && (
@@ -42,8 +66,9 @@ export default function Sidebar() {
               <Link
                 key={n.href}
                 href={n.href}
+                onClick={() => setSidebarOpen(false)}
                 className={clsx(
-                  "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-sm transition-colors duration-150",
+                  "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-sm transition-colors duration-150 min-h-11",
                   active
                     ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
                     : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)]"
@@ -57,7 +82,8 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Removed redundant guest block; user state is shown in topbar */}
-    </aside>
+        {/* Removed redundant guest block; user state is shown in topbar */}
+      </aside>
+    </>
   );
 }

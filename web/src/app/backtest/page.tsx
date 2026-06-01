@@ -109,14 +109,14 @@ export default function BacktestPage() {
   const m = backtestResult?.metrics;
 
   return (
-    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in">
+    <div className="min-h-screen pt-12 sm:pt-16 pb-12 sm:pb-16 md:pb-10 animate-fade-in">
       {/* Subtle bg gradient */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <div className="absolute inset-0 bg-[var(--color-bg)]" />
         <div className="absolute top-0 left-1/3 w-80 h-80 bg-[var(--color-cta)]/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-4 flex flex-col gap-3">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="animate-fade-in-up">
@@ -124,9 +124,9 @@ export default function BacktestPage() {
             <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-[var(--color-cta)]/30">
               <Zap size={17} className="text-[var(--color-text-inverse)]" />
             </div>
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Backtest engine</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">Backtest engine</h1>
           </div>
-          <p className="text-[var(--color-text-muted)] text-xs ml-12">
+          <p className="text-[var(--color-text-muted)] text-xs ml-12 pr-2">
             Simulate strategies on historical data and analyze risk-adjusted performance metrics
           </p>
         </div>

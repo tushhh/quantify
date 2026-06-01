@@ -131,7 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPresets: (p) => set({ presets: p }),
 
   // UI
-  sidebarOpen: true,
+  sidebarOpen: false,
   setSidebarOpen: (b: boolean) => set({ sidebarOpen: b }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 

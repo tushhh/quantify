@@ -45,10 +45,10 @@ const METRICS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in text-[var(--color-text-primary)] selection:bg-[var(--color-accent)]/20 relative">
+    <div className="min-h-screen pt-12 sm:pt-16 pb-12 sm:pb-16 md:pb-10 animate-fade-in text-[var(--color-text-primary)] selection:bg-[var(--color-accent)]/20 relative">
 
       <main className="pt-0 pb-0">
-        <section className="max-w-7xl mx-auto px-4 md:px-6 grid lg:grid-cols-2 gap-10 items-center">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-10 items-center">
           <div className="space-y-6 animate-fade-in-up">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 text-xs text-[var(--color-accent)]">
               <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
@@ -56,7 +56,7 @@ export default function LandingPage() {
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
+              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight">
                 Faster research.
                 <span className="block text-[var(--color-accent)]">
                   Cleaner execution.
@@ -77,15 +77,15 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-4">
-              <div className="border border-[var(--color-border)] rounded-2xl p-1 stats-row bg-[var(--color-surface-raised)]/80">
+              <div className="grid grid-cols-2 sm:grid-cols-4 border border-[var(--color-border)] rounded-2xl p-1 bg-[var(--color-surface-raised)]/80">
                 {METRICS.map((item, i) => (
                   <div 
                     key={item.label} 
-                    className={`stat-card animate-fade-in-up ${i < METRICS.length - 1 ? 'border-r border-[var(--color-border)]' : ''}`}
+                    className={`text-center px-3 py-4 sm:px-4 stat-card animate-fade-in-up ${i < METRICS.length - 1 ? 'sm:border-r border-[var(--color-border)]' : ''}`}
                     style={{ animationDelay: `${300 + i * 60}ms` }}
                   >
-                    <div className="stat-value text-[var(--color-text-primary)]">{item.value}</div>
-                    <div className="stat-label mt-1 text-[var(--color-text-muted)]">{item.label}</div>
+                    <div className="stat-value text-[var(--color-text-primary)] text-lg sm:text-xl font-semibold">{item.value}</div>
+                    <div className="stat-label mt-1 text-[var(--color-text-muted)] text-[11px] sm:text-xs">{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -93,7 +93,7 @@ export default function LandingPage() {
           </div>
 
           <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div className="relative bg-[var(--color-surface)]/90 rounded-[28px] p-6 md:p-8 border border-[var(--color-border)] shadow-xl overflow-hidden">
+            <div className="relative bg-[var(--color-surface)]/90 rounded-[28px] p-4 sm:p-6 md:p-8 border border-[var(--color-border)] shadow-xl overflow-hidden">
               <div className="flex items-center justify-between mb-4 text-xs text-[var(--color-text-muted)]">
                 <span>System overview</span>
                 <span className="text-[var(--color-success)]">Live + Paper ready</span>
@@ -153,7 +153,7 @@ export default function LandingPage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
-          <div className="flex items-end justify-between gap-6 mb-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 md:gap-6 mb-8">
             <div>
             <p className="text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">What changed</p>
             <h2 className="text-3xl md:text-4xl font-bold mt-2 text-[var(--color-text-primary)]">A sharper interface for the parts that already work.</h2>
@@ -189,10 +189,10 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto relative z-10">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold hover-lift">
+              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold hover-lift w-full sm:w-auto">
                 Create account <ArrowRight size={18} />
               </Link>
-              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
+              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors w-full sm:w-auto">
                 Log in
               </Link>
             </div>

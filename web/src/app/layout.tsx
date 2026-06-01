@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme="dark">
-      <body className="antialiased min-h-screen text-[var(--color-text-primary)] bg-[var(--color-bg)] selection:bg-[var(--color-accent)] selection:text-[var(--color-text-inverse)] overflow-hidden">
+      <body className="antialiased min-h-screen text-[var(--color-text-primary)] bg-[var(--color-bg)] selection:bg-[var(--color-accent)] selection:text-[var(--color-text-inverse)] overflow-x-hidden">
         <script
           dangerouslySetInnerHTML={{
             __html: `(() => {
@@ -32,11 +32,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             })();`,
           }}
         />
-        <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
+        <div className="flex min-h-screen bg-[var(--color-bg)] overflow-x-hidden">
           <Sidebar />
-          <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+          <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
             <Topbar />
-            <main className="flex-1 p-6">
+            <main className="flex-1 p-4 sm:p-6 pb-8">
               {children}
             </main>
           </div>
