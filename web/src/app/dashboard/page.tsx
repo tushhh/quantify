@@ -636,7 +636,7 @@ export default function DashboardPage() {
                     <div className="font-sans text-[var(--color-text-secondary)] text-xs">#{i + 1}</div>
                     <div className="flex flex-col">
                       <div className="font-bold text-[var(--color-text-inverse)] text-base group-hover:text-[var(--color-cta)] transition-colors">{p.symbol}</div>
-                      <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"`}>
+                      <div className={`text-[10px] mt-1 font-mono ${p.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                         {p.predicted_return_pct >= 0 ? "+" : ""}{p.predicted_return_pct.toFixed(2)}% 5d
                       </div>
                       <div className="mt-1.5">
