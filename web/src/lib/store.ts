@@ -74,6 +74,10 @@ type AppState = {
   setStrategyInfos: (s: StrategyInfo[]) => void;
   setPresets: (p: RiskPreset[]) => void;
   buildRequest: () => BacktestRequest;
+  // UI
+  sidebarOpen: boolean;
+  setSidebarOpen: (b: boolean) => void;
+  toggleSidebar: () => void;
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -125,6 +129,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setError: (e) => set({ error: e }),
   setStrategyInfos: (s) => set({ strategyInfos: s }),
   setPresets: (p) => set({ presets: p }),
+
+  // UI
+  sidebarOpen: true,
+  setSidebarOpen: (b: boolean) => set({ sidebarOpen: b }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
   buildRequest: (): BacktestRequest => {
     const st = get();

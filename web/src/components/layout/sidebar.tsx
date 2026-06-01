@@ -7,6 +7,8 @@ import { clsx } from "clsx";
 
 export default function Sidebar() {
   const path = usePathname() || "/";
+  const sidebarOpen = require("@/lib/store").useAppStore((s: any) => s.sidebarOpen);
+  const cls = sidebarOpen ? "w-60" : "w-16";
 
   const nav = [
     { href: "/", label: "Home", icon: Home },
@@ -18,15 +20,17 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-60 h-screen bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col justify-between">
+    <aside className={`${cls} h-screen bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col justify-between transition-all`}> 
       <div>
         <div className="px-5 py-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-[var(--radius-md)] bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-foreground)] font-bold">Q</div>
-            <div>
-              <div className="text-sm font-semibold text-[var(--color-text-primary)]">Quantify</div>
-              <div className="text-xs text-[var(--color-text-muted)]">ML Trading</div>
-            </div>
+            {sidebarOpen && (
+              <div>
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">Quantify</div>
+                <div className="text-xs text-[var(--color-text-muted)]">ML Trading</div>
+              </div>
+            )}
           </Link>
         </div>
 
@@ -46,22 +50,14 @@ export default function Sidebar() {
                 )}
               >
                 <Icon className="h-4 w-4" />
-                <span>{n.label}</span>
+                {sidebarOpen && <span>{n.label}</span>}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      <div className="px-4 py-4 border-t border-[var(--color-border)]">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)]" />
-          <div className="flex-1">
-            <div className="text-sm font-medium text-[var(--color-text-primary)]">Guest</div>
-            <div className="text-xs text-[var(--color-text-muted)]">Sign in</div>
-          </div>
-        </div>
-      </div>
+      {/* Removed redundant guest block; user state is shown in topbar */}
     </aside>
   );
 }
