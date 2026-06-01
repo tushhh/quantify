@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { TrendingUp, BarChart2, Globe, Zap, Menu, X, LogOut, UserCircle, Home, Sparkles } from "lucide-react";
 import clsx from "clsx";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const NAV = [
   { href: "/",  label: "Home",  icon: Home },
@@ -21,6 +21,44 @@ export function Navbar() {
   const [loggedIn, setLoggedIn] = useState<boolean>(() =>
     typeof window !== "undefined" ? !!localStorage.getItem("token") : false
   );
+  const [initial, setInitial] = useState<string | null>(null);
+
+  function extractInitialFromToken(): string | null {
+    try {
+      if (typeof window === "undefined") return null;
+      const token = localStorage.getItem("token");
+      if (!token) return null;
+      const parts = token.split(".");
+      if (parts.length < 2) return null;
+      const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const json = JSON.parse(decodeURIComponent(escape(atob(payload))));
+      const name = json.username || json.name || json.sub || json.email;
+      if (!name) return null;
+      return String(name).trim().charAt(0).toUpperCase();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    // initialize from storage
+    setLoggedIn(!!(typeof window !== "undefined" && localStorage.getItem("token")));
+    setInitial(extractInitialFromToken());
+
+    const onAuth = () => {
+      setLoggedIn(!!localStorage.getItem("token"));
+      setInitial(extractInitialFromToken());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "token") onAuth();
+    };
+    window.addEventListener("auth", onAuth);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("auth", onAuth);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -66,11 +104,10 @@ export function Navbar() {
 
           {loggedIn ? (
             <>
-              <Link
-                href="/account"
-                className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-all duration-300"
-              >
-                <UserCircle size={18} strokeWidth={1.5} />
+              <Link href="/account" className="flex items-center" aria-label="Account">
+                <div className="h-9 w-9 rounded-full bg-[var(--color-surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--color-text-inverse)] font-semibold">
+                  {initial ?? "U"}
+                </div>
               </Link>
               <button
                 onClick={logout}

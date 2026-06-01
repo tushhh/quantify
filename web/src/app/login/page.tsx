@@ -21,6 +21,8 @@ export default function LoginPage() {
     try {
       const res = await api.auth.login({ username: form.username, password: form.password });
       localStorage.setItem("token", res.access_token);
+      // notify other components (persistent layout) about auth change
+      try { window.dispatchEvent(new Event('auth')); } catch {}
       router.push("/dashboard");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Login failed");

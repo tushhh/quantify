@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TradeLogTable } from "@/components/TradeLogTable";
 import { Card } from "@/components/ui";
 
 export default function TradesPage() {
+  const router = useRouter();
+  // Redirect to dashboard since trades page is consolidated there
+  useEffect(() => {
+    router.push("/dashboard");
+  }, [router]);
+
   const [trades, setTrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
