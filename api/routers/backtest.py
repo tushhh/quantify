@@ -167,7 +167,6 @@ def _build_position_sizer(req: BacktestRequest):
     from quantify.risk.position_sizer import (
         EqualWeightSizer,
         VolatilityTargetSizer,
-        HalfKellySizer,
     )
     sizer_name = req.risk.default_position_sizer
     if sizer_name == "volatility_target":
