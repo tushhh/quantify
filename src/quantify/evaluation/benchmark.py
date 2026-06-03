@@ -22,7 +22,6 @@ import warnings
 from datetime import date
 from typing import Optional, Union
 
-import numpy as np
 import pandas as pd
 
 try:
@@ -415,7 +414,7 @@ class BenchmarkComparison:
         divider = "-" * (col_w + 2 * val_w + 4)
 
         print(f"\n{'=' * (col_w + 2 * val_w + 4)}")
-        print(f"  BENCHMARK COMPARISON")
+        print("  BENCHMARK COMPARISON")
         print(f"{'=' * (col_w + 2 * val_w + 4)}")
         print(f"  {'Metric':<{col_w}}  {self.strategy_name:>{val_w}}  {self.benchmark_name:>{val_w}}")
         print(divider)

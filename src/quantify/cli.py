@@ -155,7 +155,7 @@ def backtest(
             "End date must be after start date.", param_hint="--end"
         )
 
-    click.echo(f"Loading configuration...")
+    click.echo("Loading configuration...")
     try:
         from quantify.config import load_settings
         settings = load_settings(configure_log=False)
@@ -554,7 +554,6 @@ def report(
     # Build a returns series from fills for the tearsheet
     try:
         import pandas as pd
-        import numpy as np
 
         trade_df = pd.DataFrame(trades)
         click.echo("\nTrade Log Summary")
@@ -597,7 +596,7 @@ def report(
 def universe(list_all: bool, sector: Optional[str]) -> None:
     """Display the available stock universe."""
     try:
-        from quantify.data.universe import Universe, get_sector_map, GICS_SECTORS
+        from quantify.data.universe import Universe, GICS_SECTORS
     except ImportError as exc:
         raise click.ClickException(f"Could not import universe module: {exc}")
 

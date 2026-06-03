@@ -1,16 +1,13 @@
-import pytest
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from quantify.data.universe import get_sp500
 from quantify.strategy.ml_return_predictor import (
     MLReturnPredictorStrategy,
     _build_model,
     _extract_feature_importances,
-    _FORWARD_RETURN_DAYS,
 )
-from quantify.strategy.signal import Signal
 
 
 def _make_dummy_data(symbol: str, start_date: datetime, n_bars: int) -> pd.DataFrame:

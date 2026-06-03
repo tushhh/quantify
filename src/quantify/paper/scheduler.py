@@ -39,7 +39,7 @@ Usage
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Callable, Optional
 
 log = logging.getLogger(__name__)
@@ -51,7 +51,6 @@ log = logging.getLogger(__name__)
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
-    from apscheduler.triggers.interval import IntervalTrigger
     _APSCHEDULER_AVAILABLE = True
 except ImportError:
     _APSCHEDULER_AVAILABLE = False

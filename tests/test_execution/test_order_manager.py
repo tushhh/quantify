@@ -22,14 +22,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
-from quantify.execution.broker.base import BrokerError
 from quantify.execution.broker.simulated import BarData, SimulatedBroker
 from quantify.execution.order import Order, OrderSide, OrderStatus, OrderType
-from quantify.execution.order_manager import OrderManager, RiskCheckResult
+from quantify.execution.order_manager import OrderManager
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +176,7 @@ class TestDeduplication:
         broker, om = _make_broker_and_om()
 
         order1 = _market_buy(symbol="AAPL", strategy="momentum", qty=10)
-        oid1 = om.submit(order1)
+        om.submit(order1)
         # Fill the order
         broker.process_bar(_bar())
 

@@ -35,7 +35,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
-from quantify.strategy.signal import Signal
 
 log = logging.getLogger(__name__)
 

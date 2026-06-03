@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Sequence
 
 import pandas as pd

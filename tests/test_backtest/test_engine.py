@@ -17,8 +17,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import date, timezone
 
 import numpy as np
 import pandas as pd

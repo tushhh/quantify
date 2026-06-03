@@ -34,8 +34,6 @@ except ImportError:
 
 from quantify.evaluation.metrics import (
     calculate_all,
-    max_drawdown,
-    sharpe_ratio,
     _clean,
     _TRADING_DAYS,
 )
@@ -186,9 +184,14 @@ class Tearsheet:
         """
         m = self.generate()
 
-        _header = lambda title: print(f"\n{'-' * 50}\n  {title}\n{'-' * 50}")
-        _row = lambda label, value, fmt=".4f": print(f"  {label:<35} {value:{fmt}}")
-        _pct = lambda label, value: print(f"  {label:<35} {value * 100:.2f}%")
+        def _header(title):
+            print(f"\n{'-' * 50}\n  {title}\n{'-' * 50}")
+            
+        def _row(label, value, fmt=".4f"):
+            print(f"  {label:<35} {value:{fmt}}")
+            
+        def _pct(label, value):
+            print(f"  {label:<35} {value * 100:.2f}%")
 
         print(f"\n{'=' * 50}")
         print(f"  PERFORMANCE TEARSHEET -- {self.strategy_name}")

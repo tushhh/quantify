@@ -51,10 +51,9 @@ Usage
 from __future__ import annotations
 
 import logging
-import math
 import random
 from copy import deepcopy
-from datetime import date, timedelta
+from datetime import date
 from typing import Any, Iterator, Optional
 
 import numpy as np
@@ -62,7 +61,7 @@ import pandas as pd
 
 from quantify.backtest.costs import CostModel
 from quantify.backtest.engine import BacktestEngine, BacktestResult
-from quantify.risk.position_sizer import EqualWeightSizer, PositionSizer
+from quantify.risk.position_sizer import PositionSizer
 from quantify.risk.portfolio_risk import PortfolioRiskManager
 from quantify.strategy.base import Strategy
 

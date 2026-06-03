@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional, Sequence
+from typing import Iterable, Sequence
 
 import pandas as pd
 

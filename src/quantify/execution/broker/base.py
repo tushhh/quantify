@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable
 
 from quantify.execution.order import AccountInfo, Fill, Order, Position
 

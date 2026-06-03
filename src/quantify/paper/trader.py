@@ -55,7 +55,6 @@ import signal
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from quantify.config import Settings
 from quantify.data.features import FeatureEngine

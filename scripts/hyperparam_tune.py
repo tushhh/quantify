@@ -6,7 +6,6 @@ Uses Spearman IC as the scoring metric (not MSE) and purged time-series CV.
 """
 import json
 from datetime import datetime, timezone, timedelta
-import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from sklearn.metrics import make_scorer

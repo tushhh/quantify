@@ -17,17 +17,15 @@ load_dotenv()
 # Bulletproof path injection for Heroku
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-import asyncio
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from contextlib import asynccontextmanager  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: E402
 
-from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils
-from api.database import engine, ensure_trade_columns, ensure_user_columns
-from api import models
-from api.telegram_bot import check_alerts_loop
+from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils  # noqa: E402
+from api.database import engine, ensure_trade_columns, ensure_user_columns  # noqa: E402
+from api import models  # noqa: E402
+from api.telegram_bot import check_alerts_loop  # noqa: E402
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

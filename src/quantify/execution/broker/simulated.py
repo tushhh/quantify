@@ -47,9 +47,8 @@ buying-power which defaults to the initial capital.
 from __future__ import annotations
 
 import logging
-import uuid
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
@@ -62,7 +61,6 @@ from quantify.execution.order import (
     OrderStatus,
     OrderType,
     Position,
-    TimeInForce,
 )
 
 log = logging.getLogger(__name__)

@@ -11,10 +11,8 @@ import asyncio
 import logging
 import math
 import queue
-import threading
-import time
 from datetime import date
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from typing import TYPE_CHECKING
 
@@ -190,7 +188,6 @@ def _build_risk_manager(req: BacktestRequest):
 
 
 def _sortino(daily_returns: pd.Series, risk_free: float = 0.0) -> float:
-    import numpy as np
     rets = daily_returns.dropna()
     excess = rets - risk_free / 252
     downside = excess[excess < 0]
@@ -345,7 +342,7 @@ def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
         except Exception as exc:
             log.debug("Skipping trade record: %s", exc)
 
-    return BacktestResponse(
+    response = BacktestResponse(
         status="ok",
         metrics=metrics,
         equity_curve=_serialize_equity(result.equity_curve, benchmark_series),

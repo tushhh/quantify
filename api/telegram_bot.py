@@ -1,10 +1,9 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from telegram import Bot, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from sqlalchemy.orm import Session
 from api.database import SessionLocal
 from api.models import User, Trade
 from api.market_data import fetch_latest_prices

@@ -43,22 +43,20 @@ from __future__ import annotations
 
 import logging
 import math
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
-import numpy as np
 import pandas as pd
 
 from quantify.backtest.costs import CostModel
 from quantify.data.features import FeatureEngine
 from quantify.execution.broker.simulated import BarData, SimulatedBroker
-from quantify.execution.order import Order, OrderSide, OrderStatus, OrderType
+from quantify.execution.order import Order, OrderSide, OrderType
 from quantify.execution.portfolio import Portfolio
 from quantify.risk.portfolio_risk import PortfolioRiskManager
 from quantify.risk.position_sizer import EqualWeightSizer, MarketData, PositionSizer
-from quantify.risk.stop_manager import StopManager, StopType
+from quantify.risk.stop_manager import StopManager
 from quantify.strategy.base import Strategy
 from quantify.strategy.signal import Signal
 
@@ -338,9 +336,6 @@ class BacktestEngine:
         open_trades: dict[str, dict] = {}  # symbol -> open trade record
         closed_trades: list[dict] = []
         all_fills: list = []
-
-        # Track which orders came from which strategy for P&L attribution
-        pending_order_strategy: dict[str, str] = {}
 
         for current_date in trading_dates:
             current_ts = datetime.combine(current_date, datetime.min.time()).replace(

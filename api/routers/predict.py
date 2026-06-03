@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import os
@@ -345,7 +344,7 @@ def _run_and_cache_predictions(source: str = "scheduler", mode: PredictionMode =
         cache_slot["result"] = result
         cache_slot["timestamp"] = time.time()
         
-    except Exception as e:
+    except Exception:
         log.exception("Screener prediction failed in background task")
     finally:
         _is_computing = False
@@ -425,7 +424,7 @@ async def get_best_predictions(
                 universe_size=result.universe_size,
                 model_metrics=result.model_metrics,
             )
-        except Exception as e:
+        except Exception:
             log.exception("Forced synchronous prediction failed")
             raise HTTPException(status_code=500, detail="Forced prediction failed")
     if force and not _is_computing:
