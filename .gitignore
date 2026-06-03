@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+!web/src/lib/
+lib64/
+.eggs/
+*.egg-link
+MANIFEST
+
+# Virtual environments
+node_modules/
+.venv/
+venv/
+env/
+ENV/
+.env
+.venv
+
+# Distribution / packaging
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Quantify-specific
+/data/
+*.parquet
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+catboost_info/
+
+# Secrets
+.env
+*.env.local
+*.env.*.local
+secrets.yaml
+secrets.json
+
+# Profiling
+*.prof
+*.lprof
+
+# Build artifacts
+*.whl
+
+# Database initialization script with credentials
+create_tables.py
+
+# Claude Code — local settings are machine-specific
+.claude/settings.local.json
+
+# Gemini / AI skill files — local only, not for the repo
+.gemini/

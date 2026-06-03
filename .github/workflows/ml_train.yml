@@ -1,0 +1,60 @@
+name: Train ML Model
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # Run daily at 05:00 UTC (before market open)
+  workflow_dispatch: {} # Allow manual trigger via GitHub UI or API
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    
+    # Needs permission to push to the repository
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install '.[dev]'
+
+      - name: Train ML Model
+        env:
+          # Use a local cache dir to speed up consecutive runs if caching is enabled
+          PREDICTION_DATA_CACHE_DIR: "./data/cache"
+        run: |
+          python scripts/train_ml_model.py
+
+      - name: Push Model Artifacts to Orphan Branch
+        run: |
+          # We push ONLY the models/ directory to a separate 'model-cache' branch
+          # This prevents the main branch's git history from bloating.
+          cd models
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b model-cache
+          git add .
+          git commit -m "Automated model update [skip ci]"
+          # Force push to overwrite the branch entirely (keeping history at 1 commit)
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git model-cache
+          # Remove the nested .git folder so checkout's post-job cleanup doesn't crash
+          rm -rf .git

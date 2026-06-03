@@ -1,0 +1,22 @@
+name: Daily Retrain (call deployed API)
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # daily at 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  call-retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deployed retrain
+        env:
+          DEPLOYED_URL: ${{ secrets.DEPLOYED_PREDICTION_URL }}
+        run: |
+          if [ -z "$DEPLOYED_URL" ]; then
+            echo "No DEPLOYED_PREDICTION_URL configured; skipping.";
+            exit 0;
+          fi
+          echo "Calling $DEPLOYED_URL/api/predict/best?mode=live&force=true"
+          curl -sS "$DEPLOYED_URL/api/predict/best?mode=live&force=true" -o /tmp/retrain.json || true
+          cat /tmp/retrain.json || true
