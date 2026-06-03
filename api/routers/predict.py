@@ -247,6 +247,39 @@ def _cache_is_valid(mode: PredictionMode, cached_result: Optional[PredictionResp
     return cached_result.date == session_date.isoformat()
 
 
+def _download_latest_model() -> bool:
+    import urllib.request
+    import os
+    repo = os.getenv("GITHUB_REPOSITORY")
+    if not repo:
+        log.info("Screener: GITHUB_REPOSITORY not set. Cannot fetch model from cloud.")
+        return False
+        
+    log.info(f"Screener: Downloading latest ML model from GitHub ({repo})...")
+    
+    token = os.getenv("GITHUB_TOKEN")
+    base_url = f"https://raw.githubusercontent.com/{repo}/model-cache"
+    
+    os.makedirs("models", exist_ok=True)
+    try:
+        req_model = urllib.request.Request(f"{base_url}/ml_return_predictor.joblib")
+        if token:
+            req_model.add_header("Authorization", f"token {token}")
+        with urllib.request.urlopen(req_model) as response, open("models/ml_return_predictor.joblib", 'wb') as out_file:
+            out_file.write(response.read())
+            
+        req_meta = urllib.request.Request(f"{base_url}/ml_return_predictor_meta.json")
+        if token:
+            req_meta.add_header("Authorization", f"token {token}")
+        with urllib.request.urlopen(req_meta) as response, open("models/ml_return_predictor_meta.json", 'wb') as out_file:
+            out_file.write(response.read())
+            
+        return True
+    except Exception as e:
+        log.warning(f"Screener: Failed to download model from GitHub: {e}")
+        return False
+
+
 def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
@@ -258,11 +291,14 @@ def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionR
     now_utc = datetime.now(timezone.utc)
     session_date, start_dt, end_dt = _resolve_prediction_window(mode, now_utc)
 
+    # Ensure we have the latest model downloaded from GitHub before starting
+    _download_latest_model()
+
     full_universe = get_sp500()
     universe = full_universe[:_SCREENER_UNIVERSE_SIZE]
     sector_map = get_sector_map()
 
-    strat = MLReturnPredictorStrategy(universe=universe)
+    strat = MLReturnPredictorStrategy(universe=universe, train_enabled=False)
 
     log.info("Screener: fetching data for %d symbols from S&P 500…", len(universe))
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")

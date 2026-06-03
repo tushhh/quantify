@@ -219,6 +219,7 @@ class MLReturnPredictorStrategy(Strategy):
         allow_fallback: bool = True,
         use_rank_target: bool = True,
         purge_embargo_days: int = _PURGE_EMBARGO_DAYS,
+        train_enabled: bool = True,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
@@ -236,6 +237,7 @@ class MLReturnPredictorStrategy(Strategy):
         self.allow_fallback = allow_fallback
         self.use_rank_target = use_rank_target
         self.purge_embargo_days = purge_embargo_days
+        self.train_enabled = train_enabled
 
         # Ensure lookback window is large enough for the training horizon
         min_lookback = max(self.min_train_bars + 30, self.train_window_days + 30)
@@ -360,8 +362,15 @@ class MLReturnPredictorStrategy(Strategy):
             return []
 
         # ---- Retrain if due ----
-        if self._should_retrain(timestamp):
+        if self.train_enabled and self._should_retrain(timestamp):
             self._train_model(X_all, y_all)
+        elif not self.train_enabled and self._model is None:
+            # Attempt to load model dynamically if it was just downloaded
+            try:
+                import joblib
+                self._model = joblib.load(self._model_path)
+            except Exception:
+                pass
 
         if self._model is None:
             log.warning("%s: model not trained, cannot generate signals", self.name)
