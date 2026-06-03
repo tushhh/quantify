@@ -345,7 +345,7 @@ class VolatilityRegimeStrategy(Strategy):
             if vix is None or vix.empty:
                 return None
             close = vix["Close"] if "Close" in vix.columns else vix.iloc[:, 0]
-            return close.dropna()
+            return _series_from_last_column(close)
         except Exception as exc:
             log.warning("Failed to fetch ^VIX: %s", exc)
             return None

@@ -596,8 +596,13 @@ class HalfKellySizer(PositionSizer):
             log.warning("HalfKellySizer: no valid price for %s", signal.symbol)
             return 0.0
 
-        # Scale by signal strength (conviction), clamp fraction to [0, max_position_pct]
-        effective_fraction = min(abs(signal.strength) * f_half, self.max_position_pct)
+        # Dynamically scale cap if there are multiple simultaneous signals to avoid margin call
+        dynamic_cap = self.max_position_pct
+        if getattr(self, "n_signals", 1) > 0:
+            dynamic_cap = min(self.max_position_pct, 1.0 / self.n_signals)
+
+        # Scale by signal strength (conviction), clamp fraction to dynamic cap
+        effective_fraction = min(abs(signal.strength) * f_half, dynamic_cap)
         target_dollars = portfolio.nav * effective_fraction
         raw_shares = target_dollars / price
 
