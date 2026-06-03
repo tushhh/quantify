@@ -523,6 +523,149 @@ def _atr_14(df: pd.DataFrame) -> pd.Series:
 
 
 # ---------------------------------------------------------------------------
+# Return dispersion / higher-moment features (Gu et al. 2020)
+# ---------------------------------------------------------------------------
+
+
+@register_feature("return_std_21d")
+def _return_std_21d(df: pd.DataFrame) -> pd.Series:
+    """21-day rolling standard deviation of daily returns (idiosyncratic risk proxy)."""
+    return df["close"].pct_change().rolling(21, min_periods=15).std()
+
+
+@register_feature("skewness_21d")
+def _skewness_21d(df: pd.DataFrame) -> pd.Series:
+    """21-day rolling skewness of daily returns (crash risk indicator)."""
+    return df["close"].pct_change().rolling(21, min_periods=15).skew()
+
+
+@register_feature("max_return_21d")
+def _max_return_21d(df: pd.DataFrame) -> pd.Series:
+    """Maximum single-day return over the last 21 trading days (lottery demand)."""
+    return df["close"].pct_change().rolling(21, min_periods=15).max()
+
+
+@register_feature("min_return_21d")
+def _min_return_21d(df: pd.DataFrame) -> pd.Series:
+    """Minimum single-day return over the last 21 trading days (tail risk)."""
+    return df["close"].pct_change().rolling(21, min_periods=15).min()
+
+
+# ---------------------------------------------------------------------------
+# Anchoring / reference-point features (George & Hwang, 2004)
+# ---------------------------------------------------------------------------
+
+
+@register_feature("price_to_high_52w")
+def _price_to_high_52w(df: pd.DataFrame) -> pd.Series:
+    """Ratio of current price to 52-week (252-day) rolling high (anchoring bias)."""
+    high_52w = df["high"].rolling(252, min_periods=126).max()
+    return df["close"] / high_52w
+
+
+@register_feature("price_to_low_52w")
+def _price_to_low_52w(df: pd.DataFrame) -> pd.Series:
+    """Ratio of current price to 52-week (252-day) rolling low."""
+    low_52w = df["low"].rolling(252, min_periods=126).min()
+    return df["close"] / low_52w
+
+
+# ---------------------------------------------------------------------------
+# Volume-based features
+# ---------------------------------------------------------------------------
+
+
+@register_feature("volume_trend")
+def _volume_trend(df: pd.DataFrame) -> pd.Series:
+    """Linear regression slope of volume over 20 days, normalised by mean volume."""
+    window = 20
+    slopes = pd.Series(np.nan, index=df.index)
+    x = np.arange(window, dtype=float)
+    x_mean = x.mean()
+    x_var = ((x - x_mean) ** 2).sum()
+
+    vol_arr = df["volume"].values.astype(float)
+    for i in range(window - 1, len(vol_arr)):
+        y = vol_arr[i - window + 1 : i + 1]
+        if np.any(np.isnan(y)):
+            continue
+        y_mean = y.mean()
+        if y_mean == 0:
+            continue
+        slope = ((x - x_mean) * (y - y_mean)).sum() / x_var
+        slopes.iloc[i] = slope / abs(y_mean)
+
+    return slopes
+
+
+# ---------------------------------------------------------------------------
+# Return quality / consistency features
+# ---------------------------------------------------------------------------
+
+
+@register_feature("return_consistency")
+def _return_consistency(df: pd.DataFrame) -> pd.Series:
+    """Fraction of positive-return days over the last 21 trading days."""
+    daily_ret = df["close"].pct_change()
+    positive = (daily_ret > 0).astype(float)
+    return positive.rolling(21, min_periods=15).mean()
+
+
+@register_feature("gap_return")
+def _gap_return(df: pd.DataFrame) -> pd.Series:
+    """
+    20-day average of overnight gap return: (open_t - close_{t-1}) / close_{t-1}.
+    Captures overnight sentiment and news impact.
+    """
+    prev_close = df["close"].shift(1)
+    gap = (df["open"] - prev_close) / prev_close
+    return gap.rolling(20, min_periods=10).mean()
+
+
+@register_feature("intraday_range")
+def _intraday_range(df: pd.DataFrame) -> pd.Series:
+    """
+    20-day average of (high - low) / close.
+    Proxy for realized intraday volatility.
+    """
+    daily_range = (df["high"] - df["low"]) / df["close"]
+    return daily_range.rolling(20, min_periods=10).mean()
+
+
+# ---------------------------------------------------------------------------
+# Interaction / composite features
+# ---------------------------------------------------------------------------
+
+
+@register_feature("rsi_divergence")
+def _rsi_divergence(df: pd.DataFrame) -> pd.Series:
+    """
+    RSI divergence: sign(21d price change) vs sign(21d RSI change).
+    Returns +1 for bullish divergence (price down, RSI up),
+    −1 for bearish divergence (price up, RSI down), 0 for agreement.
+    """
+    rsi = _rsi_14(df)
+    price_change = df["close"].pct_change(21)
+    rsi_change = rsi.diff(21)
+    price_sign = np.sign(price_change)
+    rsi_sign = np.sign(rsi_change)
+    # Divergence = when they disagree
+    divergence = rsi_sign - price_sign  # +2 = bullish div, -2 = bearish div
+    return divergence / 2.0  # normalise to [-1, +1]
+
+
+@register_feature("mean_reversion_5d")
+def _mean_reversion_5d(df: pd.DataFrame) -> pd.Series:
+    """
+    Mean-reversion interaction: 5d return × 21d return.
+    Negative values suggest short-term reversal of medium-term trend.
+    """
+    ret_5d = df["close"].pct_change(5)
+    ret_21d = df["close"].pct_change(21)
+    return ret_5d * ret_21d
+
+
+# ---------------------------------------------------------------------------
 # Expose the global registry for inspection
 # ---------------------------------------------------------------------------
 

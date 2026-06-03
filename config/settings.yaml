@@ -130,25 +130,59 @@ strategies:
   ml_return_predictor:
     enabled: true
     allocation: 0.15
-    model: lightgbm                 # lightgbm | random_forest | ridge
+    model: stacking_ensemble        # stacking (lgbm+xgb+catboost+ridge) | lightgbm | random_forest
     target_horizon_days: 5          # forward return prediction horizon
     train_years: 3                  # rolling training window
     retrain_frequency: monthly      # daily | weekly | monthly
+    use_rank_target: true           # cross-sectional rank target (removes market beta noise)
+    purge_embargo_days: 5           # embargo gap between train/val to prevent leakage
     features:
-      - momentum_1m
-      - momentum_3m
-      - momentum_6m
-      - momentum_12m
-      - volatility_21d
-      - volume_ratio_20d
+      # Return-based
+      - return_1d
+      - return_5d
+      - return_21d
+      - return_63d
+      - return_126d
+      - return_252d
+      # Volatility
+      - volatility_20d
+      - volatility_60d
+      - volatility_126d
+      - volatility_252d
+      # Momentum
       - rsi_14
-      - macd_signal
-      - short_interest_ratio
-      - earnings_surprise
-    long_threshold: 0.60            # predicted-probability threshold to go long
-    short_threshold: 0.40           # predicted-probability threshold to go short
+      - macd_histogram
+      # Bands
+      - bollinger_width
+      # Moving averages
+      - sma_crossover
+      # Volume
+      - volume_ratio_20d
+      - obv_slope
+      - volume_trend
+      # Liquidity
+      - amihud_illiquidity
+      # ATR
+      - atr_14
+      # Higher-moment (Gu et al. 2020)
+      - return_std_21d
+      - skewness_21d
+      - max_return_21d
+      - min_return_21d
+      # Anchoring (George & Hwang 2004)
+      - price_to_high_52w
+      - price_to_low_52w
+      # Return quality
+      - return_consistency
+      - gap_return
+      - intraday_range
+      # Interaction / composite
+      - rsi_divergence
+      - mean_reversion_5d
+    long_threshold: 0.90            # top 10% decile for long signals
+    short_threshold: 0.10           # bottom 10% decile for short signals
     max_positions: 20
-    # LightGBM hyper-parameters
+    # LightGBM hyper-parameters (shared across base estimators)
     lgbm_params:
       n_estimators: 300
       learning_rate: 0.05

@@ -24,17 +24,22 @@ Features (all from FeatureEngine):
   - Momentum:     rsi_14, macd_histogram
   - Bands:        bollinger_width
   - Moving avgs:  sma_crossover
-  - Volume:       volume_ratio_20d, obv_slope
+  - Volume:       volume_ratio_20d, obv_slope, volume_trend
   - Liquidity:    amihud_illiquidity
   - ATR:          atr_14
+  - Higher-moment: return_std_21d, skewness_21d, max_return_21d, min_return_21d
+  - Anchoring:    price_to_high_52w, price_to_low_52w
+  - Quality:      return_consistency, gap_return, intraday_range
+  - Interaction:  rsi_divergence, mean_reversion_5d
 
 Target:
-    - 5-day forward return (computed inside _build_training_data from available data)
+    - 5-day forward return, cross-sectionally rank-transformed to [-1, 1]
+      to remove market beta noise and focus on relative stock performance.
 
 Model:
-  - LightGBM regressor (falls back to sklearn GradientBoostingRegressor)
-  - Hyperparameters tuned for speed in production; use cross-validation offline
-    to tune for a specific universe
+  - Stacking ensemble of LightGBM, XGBoost, and CatBoost with a Ridge
+    meta-learner (falls back to sklearn GradientBoostingRegressor).
+  - Purged walk-forward validation with embargo gap to prevent data leakage.
 
 Walk-forward:
     - Minimum 504 bars (2 trading years) before initial training
@@ -42,10 +47,10 @@ Walk-forward:
     - Rolling training window (default ~3 years) with time-decay weighting
 
 Prediction → Signal:
-    - Predict 5-day return for each symbol
+    - Predict cross-sectional rank score for each symbol
     - Center predictions cross-sectionally before ranking
-    - Rank by centered predicted return, go long top decile, short bottom decile
-    - Strength: normalized centered return in [-1, 1] scaled by ensemble agreement
+    - Rank by centered predicted rank, go long top decile, short bottom decile
+    - Strength: normalized centered prediction in [-1, 1] scaled by ensemble agreement
 
 Feature importance is embedded in signal metadata for transparency.
 """
@@ -78,28 +83,53 @@ _REBALANCE_DAYS: int = 5            # weekly
 _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
 _TRAIN_WINDOW_DAYS: int = 756       # ~3 years of history for model training
-_DECAY_HALFLIFE_DAYS: int = 252     # time-decay half-life for sample weights
+_DECAY_HALFLIFE_DAYS: int = 504     # time-decay half-life for sample weights (2 years)
+_PURGE_EMBARGO_DAYS: int = 5        # embargo gap = forward return horizon
 
-# All available features from FeatureEngine
+# All available features from FeatureEngine (18 original + 12 new)
 _ALL_FEATURES: list[str] = [
+    # Return-based
     "return_1d",
     "return_5d",
     "return_21d",
     "return_63d",
     "return_126d",
     "return_252d",
+    # Volatility
     "volatility_20d",
     "volatility_60d",
     "volatility_126d",
     "volatility_252d",
+    # Momentum
     "rsi_14",
     "macd_histogram",
+    # Bands
     "bollinger_width",
+    # Moving averages
     "sma_crossover",
+    # Volume
     "volume_ratio_20d",
     "obv_slope",
+    "volume_trend",
+    # Liquidity
     "amihud_illiquidity",
+    # ATR
     "atr_14",
+    # Higher-moment features (Gu et al. 2020)
+    "return_std_21d",
+    "skewness_21d",
+    "max_return_21d",
+    "min_return_21d",
+    # Anchoring features (George & Hwang 2004)
+    "price_to_high_52w",
+    "price_to_low_52w",
+    # Return quality / consistency
+    "return_consistency",
+    "gap_return",
+    "intraday_range",
+    # Interaction / composite
+    "rsi_divergence",
+    "mean_reversion_5d",
 ]
 
 # LightGBM hyperparameters (production-suitable; tune offline)
@@ -123,18 +153,18 @@ _LGBM_PARAMS: dict[str, Any] = {
 
 class MLReturnPredictorStrategy(Strategy):
     """
-    Machine-learning return predictor using LightGBM.
+    Machine-learning return predictor using a stacking ensemble.
 
-    Trains on a growing window of feature/return pairs and predicts 5-day
-    forward returns.  Signals are generated weekly for the top and bottom
-    decile of predicted returns.
+    Trains on a growing window of feature/return pairs and predicts
+    cross-sectional rank scores for forward returns.  Signals are generated
+    weekly for the top and bottom decile of predicted rankings.
 
     Parameters
     ----------
     universe:
         List of ticker symbols.  Defaults to the top-100 S&P 500 tickers.
     features:
-        List of FeatureEngine feature names to use.  Defaults to all 18
+        List of FeatureEngine feature names to use.  Defaults to all 30
         registered features.
     min_train_bars:
         Minimum bars per symbol before the model is trained (default 504).
@@ -158,6 +188,13 @@ class MLReturnPredictorStrategy(Strategy):
         Exponential time-decay half-life in days for sample weights.
     center_predictions:
         If True, subtract the cross-sectional mean prediction before ranking.
+    use_rank_target:
+        If True, transform the raw forward return target into a cross-sectional
+        rank score in [-1, 1].  This removes market beta noise and focuses
+        the model on relative stock performance.
+    purge_embargo_days:
+        Number of days to embargo between train and validation sets to
+        prevent forward return overlap / data leakage.
     """
 
     name: str = "ml_return_predictor"
@@ -180,6 +217,8 @@ class MLReturnPredictorStrategy(Strategy):
         sample_decay_half_life_days: int = _DECAY_HALFLIFE_DAYS,
         center_predictions: bool = True,
         allow_fallback: bool = True,
+        use_rank_target: bool = True,
+        purge_embargo_days: int = _PURGE_EMBARGO_DAYS,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.features = features if features is not None else list(_ALL_FEATURES)
@@ -195,6 +234,8 @@ class MLReturnPredictorStrategy(Strategy):
         self.sample_decay_half_life_days = sample_decay_half_life_days
         self.center_predictions = center_predictions
         self.allow_fallback = allow_fallback
+        self.use_rank_target = use_rank_target
+        self.purge_embargo_days = purge_embargo_days
 
         # Ensure lookback window is large enough for the training horizon
         min_lookback = max(self.min_train_bars + 30, self.train_window_days + 30)
@@ -241,8 +282,14 @@ class MLReturnPredictorStrategy(Strategy):
         return list(self.features)
 
     def on_start(self) -> None:
-        """Reset model state at session start."""
-        self._model = None
+        """
+        Reset training state at session start.
+
+        NOTE: We intentionally preserve ``self._model`` if it was loaded from
+        disk so the strategy can produce predictions immediately while waiting
+        for enough data to retrain.
+        """
+        # Keep self._model — it was loaded from persistence in __init__
         self._feature_importances = None
         self._model_backends = []
         self._model_metrics = None
@@ -254,7 +301,7 @@ class MLReturnPredictorStrategy(Strategy):
         self._last_feature_values = {}
         self._last_feature_zscores = {}
         self._last_prediction_dispersion = {}
-        log.info("%s: model state reset on start", self.name)
+        log.info("%s: training state reset on start (model preserved: %s)", self.name, self._model is not None)
 
     def generate_signals(self, data: dict[str, pd.DataFrame]) -> list[Signal]:
         """
@@ -355,10 +402,12 @@ class MLReturnPredictorStrategy(Strategy):
         """
         Construct a stacked (symbol × time) feature matrix and forward-return
         target vector from the available data.
-        Features are cross-sectionally standardized per timestamp, while the
-        target remains in raw return space so predictions stay interpretable.
-        Training data is limited to a sliding window of the last train_window_days and
-        the target is winsorized to reduce the impact of outliers.
+
+        Features are cross-sectionally standardized per timestamp.
+        The target is transformed into cross-sectional ranks in [-1, 1] so
+        the model learns *relative* stock performance, removing market beta.
+        Training data is limited to a sliding window and the target is
+        winsorized to reduce the impact of outliers.
         """
         data = self._filter_to_universe(data)
         X_parts: list[pd.DataFrame] = []
@@ -373,16 +422,19 @@ class MLReturnPredictorStrategy(Strategy):
                 log.debug("%s: %s missing features: %s", self.name, symbol, missing)
                 continue
 
-            # Features matrix (all bars except last 5, since we need forward ret)
+            # Features matrix (all bars except last N, since we need forward ret)
             n = len(df) - _FORWARD_RETURN_DAYS
             if n < 20:
                 continue
 
             feat_df = df[self.features].iloc[:n].copy()
 
-            # Forward return target: return over next 5 days
-            fwd_ret = df["close"].pct_change(_FORWARD_RETURN_DAYS).shift(
-                -_FORWARD_RETURN_DAYS
+            # FIX Bug #1: Correct forward return computation.
+            # We want the return from day t to day t+N:
+            #   fwd_ret_t = close_{t+N} / close_t - 1
+            # This avoids the pct_change().shift() double-counting bug.
+            fwd_ret = (
+                df["close"].shift(-_FORWARD_RETURN_DAYS) / df["close"] - 1.0
             ).iloc[:n]
 
             # Align and drop NaNs
@@ -393,8 +445,9 @@ class MLReturnPredictorStrategy(Strategy):
             if feat_df.empty:
                 continue
 
-            # Add target column
-            feat_df["target"] = fwd_ret
+            # Tag with symbol for cross-sectional operations
+            feat_df["target"] = fwd_ret.values
+            feat_df["_symbol"] = symbol
             X_parts.append(feat_df)
 
         if not X_parts:
@@ -419,7 +472,7 @@ class MLReturnPredictorStrategy(Strategy):
             except Exception:
                 log.debug("%s: feature winsorization skipped", self.name)
 
-        # Winsorize target tails to reduce outlier impact
+        # Winsorize raw target tails before rank transformation
         if 0.0 < self.target_winsor_q < 0.5:
             try:
                 low = float(all_data["target"].quantile(self.target_winsor_q))
@@ -428,8 +481,21 @@ class MLReturnPredictorStrategy(Strategy):
             except Exception:
                 log.debug("%s: target winsorization skipped", self.name)
 
+        # FIX Bug #7: Cross-sectional rank target transformation.
+        # Instead of predicting raw returns (dominated by market noise),
+        # we predict the cross-sectional rank of each stock's return on
+        # each date.  This focuses the model on *relative* performance.
+        if self.use_rank_target:
+            try:
+                # Rank within each date, scaled to [0, 1]
+                ranked = all_data.groupby(level=0)["target"].rank(pct=True)
+                # Map to [-1, 1] so the model has a symmetric target
+                all_data["target"] = ranked * 2.0 - 1.0
+            except Exception:
+                log.debug("%s: rank target transformation skipped", self.name)
+
         # Cross-sectional standardization (z-score per timestamp) for features only.
-        def zscore(x):
+        def zscore(x: pd.Series) -> pd.Series:
             std = x.std()
             if len(x) > 1 and std > 0:
                 return (x - x.mean()) / std
@@ -455,8 +521,8 @@ class MLReturnPredictorStrategy(Strategy):
         self, X: pd.DataFrame, y: pd.Series
     ) -> None:
         """
-        Fit a LightGBM (or sklearn fallback) regressor on the full training
-        dataset.
+        Fit a stacking ensemble (or sklearn fallback) regressor on the full
+        training dataset, using a purged time-series split for validation.
         """
         log.info(
             "%s: training model on %d samples × %d features",
@@ -482,7 +548,9 @@ class MLReturnPredictorStrategy(Strategy):
             return
         y = pd.Series(y.values, index=X.index)
 
-        # Time-ordered train/validation split for diagnostics
+        # FIX Bug #5: Purged time-series split with embargo gap.
+        # The embargo gap prevents forward return overlap between the last
+        # training samples and the first validation samples.
         X_train = X
         y_train = y
         X_val = None
@@ -491,11 +559,30 @@ class MLReturnPredictorStrategy(Strategy):
         if len(unique_dates) >= 50:
             cutoff_idx = int(len(unique_dates) * 0.8)
             cutoff_date = unique_dates[max(cutoff_idx, 1)]
+
+            # Embargo: skip `purge_embargo_days` after the cutoff to prevent
+            # the last training samples' forward returns from overlapping
+            # with the first validation samples' features.
+            embargo_idx = min(cutoff_idx + self.purge_embargo_days, len(unique_dates) - 1)
+            embargo_date = unique_dates[embargo_idx]
+
             train_mask = X.index < cutoff_date
+            val_mask = X.index > embargo_date
+
             X_train = X[train_mask]
             y_train = y[train_mask]
-            X_val = X[~train_mask]
-            y_val = y[~train_mask]
+            X_val = X[val_mask]
+            y_val = y[val_mask]
+
+            log.info(
+                "%s: train/val split: train=%d (to %s), embargo=%d days, val=%d (from %s)",
+                self.name,
+                len(X_train),
+                cutoff_date.strftime("%Y-%m-%d") if hasattr(cutoff_date, "strftime") else str(cutoff_date),
+                self.purge_embargo_days,
+                len(X_val) if X_val is not None else 0,
+                embargo_date.strftime("%Y-%m-%d") if hasattr(embargo_date, "strftime") else str(embargo_date),
+            )
 
         sample_weight = self._compute_sample_weights(X_train.index)
 
@@ -521,64 +608,26 @@ class MLReturnPredictorStrategy(Strategy):
         self._model_backends = backends
 
         # Extract feature importances
-        try:
-            # VotingRegressor doesn't have feature_importances_, try getting it from LightGBM
-            if hasattr(model, "estimators_"):
-                lgbm_model = next((est for name, est in model.estimators if name == "lgbm"), None)
-                if lgbm_model and hasattr(lgbm_model, "feature_importances_"):
-                    importances = lgbm_model.feature_importances_
-                else:
-                    importances = None
-            else:
-                importances = getattr(model, "feature_importances_", None)
-
-            if importances is not None:
-                self._feature_importances = {
-                    feat: float(imp)
-                    for feat, imp in zip(self.features, importances)
-                }
-                top5 = sorted(
-                    self._feature_importances.items(),
-                    key=lambda kv: kv[1],
-                    reverse=True,
-                )[:5]
-                log.info(
-                    "%s: top-5 feature importances: %s",
-                    self.name,
-                    ", ".join(f"{k}={v:.3f}" for k, v in top5),
-                )
-            else:
-                self._feature_importances = None
-        except AttributeError:
-            self._feature_importances = None
+        self._feature_importances = _extract_feature_importances(model, self.features)
+        if self._feature_importances:
+            top5 = sorted(
+                self._feature_importances.items(),
+                key=lambda kv: kv[1],
+                reverse=True,
+            )[:5]
+            log.info(
+                "%s: top-5 feature importances: %s",
+                self.name,
+                ", ".join(f"{k}={v:.3f}" for k, v in top5),
+            )
 
         # Record training date
-        # Use the current time so we know when the last retrain happened
         self._last_train_date = datetime.now(timezone.utc)
         log.info("%s: model training complete", self.name)
         log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
 
-        # Persist model and metadata for fast startup in production
-        try:
-            import joblib
-            import json
-            import os
-
-            os.makedirs(os.path.dirname(self._model_path), exist_ok=True)
-            joblib.dump(self._model, self._model_path)
-            meta = {
-                "last_train_date": self._last_train_date.isoformat() if self._last_train_date else None,
-                "model_backends": self._model_backends,
-                "feature_importances": self._feature_importances,
-                "model_metrics": self._model_metrics,
-            }
-            with open(self._model_meta_path, "w") as fh:
-                json.dump(meta, fh)
-            log.info("%s: persisted model and metadata", self.name)
-        except Exception:
-            log.debug("%s: model persistence failed", self.name)
-
-        # Validation diagnostics (optional)
+        # FIX Bug #2: Compute validation metrics BEFORE persisting the model,
+        # so `_model_metrics` is populated when we write the metadata file.
         self._model_metrics = None
         if X_val is not None and y_val is not None and not X_val.empty:
             try:
@@ -605,6 +654,26 @@ class MLReturnPredictorStrategy(Strategy):
             except Exception as exc:
                 log.debug("%s: validation metrics failed: %s", self.name, exc)
 
+        # Persist model and metadata AFTER computing metrics
+        try:
+            import joblib
+            import json
+            import os
+
+            os.makedirs(os.path.dirname(self._model_path), exist_ok=True)
+            joblib.dump(self._model, self._model_path)
+            meta = {
+                "last_train_date": self._last_train_date.isoformat() if self._last_train_date else None,
+                "model_backends": self._model_backends,
+                "feature_importances": self._feature_importances,
+                "model_metrics": self._model_metrics,
+            }
+            with open(self._model_meta_path, "w") as fh:
+                json.dump(meta, fh)
+            log.info("%s: persisted model and metadata", self.name)
+        except Exception:
+            log.debug("%s: model persistence failed", self.name)
+
     # ------------------------------------------------------------------
     # Prediction
     # ------------------------------------------------------------------
@@ -613,10 +682,10 @@ class MLReturnPredictorStrategy(Strategy):
         self, data: dict[str, pd.DataFrame]
     ) -> dict[str, float]:
         """
-        Predict the 5-day forward return for each symbol using the current bar's
-        feature vector.
+        Predict the forward return rank score for each symbol using the
+        current bar's feature vector.
 
-        Returns a dict of {symbol: predicted_return}.
+        Returns a dict of {symbol: predicted_rank_score}.
         """
         data = self._filter_to_universe(data)
 
@@ -680,10 +749,12 @@ class MLReturnPredictorStrategy(Strategy):
         if hasattr(self._model, "estimators_"):
             try:
                 estimator_preds: list[np.ndarray] = []
+                # For StackingRegressor, estimators_ is a list of fitted base
+                # estimators.  For VotingRegressor, it's similar.
                 for estimator in self._model.estimators_:
                     if estimator is None:
                         continue
-                    estimator_preds.append(estimator.predict(feat_df.values))
+                    estimator_preds.append(estimator.predict(feat_df[self.features].values))
                 if estimator_preds:
                     stacked = np.vstack(estimator_preds)
                     dispersion = np.nanstd(stacked, axis=0)
@@ -817,6 +888,8 @@ class MLReturnPredictorStrategy(Strategy):
                 "target_winsor_q": self.target_winsor_q,
                 "feature_winsor_q": self.feature_winsor_q,
                 "train_window_days": self.train_window_days,
+                "use_rank_target": self.use_rank_target,
+                "purge_embargo_days": self.purge_embargo_days,
             }
             if dispersion is not None:
                 meta["prediction_dispersion"] = round(float(dispersion), 6)
@@ -950,20 +1023,71 @@ class MLReturnPredictorStrategy(Strategy):
 
 
 # ---------------------------------------------------------------------------
-# Backend selection: LightGBM with sklearn fallback
+# Feature importance extraction helpers
+# ---------------------------------------------------------------------------
+
+
+def _extract_feature_importances(
+    model: Any, feature_names: list[str]
+) -> Optional[dict[str, float]]:
+    """
+    Extract feature importances from various model types:
+    - StackingRegressor: average importances across base estimators
+    - VotingRegressor: average importances across estimators
+    - Single estimator: use feature_importances_ directly
+    """
+    try:
+        # StackingRegressor / VotingRegressor: aggregate from base estimators
+        if hasattr(model, "estimators_") and isinstance(model.estimators_, list):
+            all_importances: list[np.ndarray] = []
+            for estimator in model.estimators_:
+                if estimator is None:
+                    continue
+                imp = getattr(estimator, "feature_importances_", None)
+                if imp is not None and len(imp) == len(feature_names):
+                    all_importances.append(np.array(imp, dtype=float))
+
+            if all_importances:
+                # Average importances across all base estimators
+                avg_imp = np.mean(all_importances, axis=0)
+                return {
+                    feat: float(imp)
+                    for feat, imp in zip(feature_names, avg_imp)
+                }
+
+        # Single estimator fallback
+        importances = getattr(model, "feature_importances_", None)
+        if importances is not None and len(importances) == len(feature_names):
+            return {
+                feat: float(imp)
+                for feat, imp in zip(feature_names, importances)
+            }
+
+        return None
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Backend selection: Stacking ensemble with LightGBM, XGBoost, CatBoost
 # ---------------------------------------------------------------------------
 
 
 def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     """
-    Return a VotingRegressor ensemble of LightGBM, XGBoost, and CatBoost,
-    plus a list of backend names actually used.
+    Return a StackingRegressor ensemble of LightGBM, XGBoost, and CatBoost
+    with a Ridge meta-learner, plus a list of backend names actually used.
+
+    The stacking approach is superior to VotingRegressor because:
+    1. The meta-learner learns optimal weights from data (not fixed/equal)
+    2. It captures complementary strengths of each base learner
+    3. Cross-validated base predictions prevent overfitting
     """
-    from sklearn.ensemble import VotingRegressor
-    
+    from sklearn.linear_model import Ridge
+
     estimators: list[tuple[str, Any]] = []
     backends: list[str] = []
-    
+
     # 1. LightGBM
     try:
         from lightgbm import LGBMRegressor
@@ -979,8 +1103,13 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
             "n_estimators": params.get("n_estimators", 200),
             "learning_rate": params.get("learning_rate", 0.05),
             "max_depth": params.get("max_depth", 5),
+            "subsample": params.get("subsample", 0.8),
+            "colsample_bytree": params.get("colsample_bytree", 0.8),
+            "reg_alpha": params.get("reg_alpha", 0.1),
+            "reg_lambda": params.get("reg_lambda", 0.1),
             "n_jobs": -1,
-            "random_state": 42
+            "random_state": 42,
+            "verbosity": 0,
         }
         estimators.append(("xgboost", XGBRegressor(**xgb_params)))
         backends.append("xgboost")
@@ -994,8 +1123,9 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
             "iterations": params.get("n_estimators", 200),
             "learning_rate": params.get("learning_rate", 0.05),
             "depth": params.get("max_depth", 5),
+            "l2_leaf_reg": params.get("reg_lambda", 0.1),
             "verbose": False,
-            "random_seed": 42
+            "random_seed": 42,
         }
         estimators.append(("catboost", CatBoostRegressor(**cb_params)))
         backends.append("catboost")
@@ -1007,14 +1137,29 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
         from sklearn.ensemble import GradientBoostingRegressor
         return GradientBoostingRegressor(n_estimators=100), ["sklearn_fallback"]
 
-    # Return the weighted ensemble
-    # We give LightGBM slightly more weight as it's the gold standard for finance
-    weights = []
-    for name, _ in estimators:
-        if name == "lgbm": weights.append(1.5)
-        else: weights.append(1.0)
-        
-    return VotingRegressor(estimators=estimators, weights=weights), backends
+    if len(estimators) == 1:
+        # Only one backend available — return it directly (no stacking overhead)
+        return estimators[0][1], backends
+
+    # FIX Bug #6: Use StackingRegressor instead of VotingRegressor.
+    # The Ridge meta-learner learns optimal combination weights from data
+    # rather than using fixed/equal weights, and the cross-validated base
+    # predictions prevent overfitting.
+    try:
+        from sklearn.ensemble import StackingRegressor
+
+        stacking = StackingRegressor(
+            estimators=estimators,
+            final_estimator=Ridge(alpha=1.0),
+            cv=5,  # 5-fold CV for base estimator predictions
+            n_jobs=-1,
+            passthrough=False,  # only use base estimator predictions as meta-features
+        )
+        return stacking, backends
+    except Exception as exc:
+        log.warning("StackingRegressor failed, falling back to VotingRegressor: %s", exc)
+        from sklearn.ensemble import VotingRegressor
+        return VotingRegressor(estimators=estimators), backends
 
 
 __all__ = ["MLReturnPredictorStrategy"]
