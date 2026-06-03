@@ -339,7 +339,7 @@ def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionR
     for s in all_signals:
         sym = s.symbol
         sector = sector_map.get(sym, "Unknown")
-        pred_return = s.metadata.get("predicted_return_5d", 0.0) if s.metadata else 0.0
+        pred_return = s.metadata.get("predicted_return_1d", s.metadata.get("predicted_return_5d", 0.0)) if s.metadata else 0.0
         explanations = s.metadata.get("explanations", []) if s.metadata else []
         items.append(PredictionItem(
             symbol=sym,

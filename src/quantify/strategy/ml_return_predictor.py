@@ -76,7 +76,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MIN_TRAIN_BARS: int = 504          # minimum bars for initial model training
 _RETRAIN_INTERVAL_DAYS: int = 21    # retrain every ~21 trading days
-_FORWARD_RETURN_DAYS: int = 5       # prediction target horizon
+_FORWARD_RETURN_DAYS: int = 1       # prediction target horizon
 _LONG_DECILE: float = 0.90          # top 10%
 _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
@@ -84,7 +84,8 @@ _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
 _TRAIN_WINDOW_DAYS: int = 756       # ~3 years of history for model training
 _DECAY_HALFLIFE_DAYS: int = 504     # time-decay half-life for sample weights (2 years)
-_PURGE_EMBARGO_DAYS: int = 5        # embargo gap = forward return horizon
+_PURGE_EMBARGO_DAYS: int = 1        # embargo gap = forward return horizon
+
 
 # All available features from FeatureEngine (18 original + 12 new)
 _ALL_FEATURES: list[str] = [
@@ -884,8 +885,8 @@ class MLReturnPredictorStrategy(Strategy):
                 strength = 0.0
 
             meta: dict[str, Any] = {
-                "predicted_return_5d": round(pred_ret, 6),
-                "predicted_return_5d_centered": round(float(pred_for_rank[symbol]), 6),
+                "predicted_return_1d": round(pred_ret, 6),
+                "predicted_return_1d_centered": round(float(pred_for_rank[symbol]), 6),
                 "percentile_rank": round(float(pct_rank), 4),
                 "last_train_date": (
                     self._last_train_date.isoformat(timespec="seconds")
