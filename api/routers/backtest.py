@@ -173,7 +173,8 @@ def _build_position_sizer(req: BacktestRequest):
     if sizer_name == "volatility_target":
         return VolatilityTargetSizer(max_position_pct=req.risk.max_single_position)
     if sizer_name == "half_kelly":
-        return HalfKellySizer(max_position_pct=req.risk.max_single_position)
+        from quantify.risk.position_sizer import get_sizer
+        return get_sizer("half_kelly", max_position_pct=req.risk.max_single_position)
     return EqualWeightSizer(max_position_pct=req.risk.max_single_position)
 
 
