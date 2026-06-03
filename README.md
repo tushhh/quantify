@@ -10,6 +10,12 @@
 
 ---
 
+## What's New (June 2026)
+
+- **Serverless ML Training Pipeline**: The heavy-lifting of the Machine Learning ensemble (LightGBM, XGBoost, CatBoost) has been entirely decoupled from the Heroku web server. 
+- **GitHub Actions Integration**: A new automated workflow (`.github/workflows/ml_train.yml`) now runs daily at 05:00 UTC. It spins up a 7GB GitHub runner, downloads 3 years of market data, trains the model, and pushes the `.joblib` model artifact to a hidden `model-cache` branch.
+- **Lightweight Inference**: The Heroku API (`/api/predict/best`) no longer attempts to train the model locally. Instead, it securely downloads the latest pre-trained model directly from GitHub and performs instant inference (taking <5 seconds), completely resolving all memory limit (R15) crashes.
+
 ## What's New (May 2026)
 
 - Prediction API: added `/api/predict/best` endpoint that returns ML-ranked signals (5‑day horizon). Responses include per-symbol driver explanations and optional `model_metrics` (rmse, mae, hit_rate, spearman_ic).
