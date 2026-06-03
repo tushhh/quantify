@@ -68,6 +68,7 @@ Thumbs.db
 
 # Quantify-specific
 /data/
+/models/
 *.parquet
 *.db
 *.sqlite
