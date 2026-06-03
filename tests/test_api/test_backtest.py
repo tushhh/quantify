@@ -90,7 +90,53 @@ def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data)
     }
 
     client = TestClient(app)
-    res = client.post("/api/backtest", json=payload)
+    res = client.post("/api/backtest?run_sync=true", json=payload)
     assert res.status_code == 200
     body = res.json()
     assert "trend_following" in body["metadata"]["strategies_run"]
+
+
+def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
+    def _fake_fetch_data(tickers, start, end):
+        data = {
+            "AAPL": long_ohlcv_data.copy(),
+            "SPY": long_ohlcv_data.copy(),
+        }
+        return {k: v for k, v in data.items() if k in tickers}
+
+    monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data)
+
+    start_date = long_ohlcv_data.index[0].date()
+    end_date = long_ohlcv_data.index[-1].date()
+
+    payload = {
+        "start_date": str(start_date),
+        "end_date": str(end_date),
+        "initial_capital": 100000.0,
+        "benchmark": "SPY",
+        "universe": ["AAPL", "SPY"],
+        "strategies": _strategy_payload(allocation=0.25),
+    }
+
+    client = TestClient(app)
+    # 1. Submit async job
+    res = client.post("/api/backtest?job_id=test_job_123", json=payload)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "running"
+    assert body["job_id"] == "test_job_123"
+
+    # 2. Poll for results (since it runs in background task thread, it will complete very quickly on mock data)
+    import time
+    for _ in range(10):
+        res = client.get("/api/backtest/result/test_job_123")
+        assert res.status_code == 200
+        body = res.json()
+        if body.get("status") == "running":
+            time.sleep(0.5)
+            continue
+        break
+
+    assert body["status"] == "ok"
+    assert "trend_following" in body["metadata"]["strategies_run"]
+

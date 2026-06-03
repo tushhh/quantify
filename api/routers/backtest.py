@@ -18,18 +18,32 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas as pd
-from fastapi import APIRouter, HTTPException
+import collections
+from typing import Union
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 
 from api.schemas import (
     BacktestMetrics,
     BacktestRequest,
     BacktestResponse,
+    BacktestSubmitResponse,
     TradeRecord,
 )
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 log = logging.getLogger("quantify.api.backtest")
+
+# In-memory caches for async backtest runs
+_backtest_results = collections.OrderedDict()
+_active_jobs = set()
+
+
+def _save_result(job_id: str, result: Any):
+    if len(_backtest_results) >= 20:
+        _backtest_results.popitem(last=False)
+    _backtest_results[job_id] = result
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -239,14 +253,15 @@ def _serialize_drawdown(equity: pd.Series) -> list[dict]:
     ]
 
 
-def _run_backtest_sync(req: BacktestRequest) -> BacktestResponse:
+def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> BacktestResponse:
     """Blocking backtest execution — called in a thread from the async endpoint."""
     from quantify.backtest.engine import BacktestEngine
 
     def _progress(msg: str):
         log.info(msg)
-        if q := _progress_queues.get("default"):
+        if q := _progress_queues.get(job_id):
             q.put(msg)
+
 
     # ── Universe ──────────────────────────────────────────────────────────
     # Note: benchmark symbol is included in the universe for data fetching,
@@ -372,23 +387,64 @@ _progress_queues: Dict[str, "queue.Queue[str]"] = {}
 # Routes
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=BacktestResponse)
-async def run_backtest(req: BacktestRequest) -> BacktestResponse:
+def _run_backtest_bg(req: BacktestRequest, job_id: str):
+    try:
+        response = _run_backtest_sync(req, job_id)
+        _save_result(job_id, response)
+    except Exception as exc:
+        log.exception(f"Unhandled error during backtest job {job_id}")
+        _save_result(job_id, exc)
+    finally:
+        _active_jobs.discard(job_id)
+
+
+@router.post("", response_model=Union[BacktestResponse, BacktestSubmitResponse])
+async def run_backtest(
+    req: BacktestRequest,
+    background_tasks: BackgroundTasks,
+    job_id: str = "default",
+    run_sync: bool = False,
+) -> Union[BacktestResponse, BacktestSubmitResponse]:
     """
     Run a full backtest.
 
     Accepts strategy configs, date range, capital, risk profile, and cost model.
-    Returns equity curve, drawdown, per-trade log, and aggregate metrics.
+    If run_sync is False (default), it runs in the background and returns a job_id.
+    Clients poll /api/backtest/result/{job_id} to get the final results.
     """
-    loop = asyncio.get_running_loop()
-    try:
-        response = await loop.run_in_executor(None, _run_backtest_sync, req)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        log.exception("Unhandled error during backtest")
-        raise HTTPException(status_code=500, detail="An unhandled internal server error occurred.") from exc
-    return response
+    if run_sync:
+        loop = asyncio.get_running_loop()
+        try:
+            response = await loop.run_in_executor(None, _run_backtest_sync, req, job_id)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            log.exception("Unhandled error during backtest")
+            raise HTTPException(status_code=500, detail="An unhandled internal server error occurred.") from exc
+        return response
+
+    # Async background task
+    _active_jobs.add(job_id)
+    background_tasks.add_task(_run_backtest_bg, req, job_id)
+    return BacktestSubmitResponse(status="running", job_id=job_id)
+
+
+@router.get("/result/{job_id}")
+async def get_backtest_result(job_id: str):
+    """Retrieve the results of a completed backtest job."""
+    if job_id not in _backtest_results:
+        if job_id in _active_jobs or job_id in _progress_queues:
+            return {"status": "running"}
+        raise HTTPException(status_code=404, detail="Job not found or expired")
+
+    res = _backtest_results[job_id]
+    if isinstance(res, Exception):
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred during backtest execution: {res}",
+        )
+    return res
+
 
 
 @router.get("/stream")

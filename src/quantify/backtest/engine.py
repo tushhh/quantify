@@ -175,20 +175,22 @@ class BacktestResult:
 class _PortfolioAdapter:
     """Thin adapter exposing 'nav' so PositionSizer protocols are satisfied."""
 
-    def __init__(self, portfolio: Portfolio) -> None:
+    def __init__(self, portfolio: Portfolio, allocation: float = 1.0) -> None:
         self._portfolio = portfolio
+        self.allocation = allocation
 
     @property
     def nav(self) -> float:
-        return self._portfolio.equity
+        return self._portfolio.equity * self.allocation
 
     @property
     def cash(self) -> float:
-        return self._portfolio.cash
+        return self._portfolio.cash * self.allocation
 
     @property
     def positions(self) -> dict:
         return self._portfolio.positions
+
 
 
 # ---------------------------------------------------------------------------
@@ -833,9 +835,17 @@ class BacktestEngine:
             if hasattr(self.position_sizer, "n_positions"):
                 self.position_sizer.n_positions = max(n_entry_signals, 1)
 
+            # Resolve strategy allocation weight
+            strategy = next((s for s in self.strategies if s.name == sig.strategy_name), None)
+            alloc = getattr(strategy, "allocation", 1.0) if strategy is not None else 1.0
+            if alloc <= 0.0:
+                alloc = 1.0
+
+            strategy_portfolio_adapter = _PortfolioAdapter(portfolio, allocation=alloc)
             target_shares = self.position_sizer.calculate_size(
-                sig, portfolio_adapter, market_data
+                sig, strategy_portfolio_adapter, market_data
             )
+
         except Exception as exc:
             log.warning("position_sizer failed for %s: %s", symbol, exc)
             return

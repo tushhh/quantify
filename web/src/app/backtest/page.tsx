@@ -77,7 +77,8 @@ export default function BacktestPage() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    const es = new EventSource(`${BASE}/api/backtest/stream?job_id=default`);
+    const jobId = `job_${Math.random().toString(36).substring(2, 15)}`;
+    const es = new EventSource(`${BASE}/api/backtest/stream?job_id=${jobId}`);
     esRef.current = es;
     es.onmessage = (e) => {
       if (e.data === "done") {
@@ -92,7 +93,8 @@ export default function BacktestPage() {
 
     try {
       const req = buildRequest();
-      const res = await api.backtest.run(req, ctrl.signal);
+      const res = await api.backtest.run(req, jobId, ctrl.signal);
+
       setBacktestResult(res);
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") return;

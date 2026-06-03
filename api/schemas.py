@@ -100,6 +100,12 @@ class BacktestResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
+class BacktestSubmitResponse(BaseModel):
+    status: str = "running"
+    job_id: str
+
+
+
 # ---------------------------------------------------------------------------
 # Strategy info
 # ---------------------------------------------------------------------------

@@ -243,9 +243,32 @@ export const api = {
     validateSymbol: (symbol: string) => apiFetch<{ valid: boolean; reason?: string; exchange?: string }>(`/api/utils/validate_symbol?symbol=${encodeURIComponent(symbol)}`),
   },
   backtest: {
-    run: (req: BacktestRequest, signal?: AbortSignal) =>
-      apiFetch<BacktestResponse>("/api/backtest", { method: "POST", body: req, signal }),
+    run: async (req: BacktestRequest, jobId: string, signal?: AbortSignal): Promise<BacktestResponse> => {
+      // 1. Submit the backtest job
+      await apiFetch<{ job_id: string; status: string }>(`/api/backtest?job_id=${jobId}`, {
+        method: "POST",
+        body: req,
+        signal,
+      });
+
+      // 2. Poll for the result
+      while (true) {
+        if (signal?.aborted) {
+          throw new Error("Aborted");
+        }
+
+        // Wait 1 second before polling
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const pollRes = await apiFetch<any>(`/api/backtest/result/${jobId}`, { signal });
+        if (pollRes.status === "running") {
+          continue;
+        }
+        return pollRes as BacktestResponse;
+      }
+    },
   },
+
   predict: {
     best: (top_n: number = 10, sector?: string, force?: boolean, mode: "live" | "previous_close" = "previous_close") => {
       const params = new URLSearchParams({ top_n: String(top_n) });
