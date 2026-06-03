@@ -56,3 +56,5 @@ jobs:
           git commit -m "Automated model update [skip ci]"
           # Force push to overwrite the branch entirely (keeping history at 1 commit)
           git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git model-cache
+          # Remove the nested .git folder so checkout's post-job cleanup doesn't crash
+          rm -rf .git
