@@ -598,8 +598,9 @@ class HalfKellySizer(PositionSizer):
 
         # Dynamically scale cap if there are multiple simultaneous signals to avoid margin call
         dynamic_cap = self.max_position_pct
-        if getattr(self, "n_signals", 1) > 0:
-            dynamic_cap = min(self.max_position_pct, 1.0 / self.n_signals)
+        n_sig = getattr(self, "n_signals", 1)
+        if n_sig > 0:
+            dynamic_cap = min(self.max_position_pct, 1.0 / n_sig)
 
         # Scale by signal strength (conviction), clamp fraction to dynamic cap
         effective_fraction = min(abs(signal.strength) * f_half, dynamic_cap)
