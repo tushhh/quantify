@@ -396,10 +396,14 @@ class VolatilityTargetSizer(PositionSizer):
             return 0.0
 
         n = n_positions if n_positions is not None else self.n_positions
-        # Target each position's notional so that a 1% move scaled by realized
-        # volatility uses only a fraction of portfolio NAV. The square-root term
-        # keeps low-volatility names larger than high-volatility names before
-        # the max-position cap is applied.
+        # Inverse-volatility sizing: give each position an equal slice of the
+        # portfolio annualised-volatility budget.  Solving
+        #     price * shares * ann_vol == (target_annual_vol / n) * NAV
+        # for `shares` yields the expression below, so each position's
+        # annualised dollar volatility equals (target_annual_vol / n) * NAV
+        # (ignoring cross-asset correlations).  Lower-volatility names thus
+        # receive proportionally larger share counts.  (There is no
+        # square-root term — this is linear inverse-vol weighting.)
         risk_budget = (self.target_annual_vol / n) * portfolio.nav
         raw_shares = risk_budget / (price * max(ann_vol, 1e-9))
 
@@ -554,6 +558,12 @@ class HalfKellySizer(PositionSizer):
         self.win_rate = win_rate
         self.avg_win = avg_win
         self.avg_loss = avg_loss
+        # Number of simultaneous entry signals.  Declared here (rather than
+        # only read via getattr) so the engine — which updates this attribute
+        # only when ``hasattr(sizer, "n_signals")`` is true — actually engages
+        # the per-signal cap that stops concurrent half-Kelly bets from
+        # over-allocating NAV.
+        self.n_signals = 1
 
     @property
     def kelly_fraction(self) -> float:

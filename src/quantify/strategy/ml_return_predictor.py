@@ -335,10 +335,22 @@ class MLReturnPredictorStrategy(Strategy):
         if not self._should_rebalance(timestamp):
             return list(self._signal_cache)
 
-        # ---- Build cross-sectional training dataset ----
-        X_all, y_all = self._build_training_data(data)
+        # ---- Build the cross-sectional training dataset only when needed ----
+        # Assembling this matrix is expensive (a concat across the universe
+        # plus several per-date groupby transforms over ~3 years of history).
+        # It is only required when we are about to retrain, or when no model
+        # exists yet and we must choose between training and the lightweight
+        # fallback.  On the intervening weekly rebalances — a model already
+        # exists and no retrain is due — we skip the rebuild and go straight
+        # to prediction.  (Retraining is monthly while rebalancing is weekly,
+        # so this avoids ~3 redundant rebuilds per retrain cycle.)
+        want_retrain = self.train_enabled and self._should_retrain(timestamp)
+        X_all = y_all = None
+        if want_retrain or self._model is None:
+            X_all, y_all = self._build_training_data(data)
 
-        if X_all is None or len(X_all) < self.min_train_bars:
+        # ---- No usable model AND insufficient training data → fallback ----
+        if self._model is None and (X_all is None or len(X_all) < self.min_train_bars):
             n_samples = 0 if X_all is None else len(X_all)
             log.warning(
                 "%s: only %d training samples available (need %d)",
@@ -362,8 +374,8 @@ class MLReturnPredictorStrategy(Strategy):
             self._last_rebalance_date = timestamp
             return []
 
-        # ---- Retrain if due ----
-        if self.train_enabled and self._should_retrain(timestamp):
+        # ---- Retrain if due (and enough data was assembled) ----
+        if want_retrain and X_all is not None and len(X_all) >= self.min_train_bars:
             self._train_model(X_all, y_all)
         elif not self.train_enabled and self._model is None:
             # Attempt to load model dynamically if it was just downloaded

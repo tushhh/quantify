@@ -503,7 +503,7 @@ class PaperTrader:
         Called by the OrderManager whenever a fill is received.
 
         Updates the portfolio, logs the trade, and registers stop orders for
-        new long positions.
+        newly opened positions (long or short).
         """
         try:
             self.portfolio.update_from_fill(fill)
@@ -525,17 +525,43 @@ class PaperTrader:
         except Exception:
             log.exception("_on_fill: trade logging failed for %r", fill)
 
-        # Register a default stop for new long positions
+        # Register a default stop for newly opened positions.  The portfolio
+        # has already been updated above, so the resulting signed quantity
+        # tells us whether this fill opened a long, opened a short, or closed
+        # the position — which a side-only check cannot distinguish (a SELL
+        # may close a long or open a short, and vice versa).
         try:
-            if fill.side == OrderSide.BUY:
-                from quantify.risk.stop_manager import StopType
+            from quantify.risk.stop_manager import StopType
+
+            resulting_qty = self.portfolio.get_position_quantity(fill.symbol)
+            # Only pass stop_pct when it is configured; passing an explicit
+            # None would shadow StopManager's own default (params.get returns
+            # the stored None) and raise TypeError in float(None), silently
+            # failing stop registration via the broad except below.
+            stop_pct = self._config.risk.default_stop_loss
+            stop_params = {"stop_pct": stop_pct} if stop_pct is not None else {}
+
+            if resulting_qty > 0 and fill.side == OrderSide.BUY:
                 self._stop_manager.add_stop(
                     symbol=fill.symbol,
                     stop_type=StopType.FIXED_PCT,
                     entry_price=fill.price,
-                    params={"stop_pct": self._config.risk.default_stop_loss},
+                    params=stop_params,
                     created_at=fill.timestamp,
+                    direction="long",
                 )
+            elif resulting_qty < 0 and fill.side == OrderSide.SELL:
+                self._stop_manager.add_stop(
+                    symbol=fill.symbol,
+                    stop_type=StopType.FIXED_PCT,
+                    entry_price=fill.price,
+                    params=stop_params,
+                    created_at=fill.timestamp,
+                    direction="short",
+                )
+            elif abs(resulting_qty) < 1e-9:
+                # Position fully closed — clear any residual stops.
+                self._stop_manager.remove_stops(fill.symbol)
         except Exception:
             log.exception("_on_fill: stop registration failed for %s", fill.symbol)
 
