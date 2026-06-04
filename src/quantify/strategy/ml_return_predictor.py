@@ -377,7 +377,7 @@ class MLReturnPredictorStrategy(Strategy):
         # ---- Retrain if due (and enough data was assembled) ----
         if want_retrain:
             if X_all is not None and len(X_all) >= self.min_train_bars:
-                self._train_model(X_all, y_all)
+                self._train_model(X_all, y_all, timestamp)
             else:
                 # Retrain was due but there isn't enough data to train on.
                 # Stamp the train date anyway so _should_retrain backs off for
@@ -554,11 +554,22 @@ class MLReturnPredictorStrategy(Strategy):
     # ------------------------------------------------------------------
 
     def _train_model(
-        self, X: pd.DataFrame, y: pd.Series
+        self, X: pd.DataFrame, y: pd.Series, timestamp: Optional[datetime] = None
     ) -> None:
         """
         Fit a stacking ensemble (or sklearn fallback) regressor on the full
         training dataset, using a purged time-series split for validation.
+
+        Parameters
+        ----------
+        X, y:
+            Training feature matrix and target vector.
+        timestamp:
+            The *historical* timestamp of the current step (e.g. the backtest
+            bar date).  Recorded as ``_last_train_date`` so the time-based
+            retrain cadence in :meth:`_should_retrain` works in backtests.  If
+            omitted (e.g. one-off training from a script), the real wall-clock
+            time is used instead.
         """
         log.info(
             "%s: training model on %d samples × %d features",
@@ -657,8 +668,10 @@ class MLReturnPredictorStrategy(Strategy):
                 ", ".join(f"{k}={v:.3f}" for k, v in top5),
             )
 
-        # Record training date
-        self._last_train_date = datetime.now(timezone.utc)
+        # Record training date.  Prefer the historical (backtest) timestamp so
+        # the time-based retrain cadence works when replaying past data; fall
+        # back to wall-clock time for one-off/live training without a step ts.
+        self._last_train_date = timestamp if timestamp is not None else datetime.now(timezone.utc)
         log.info("%s: model training complete", self.name)
         log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
 
