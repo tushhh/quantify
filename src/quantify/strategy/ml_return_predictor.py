@@ -375,8 +375,22 @@ class MLReturnPredictorStrategy(Strategy):
             return []
 
         # ---- Retrain if due (and enough data was assembled) ----
-        if want_retrain and X_all is not None and len(X_all) >= self.min_train_bars:
-            self._train_model(X_all, y_all)
+        if want_retrain:
+            if X_all is not None and len(X_all) >= self.min_train_bars:
+                self._train_model(X_all, y_all)
+            else:
+                # Retrain was due but there isn't enough data to train on.
+                # Stamp the train date anyway so _should_retrain backs off for
+                # the normal interval; otherwise want_retrain stays True and
+                # the expensive cross-sectional training matrix is rebuilt on
+                # every weekly rebalance until enough history accrues.
+                log.warning(
+                    "%s: retrain due but skipped — only %d training samples (need %d)",
+                    self.name,
+                    0 if X_all is None else len(X_all),
+                    self.min_train_bars,
+                )
+                self._last_train_date = timestamp
         elif not self.train_enabled and self._model is None:
             # Attempt to load model dynamically if it was just downloaded
             try:
