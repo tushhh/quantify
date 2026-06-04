@@ -273,11 +273,13 @@ def _rolling_normalized_slope(series: pd.Series, window: int = 20) -> pd.Series:
         with np.errstate(divide="ignore", invalid="ignore"):
             slope = numerator / x_var
             normalized = slope / np.abs(window_mean)
+            # Windows with a zero mean produce +/-inf here; map them to NaN
+            # directly on the array (much cheaper than pd.Series.replace).
+            normalized[np.isinf(normalized)] = np.nan
 
         out[window - 1:] = normalized
 
-    result = pd.Series(out, index=series.index)
-    return result.replace([np.inf, -np.inf], np.nan)
+    return pd.Series(out, index=series.index)
 
 
 # ===========================================================================
