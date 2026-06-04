@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Quantify Trading System — Logging Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 1
+disable_existing_loggers: false
+
+# ── Formatters ────────────────────────────────────────────────────────────────
+formatters:
+  detailed:
+    format: "%(asctime)s | %(levelname)-8s | %(name)-40s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  simple:
+    format: "%(asctime)s | %(levelname)-8s | %(message)s"
+    datefmt: "%H:%M:%S"
+
+  json:
+    # Reserve slot for a structured-logging formatter (e.g. python-json-logger)
+    # Swap class to pythonjsonlogger.jsonlogger.JsonFormatter when available.
+    format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+
+# ── Handlers ──────────────────────────────────────────────────────────────────
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simple
+    stream: ext://sys.stdout
+
+  file_rotating:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/quantify.log
+    maxBytes: 10_485_760   # 10 MiB
+    backupCount: 10
+    encoding: utf-8
+
+  file_error:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: logs/quantify_errors.log
+    maxBytes: 5_242_880    # 5 MiB
+    backupCount: 5
+    encoding: utf-8
+
+  file_trades:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/trades.log
+    when: midnight
+    interval: 1
+    backupCount: 90        # 90 days of trade logs
+    encoding: utf-8
+    utc: false
+
+# ── Loggers ───────────────────────────────────────────────────────────────────
+loggers:
+  quantify:
+    level: DEBUG
+    handlers: [console, file_rotating, file_error]
+    propagate: false
+
+  quantify.data:
+    level: DEBUG
+    handlers: [console, file_rotating]
+    propagate: false
+
+  quantify.strategy:
+    level: DEBUG
+    handlers: [console, file_rotating]
+    propagate: false
+
+  quantify.risk:
+    level: INFO
+    handlers: [console, file_rotating, file_error]
+    propagate: false
+
+  quantify.execution:
+    level: INFO
+    handlers: [console, file_rotating, file_trades]
+    propagate: false
+
+  quantify.backtest:
+    level: DEBUG
+    handlers: [console, file_rotating]
+    propagate: false
+
+  quantify.paper:
+    level: INFO
+    handlers: [console, file_rotating, file_trades]
+    propagate: false
+
+  # Silence noisy third-party libraries
+  urllib3:
+    level: WARNING
+    propagate: true
+
+  alpaca:
+    level: WARNING
+    propagate: true
+
+  yfinance:
+    level: WARNING
+    propagate: true
+
+  lightgbm:
+    level: WARNING
+    propagate: true
+
+# ── Root ──────────────────────────────────────────────────────────────────────
+root:
+  level: WARNING
+  handlers: [console]
