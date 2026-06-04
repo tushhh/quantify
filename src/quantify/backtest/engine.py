@@ -314,10 +314,19 @@ class BacktestEngine:
         # for every symbol on every trading day inside several helpers; here
         # we materialise it a single time and use ``np.searchsorted`` for
         # O(log n) positional slicing instead of full-array boolean masks.
-        day_index: dict[str, np.ndarray] = {
-            sym: np.asarray(df.index.date, dtype="datetime64[D]")
-            for sym, df in data.items()
-        }
+        #
+        # ``to_numpy(dtype="datetime64[D]")`` is far cheaper than ``.date``
+        # (no Python objects), but it truncates in UTC.  ``_get_trading_dates``
+        # and ``target_day`` both derive the day from ``.date`` (wall-clock
+        # local date), so for a tz-aware index we drop the tz first — keeping
+        # the wall-clock time — to stay consistent and avoid off-by-one-day
+        # slicing.
+        day_index: dict[str, np.ndarray] = {}
+        for sym, df in data.items():
+            idx = df.index
+            if idx.tz is not None:
+                idx = idx.tz_localize(None)
+            day_index[sym] = idx.to_numpy(dtype="datetime64[D]")
 
         log.info(
             "BacktestEngine.run: %d trading days from %s to %s",
