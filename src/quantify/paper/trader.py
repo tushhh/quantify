@@ -534,34 +534,47 @@ class PaperTrader:
             from quantify.risk.stop_manager import StopType
 
             resulting_qty = self.portfolio.get_position_quantity(fill.symbol)
-            # Only pass stop_pct when it is configured; passing an explicit
-            # None would shadow StopManager's own default (params.get returns
-            # the stored None) and raise TypeError in float(None), silently
-            # failing stop registration via the broad except below.
-            stop_pct = self._config.risk.default_stop_loss
-            stop_params = {"stop_pct": stop_pct} if stop_pct is not None else {}
 
-            if resulting_qty > 0 and fill.side == OrderSide.BUY:
-                self._stop_manager.add_stop(
-                    symbol=fill.symbol,
-                    stop_type=StopType.FIXED_PCT,
-                    entry_price=fill.price,
-                    params=stop_params,
-                    created_at=fill.timestamp,
-                    direction="long",
-                )
-            elif resulting_qty < 0 and fill.side == OrderSide.SELL:
-                self._stop_manager.add_stop(
-                    symbol=fill.symbol,
-                    stop_type=StopType.FIXED_PCT,
-                    entry_price=fill.price,
-                    params=stop_params,
-                    created_at=fill.timestamp,
-                    direction="short",
-                )
-            elif abs(resulting_qty) < 1e-9:
+            if abs(resulting_qty) < 1e-9:
                 # Position fully closed — clear any residual stops.
                 self._stop_manager.remove_stops(fill.symbol)
+            else:
+                new_direction = "long" if resulting_qty > 0 else "short"
+
+                # If a single fill reverses the position (e.g. short -> long),
+                # the signed quantity never passes through exactly zero, so the
+                # close branch above does not fire.  Any stop registered for the
+                # opposite direction is now stale — an old long stop sits below
+                # a new short entry (and vice versa) and could immediately fire
+                # a bogus close.  Clear opposite-direction stops on reversal.
+                existing = self._stop_manager.active_stops(fill.symbol)
+                if any(s.direction != new_direction for s in existing):
+                    self._stop_manager.remove_stops(fill.symbol)
+
+                # Only register a stop on the fill that actually establishes the
+                # position in its resulting direction (a BUY that opens/extends
+                # a long, or a SELL that opens/extends a short).  A partial-close
+                # fill that leaves a residual position keeps its existing stop.
+                opens_position = (
+                    (new_direction == "long" and fill.side == OrderSide.BUY)
+                    or (new_direction == "short" and fill.side == OrderSide.SELL)
+                )
+                if opens_position:
+                    # Only pass stop_pct when it is configured; passing an
+                    # explicit None would shadow StopManager's own default
+                    # (params.get returns the stored None) and raise TypeError
+                    # in float(None), silently failing stop registration via
+                    # the broad except below.
+                    stop_pct = self._config.risk.default_stop_loss
+                    stop_params = {"stop_pct": stop_pct} if stop_pct is not None else {}
+                    self._stop_manager.add_stop(
+                        symbol=fill.symbol,
+                        stop_type=StopType.FIXED_PCT,
+                        entry_price=fill.price,
+                        params=stop_params,
+                        created_at=fill.timestamp,
+                        direction=new_direction,
+                    )
         except Exception:
             log.exception("_on_fill: stop registration failed for %s", fill.symbol)
 
