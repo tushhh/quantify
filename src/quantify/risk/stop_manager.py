@@ -249,7 +249,14 @@ class StopManager:
         """
         if direction not in ("long", "short"):
             raise ValueError(f"direction must be 'long' or 'short', got {direction!r}")
-        p = params or {}
+        # Shallow-copy so we don't mutate the caller's dict as a side effect.
+        p = dict(params) if params else {}
+        # Persist the ATR used to seed the trigger so update_trailing() can
+        # ratchet the stop later.  Without this it reads params["atr"] as None
+        # and never moves the trailing stop until update_trailing_atr() is
+        # called externally.  setdefault lets an explicit params["atr"] win.
+        if atr is not None:
+            p.setdefault("atr", atr)
         ts = created_at or datetime.now(tz=timezone.utc)
 
         trigger = self._compute_initial_trigger(
