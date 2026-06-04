@@ -1,0 +1,211 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Quantify Trading System — Master Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+data:
+  cache_dir: data/cache
+  default_provider: yfinance        # yfinance | alpaca
+  universe:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - META
+    - NVDA
+    - TSLA
+    - JPM
+    - BAC
+    - GS
+    - V
+    - MA
+    - UNH
+    - JNJ
+    - PFE
+    - XOM
+    - CVX
+    - WMT
+    - PG
+    - KO
+    - SPY
+    - QQQ
+    - IWM
+  bar_timeframe: "1Day"             # Alpaca bar timeframe string
+  history_years: 5                  # years of history to fetch on first run
+
+# ── Alpaca ────────────────────────────────────────────────────────────────────
+alpaca:
+  paper: true
+  base_url_paper: "https://paper-api.alpaca.markets"
+  base_url_live:  "https://api.alpaca.markets"
+  data_url:       "https://data.alpaca.markets"
+  # API credentials are loaded from environment variables:
+  #   ALPACA_API_KEY and ALPACA_SECRET_KEY
+
+# ── Risk ──────────────────────────────────────────────────────────────────────
+risk:
+  # Portfolio-level limits
+  max_portfolio_drawdown: 0.15      # halt trading if drawdown exceeds 15 %
+  max_gross_leverage: 1.5           # sum(|weights|) <= 1.5
+
+  # Position-level limits
+  max_single_position: 0.10         # max 10 % of NAV in a single name
+  max_sector_exposure: 0.30         # max 30 % in any one GICS sector
+
+  # Intraday circuit-breakers
+  daily_loss_limit: 0.03            # halt if daily P&L < -3 %
+
+  # Per-trade defaults (strategies may override)
+  default_stop_loss: 0.02           # 2 % hard stop per position
+  default_take_profit: 0.04         # 4 % take-profit target
+
+  # Sizing
+  default_position_sizer: equal_weight   # equal_weight | volatility_target | kelly
+
+# ── Backtest ──────────────────────────────────────────────────────────────────
+backtest:
+  initial_capital: 100_000          # USD
+  commission_per_share: 0.005       # USD per share (SEC + exchange fees)
+  spread_bps: 5                     # half-spread assumption in basis points
+  slippage_pct: 0.05                # additional slippage as % of price
+  benchmark: SPY
+  rebalance_frequency: weekly       # daily | weekly | monthly
+
+# ── Strategies ────────────────────────────────────────────────────────────────
+strategies:
+
+  pairs_mean_reversion:
+    enabled: true
+    allocation: 0.20                # fraction of capital allocated to this strategy
+    lookback_days: 60               # cointegration / spread estimation window
+    entry_zscore: 2.0               # open position when |z| > 2.0
+    exit_zscore: 0.5                # close position when |z| < 0.5
+    stop_zscore: 3.5                # emergency stop when |z| > 3.5
+    max_pairs: 10                   # maximum simultaneous open pairs
+    cointegration_pvalue: 0.05      # Engle-Granger p-value threshold
+    hedge_method: ols               # ols | tls (total least squares)
+
+  cross_sectional_momentum:
+    enabled: true
+    allocation: 0.20
+    formation_months: 12            # return look-back (months)
+    skip_months: 1                  # skip most-recent month (Jegadeesh & Titman)
+    holding_months: 1               # rebalance / holding period (months)
+    long_quantile: 0.80             # go long top 20 % by momentum score
+    short_quantile: 0.20            # go short bottom 20 %
+    max_positions: 20               # names per long/short leg
+    volatility_scale: true          # scale positions by inverse volatility
+
+  trend_following:
+    enabled: true
+    allocation: 0.15
+    fast_ema: 50                    # short EMA period (days)
+    slow_ema: 200                   # long  EMA period (days)
+    atr_period: 14
+    atr_multiplier: 2.0             # ATR-based stop distance
+    adx_threshold: 25               # only trade when ADX > threshold
+    universe_filter: momentum       # pre-filter: momentum | all
+    max_positions: 15
+
+  quality_value:
+    enabled: true
+    allocation: 0.20
+    rebalance_frequency: monthly
+    # Value factors
+    value_metrics:
+      - pe_ratio
+      - pb_ratio
+      - ev_ebitda
+    # Quality factors
+    quality_metrics:
+      - roe
+      - roa
+      - gross_margin
+      - debt_to_equity
+    composite_method: equal_weight  # equal_weight | rank_weighted
+    long_quantile: 0.80
+    max_positions: 20
+    min_market_cap_m: 2_000         # minimum market cap in USD millions
+
+  ml_return_predictor:
+    enabled: true
+    allocation: 0.15
+    model: stacking_ensemble        # stacking (lgbm+xgb+catboost+ridge) | lightgbm | random_forest
+    target_horizon_days: 5          # forward return prediction horizon
+    train_years: 3                  # rolling training window
+    retrain_frequency: monthly      # daily | weekly | monthly
+    use_rank_target: true           # cross-sectional rank target (removes market beta noise)
+    purge_embargo_days: 5           # embargo gap between train/val to prevent leakage
+    features:
+      # Return-based
+      - return_1d
+      - return_5d
+      - return_21d
+      - return_63d
+      - return_126d
+      - return_252d
+      # Volatility
+      - volatility_20d
+      - volatility_60d
+      - volatility_126d
+      - volatility_252d
+      # Momentum
+      - rsi_14
+      - macd_histogram
+      # Bands
+      - bollinger_width
+      # Moving averages
+      - sma_crossover
+      # Volume
+      - volume_ratio_20d
+      - obv_slope
+      - volume_trend
+      # Liquidity
+      - amihud_illiquidity
+      # ATR
+      - atr_14
+      # Higher-moment (Gu et al. 2020)
+      - return_std_21d
+      - skewness_21d
+      - max_return_21d
+      - min_return_21d
+      # Anchoring (George & Hwang 2004)
+      - price_to_high_52w
+      - price_to_low_52w
+      # Return quality
+      - return_consistency
+      - gap_return
+      - intraday_range
+      # Interaction / composite
+      - rsi_divergence
+      - mean_reversion_5d
+    long_threshold: 0.90            # top 10% decile for long signals
+    short_threshold: 0.10           # bottom 10% decile for short signals
+    max_positions: 20
+    # LightGBM hyper-parameters (shared across base estimators)
+    lgbm_params:
+      n_estimators: 300
+      learning_rate: 0.05
+      num_leaves: 31
+      min_child_samples: 20
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 0.1
+
+  volatility_regime:
+    enabled: true
+    allocation: 0.10
+    vix_low_threshold: 15           # below this => low-vol regime
+    vix_high_threshold: 25          # above this => high-vol regime
+    regime_lookback_days: 21
+    # Per-regime strategy weights (must sum to 1.0 each)
+    low_vol_weights:
+      cross_sectional_momentum: 0.40
+      quality_value: 0.35
+      trend_following: 0.25
+    high_vol_weights:
+      pairs_mean_reversion: 0.50
+      quality_value: 0.30
+      trend_following: 0.20
+    transition_smoothing_days: 5    # days to blend regimes on transition
