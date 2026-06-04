@@ -534,14 +534,19 @@ class PaperTrader:
             from quantify.risk.stop_manager import StopType
 
             resulting_qty = self.portfolio.get_position_quantity(fill.symbol)
+            # Only pass stop_pct when it is configured; passing an explicit
+            # None would shadow StopManager's own default (params.get returns
+            # the stored None) and raise TypeError in float(None), silently
+            # failing stop registration via the broad except below.
             stop_pct = self._config.risk.default_stop_loss
+            stop_params = {"stop_pct": stop_pct} if stop_pct is not None else {}
 
             if resulting_qty > 0 and fill.side == OrderSide.BUY:
                 self._stop_manager.add_stop(
                     symbol=fill.symbol,
                     stop_type=StopType.FIXED_PCT,
                     entry_price=fill.price,
-                    params={"stop_pct": stop_pct},
+                    params=stop_params,
                     created_at=fill.timestamp,
                     direction="long",
                 )
@@ -550,7 +555,7 @@ class PaperTrader:
                     symbol=fill.symbol,
                     stop_type=StopType.FIXED_PCT,
                     entry_price=fill.price,
-                    params={"stop_pct": stop_pct},
+                    params=stop_params,
                     created_at=fill.timestamp,
                     direction="short",
                 )
