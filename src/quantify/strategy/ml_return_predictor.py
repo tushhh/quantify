@@ -961,7 +961,16 @@ class MLReturnPredictorStrategy(Strategy):
         return delta.days >= self.rebalance_days
 
     def _should_retrain(self, timestamp: datetime) -> bool:
-        if self._model is None or self._last_train_date is None:
+        # Retrain cadence is purely time-based: retrain on the first call (no
+        # prior train date) and thereafter once retrain_interval_days have
+        # elapsed.  This intentionally does NOT short-circuit on
+        # ``self._model is None`` — coupling the cadence to model existence made
+        # the _last_train_date back-off ineffective (it would keep returning
+        # True while no model existed, defeating the stamp set when a retrain is
+        # skipped for insufficient data).  The separate "build the matrix even
+        # without a model" cold-start need is handled by the build guard in
+        # generate_signals, not here.
+        if self._last_train_date is None:
             return True
         delta = timestamp - self._last_train_date
         return delta.days >= self.retrain_interval_days
