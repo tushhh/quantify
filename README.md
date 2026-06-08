@@ -221,7 +221,7 @@ Options:
 
 Quantify features a dual-Telegram-bot architecture to provide real-time trade updates and interactive ML prediction queries.
 
-### 1. Alert Bot (Account-linked)
+### 1. Alert Bot (Account-linked) — [@QuantifyAlertbot](https://t.me/QuantifyAlertbot)
 Designed for individual users to receive real-time alerts for active trades.
 * **Alert Types**:
   * **Holding Duration Alerts**: Notifies you when a trade's hold period ends so you can sell.
@@ -230,13 +230,10 @@ Designed for individual users to receive real-time alerts for active trades.
 * **Commands**:
   * `/start` - Connects your Telegram chat ID to your Quantify account. Enter your exact Telegram username in the Account Settings dashboard first.
 
-### 2. Prediction Bot (Groups & Channels)
+### 2. Prediction Bot (Groups & Channels) — [@quantifychatbot](https://t.me/quantifychatbot)
 An interactive bot that can be added to Telegram groups, channels, or queried directly in private chats to access the machine learning signals.
 * **Commands**:
-  * `/predict <SYMBOL>` - Query predictions for *any* global ticker.
-    * Checks pre-computed top 100 S&P 500 cache first.
-    * Checks the ad-hoc cache (4-hour TTL) in the database.
-    * On a cache miss, it dynamically downloads 3 years of price history from Yahoo Finance, extracts features via `FeatureEngine`, runs inference on the ML ensemble, caches the result, and returns the signal (direction, strength, 1d return, and top driver explanations).
+  * `/predict <SYMBOL>` - Query predictions for *any* global ticker. It checks the pre-computed top 100 S&P 500 cache first, falls back to the 4-hour database ad-hoc cache next, and triggers a live ML prediction (fetching data from Yahoo Finance + generating technical features + running model inference) on a cache miss.
   * `/top` - List the top 10 bullish (long) predictions of the day.
   * `/bottom` - List the top 10 bearish (short) predictions of the day.
   * `/subscribe` - Subscribe the current group/channel to receive automatic daily predictions when computed.
