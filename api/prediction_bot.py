@@ -173,8 +173,13 @@ async def predict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         signal = None
         if cache_result and cache_result.signals:
-            signal = next((s for s in cache_result.signals if s.symbol == symbol), None)
-            
+            candidate = next((s for s in cache_result.signals if s.symbol == symbol), None)
+            # Guard: only accept the cached signal if it has real non-zero values.
+            # A strength and return of 0 means the cache was populated before the
+            # ML model had been trained/downloaded — treat it as a cache miss.
+            if candidate and not (candidate.strength == 0.0 and candidate.predicted_return_pct == 0.0):
+                signal = candidate
+
         # Step 2: Check the ad-hoc database cache (4-hour TTL)
         if not signal:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
@@ -185,8 +190,13 @@ async def predict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if cached_adhoc:
                 try:
                     signal_dict = json.loads(cached_adhoc.result_json)
-                    signal = PredictionItem(**signal_dict)
-                    log.info("Ad-hoc cache hit for ticker %s", symbol)
+                    candidate = PredictionItem(**signal_dict)
+                    # Apply same guard to ad-hoc cache
+                    if not (candidate.strength == 0.0 and candidate.predicted_return_pct == 0.0):
+                        signal = candidate
+                        log.info("Ad-hoc cache hit for ticker %s", symbol)
+                    else:
+                        log.info("Ad-hoc cache for %s has zero values, recomputing.", symbol)
                 except Exception:
                     log.warning("Failed to deserialize ad-hoc cache for %s", symbol)
 
