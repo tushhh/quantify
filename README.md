@@ -4,7 +4,7 @@
     <strong>A quantitative trading system for US equities</strong>
   </p>
   <p align="center">
-    <a href="#strategies">Strategies</a> &middot; <a href="#quickstart">Quickstart</a> &middot; <a href="#cli-reference">CLI</a> &middot; <a href="#architecture">Architecture</a>
+    <a href="#strategies">Strategies</a> &middot; <a href="#quickstart">Quickstart</a> &middot; <a href="#cli-reference">CLI</a> &middot; <a href="#telegram-integration">Telegram</a> &middot; <a href="#architecture">Architecture</a>
   </p>
 </p>
 
@@ -12,33 +12,21 @@
 
 ## What's New (June 2026)
 
-- **Serverless ML Training Pipeline**: The heavy-lifting of the Machine Learning ensemble (LightGBM, XGBoost, CatBoost) has been entirely decoupled from the Heroku web server. 
+- **Serverless ML Training Pipeline**: The heavy-lifting of the Machine Learning ensemble (LightGBM, XGBoost, CatBoost) has been entirely decoupled from the Heroku web server.
 - **GitHub Actions Integration**: A new automated workflow (`.github/workflows/ml_train.yml`) now runs daily at 05:00 UTC. It spins up a 7GB GitHub runner, downloads 3 years of market data, trains the model, and pushes the `.joblib` model artifact to a hidden `model-cache` branch.
 - **Lightweight Inference**: The Heroku API (`/api/predict/best`) no longer attempts to train the model locally. Instead, it securely downloads the latest pre-trained model directly from GitHub and performs instant inference (taking <5 seconds), completely resolving all memory limit (R15) crashes.
-- **Telegram Bots Integration**: Added support for dual-Telegram-bot integration (Alerts Bot and Group Prediction Bot) to monitor portfolios and request on-demand predictions.
-- **Ad-Hoc Stock Predictions**: The prediction bot resolves queries for *any* global ticker by fetching daily prices, extracting features dynamically, and executing the pre-trained ML model, with rate-limiting, concurrency semaphores, and a 4-hour database caching layer to run safely on Heroku's basic dyno limits.
+- **Telegram Bots Integration**: Added support for a dual-Telegram-bot architecture — an Account-linked Alert Bot and a Group Prediction Bot — to monitor portfolios and request on-demand ML predictions.
+- **Ad-Hoc Stock Predictions**: The prediction bot resolves queries for *any* global ticker by fetching daily prices, extracting features dynamically, and executing the pre-trained ML model, with rate-limiting, concurrency semaphores, and a 4-hour database caching layer to run safely on Heroku's basic dyno.
 
 ## What's New (May 2026)
 
 - Prediction API: added `/api/predict/best` endpoint that returns ML-ranked signals (5‑day horizon). Responses include per-symbol driver explanations and optional `model_metrics` (rmse, mae, hit_rate, spearman_ic).
 - Cache & re-run: predictions are cached (in-memory + DB) and a manual re-run is supported via `?force=true` — the API now performs a synchronous recompute for forced requests and writes fresh results to the cache. Use the `PREDICTION_CACHE_TTL_SECONDS` and `PREDICTION_DATA_CACHE_DIR` env vars to control cache TTL and market-data cache location.
-- ML backends: LightGBM/XGBoost/CatBoost are optional. If they are not installed the project falls back to an sklearn ensemble; install the preferred libraries for better performance:
-  - `pip install lightgbm xgboost catboost`
+- ML backends: LightGBM/XGBoost/CatBoost are optional. If they are not installed the project falls back to an sklearn ensemble; install the preferred libraries for better performance: `pip install lightgbm xgboost catboost`
 - Feature engineering: feature NaN/Inf handling improved to avoid corrupt z-scores. Targets are winsorized by default to reduce outlier impact.
 - Frontend: `web` UI updated with a compact card variant for dense tables, global spacing tokens (8/12/16px grid), and driver/explanation pills in the screener UI. The Next.js app uses `next` 16 and Turbopack; run `npm run dev` for local development and `npm run build` for production builds.
-- Dev notes: when running locally, start the backend with a local SQLite DB if you want to avoid optional Postgres/psycopg dependencies:
 
-```powershell
-$env:DATABASE_URL='sqlite:///./data/quantify.db'; \
-\.venv\Scripts\python.exe -m uvicorn api.main:app --port 8000
-```
-
-Also install `uvicorn` in the virtualenv if it's missing: `pip install uvicorn[standard]`.
-
-If you rely on indicator backfills, install `pandas-ta` (`pip install pandas-ta`) to enable ta helpers.
-
-These changes improve transparency (explanations), reliability (cache + stable training), and UI density (compact cards and spacing tokens).
-
+---
 
 Quantify is a modular, research-driven **quantitative trading framework** built in Python. It ships with six production-ready strategies, a full backtesting engine with realistic cost modeling, a multi-layered risk management system, and seamless integration with [Alpaca Markets](https://alpaca.markets/) for paper and live trading.
 
@@ -51,7 +39,7 @@ Quantify is a modular, research-driven **quantitative trading framework** built 
 | **Risk Management** | Portfolio drawdown limits, position sizing (equal-weight, vol-target, Kelly), stop-loss/take-profit, sector exposure caps |
 | **Paper and Live Trading** | Scheduled execution via Alpaca with dry-run mode for signal inspection |
 | **Performance Analytics** | Tearsheet generation, Sharpe/Sortino/Calmar ratios, drawdown analysis, and benchmark comparison |
-| **Optional Dashboard** | Streamlit-powered UI for monitoring and analysis |
+| **Telegram Bots** | Real-time trade alerts and interactive ML predictions via [@QuantifyAlertbot](https://t.me/QuantifyAlertbot) and [@quantifychatbot](https://t.me/quantifychatbot) |
 
 ---
 
@@ -97,15 +85,15 @@ pip install -e ".[dev]"
 
 **Mac/Linux:**
 ```bash
-# Copy the example env file and fill in your Alpaca keys
 cp .env.example .env
 ```
 
-**Windows Terminal:**
+**Windows:**
 ```powershell
-# Copy the example env file and fill in your Alpaca keys
 copy .env.example .env
 ```
+
+Then fill in your keys:
 
 ```dotenv
 ALPACA_API_KEY=your_paper_api_key_here
@@ -115,9 +103,8 @@ ALPACA_PAPER=true
 
 ### Run a Backtest
 
-**On Mac/Linux:**
+**Mac/Linux:**
 ```bash
-# Note: Date format is YYYY-MM-DD
 quantify backtest \
   --strategy trend_following \
   --start 2022-01-01 \
@@ -125,16 +112,14 @@ quantify backtest \
   --capital 100000
 ```
 
-**On Windows Terminal (PowerShell / Command Prompt):**
+**Windows (PowerShell):**
 ```powershell
-# Note: Date format is YYYY-MM-DD
 quantify backtest `
   --strategy trend_following `
   --start 2022-01-01 `
   --end 2024-01-01 `
   --capital 100000
 ```
-*(Alternatively, in CMD, replace the backticks ``` ` ``` with carets `^` or run the command on a single line).*
 
 ### Paper Trade (Dry Run)
 
@@ -144,8 +129,7 @@ quantify paper-trade --strategy momentum --dry-run
 
 ### Portfolio Symbol Validation
 
-When logging trades in the dashboard, Quantify validates that the ticker exists
-and is a US-listed equity. The API exposes a lightweight validator at:
+When logging trades in the dashboard, Quantify validates that the ticker exists and is a US-listed equity. The API exposes a lightweight validator at:
 
 ```
 GET /api/utils/validate_symbol?symbol=AMD
@@ -153,7 +137,7 @@ GET /api/utils/validate_symbol?symbol=AMD
 
 Response:
 
-```
+```json
 { "valid": true, "exchange": "NASDAQ" }
 ```
 
@@ -187,10 +171,11 @@ Options:
 ```
 
 ### `paper-trade`
-  
+
 > [!TIP]
 > The `ml` strategy now uses an **Ensemble Committee** (Voting Regressor) combining **LightGBM**, **XGBoost**, and **CatBoost**. This provides significantly more stable predictions by averaging the signals of three independent "experts."
 
+```
 Options:
   --strategy NAME  Strategy to run (repeatable). Omit to use all enabled
                    strategies from config.
@@ -211,7 +196,7 @@ Options:
 
 ```
 Options:
-  --list        List all tickers grouped by sector
+  --list         List all tickers grouped by sector
   --sector TEXT  Filter by GICS sector name
 ```
 
@@ -221,42 +206,72 @@ Options:
 
 Quantify features a dual-Telegram-bot architecture to provide real-time trade updates and interactive ML prediction queries.
 
-### 1. Alert Bot (Account-linked) — [@QuantifyAlertbot](https://t.me/QuantifyAlertbot)
-Designed for individual users to receive real-time alerts for active trades.
-* **Alert Types**:
-  * **Holding Duration Alerts**: Notifies you when a trade's hold period ends so you can sell.
-  * **Drawdown / Dip Alerts**: Triggers if a stock drops below your custom percentage threshold (e.g. 10%) from entry.
-  * **Sell Signals**: Triggers if the strategy evaluates that the holding strength has deteriorated.
-* **Commands**:
-  * `/start` - Connects your Telegram chat ID to your Quantify account. Enter your exact Telegram username in the Account Settings dashboard first.
+### 1. Alert Bot — [@QuantifyAlertbot](https://t.me/QuantifyAlertbot)
 
-### 2. Prediction Bot (Groups & Channels) — [@quantifychatbot](https://t.me/quantifychatbot)
-An interactive bot that can be added to Telegram groups, channels, or queried directly in private chats to access the machine learning signals.
-* **Commands**:
-  * `/predict <SYMBOL>` - Query predictions for *any* global ticker. It checks the pre-computed top 100 S&P 500 cache first, falls back to the 4-hour database ad-hoc cache next, and triggers a live ML prediction (fetching data from Yahoo Finance + generating technical features + running model inference) on a cache miss.
-  * `/top` - List the top 10 bullish (long) predictions of the day.
-  * `/bottom` - List the top 10 bearish (short) predictions of the day.
-  * `/subscribe` - Subscribe the current group/channel to receive automatic daily predictions when computed.
-  * `/unsubscribe` - Disable daily broadcasts.
-  * `/help` - Show command instructions.
+Designed for individual users to receive real-time alerts for active trades linked to their Quantify account.
 
-### Concurrency and Resource Protections (Heroku Basic Dyno Safe)
-Dynamic stock predictions require fetching data and running feature engineering on-the-fly. To prevent exceeding Heroku RAM/CPU limits:
-* **Rate Limiting**: Users and chats are rate-limited to at most 5 requests per 60 seconds.
-* **Concurrency Semaphore**: Limits parallel ad-hoc calculations to at most 2 in parallel.
-* **Asynchronous Execution**: Dynamic computations run in worker threads (`asyncio.to_thread`) to prevent blocking the async FastAPI server.
-* **Short-Term Cache**: Results are cached in the database (`adhoc_prediction_cache`) for 4 hours to minimize network fetching.
+**Alert Types:**
 
-### Env Configurations
-Configure the following env keys in your `.env` file or Heroku Config Vars:
+| Alert | Trigger |
+|---|---|
+| **Holding Duration** | Notifies you when a trade's hold period ends — time to sell. |
+| **Drawdown / Dip** | Fires if a stock drops below your custom percentage threshold (e.g. 10%) from entry. |
+| **Sell Signal** | Triggers when the ML ensemble evaluates that holding strength has turned negative. |
+
+**Commands:**
+
+| Command | Description |
+|---|---|
+| `/start` | Links your Telegram chat to your Quantify account. Enter your exact Telegram username in Account Settings first. |
+
+**Setup:** Go to your Quantify dashboard → Account Settings → enter your Telegram username → open [@QuantifyAlertbot](https://t.me/QuantifyAlertbot) and send `/start`.
+
+---
+
+### 2. Prediction Bot — [@quantifychatbot](https://t.me/quantifychatbot)
+
+An interactive bot that can be added to Telegram groups, channels, or queried in private chats for on-demand ML predictions on any stock in the market.
+
+**Commands:**
+
+| Command | Description |
+|---|---|
+| `/predict <SYMBOL>` | Query ML predictions for *any* global ticker (e.g. `/predict GME`). Returns direction, strength, predicted 1d return, and top feature drivers. |
+| `/top` | List the top 10 bullish (Long) predictions of the day. |
+| `/bottom` | List the top 10 bearish (Short) predictions of the day. |
+| `/subscribe` | Subscribe the current group/channel to receive automatic daily prediction summaries. |
+| `/unsubscribe` | Disable automated daily broadcasts. |
+| `/help` | Show command instructions. |
+
+**How `/predict <SYMBOL>` works:**
+
+1. Checks the pre-computed top-100 S&P 500 cache → replies instantly if found.
+2. Checks the ad-hoc database cache (4-hour TTL) → replies instantly if fresh.
+3. On a full cache miss: fetches 3 years of daily price history from Yahoo Finance, computes technical indicators via `FeatureEngine`, runs the pre-trained ML ensemble, caches the result, and returns the signal.
+
+**Resource Protections (Heroku Basic Dyno Safe):**
+
+| Protection | Detail |
+|---|---|
+| **Rate Limiter** | Max 5 requests per 60 seconds per user / chat. Returns a friendly error if exceeded. |
+| **Concurrency Semaphore** | Caps parallel live predictions at 2 to prevent CPU/RAM spikes. |
+| **Async Execution** | Live computations run in a background thread pool (`asyncio.to_thread`) to keep the server responsive. |
+| **Short-Term Cache** | Results cached in `adhoc_prediction_cache` for 4 hours — repeat queries are instant. |
+
+---
+
+### Env Configuration
+
+Configure the following keys in your `.env` file or Heroku Config Vars:
+
 ```dotenv
-# Alert Bot token
+# Account-linked Alert Bot
 TELEGRAM_BOT_TOKEN="your_alerts_bot_token"
 
-# Prediction Query Bot token (Groups-enabled)
+# Group Prediction Bot
 TELEGRAM_PREDICTION_BOT_TOKEN="your_prediction_bot_token"
 
-# Set to true to run bot polling directly on Heroku web dynos (overrides worker checks)
+# Force bot polling on Heroku web dynos (set to true if not using a worker dyno)
 FORCE_RUN_BOTS=true
 ```
 
@@ -351,12 +366,14 @@ Test modules cover `backtest`, `data`, `execution`, `risk`, and `strategy`.
 | Category | Libraries |
 |---|---|
 | Data | pandas, NumPy, yfinance, pyarrow |
-| ML / Stats | scikit-learn, LightGBM, statsmodels |
+| ML / Stats | scikit-learn, LightGBM, XGBoost, CatBoost, statsmodels |
 | Indicators | pandas-ta |
 | Broker | alpaca-py |
 | Scheduling | APScheduler |
+| Notifications | python-telegram-bot |
 | Visualisation | matplotlib, seaborn |
-| Dashboard | Streamlit (optional) |
+| API | FastAPI, uvicorn, SQLAlchemy |
+| Frontend | Next.js (React), Vercel |
 | CLI | Click |
 | Config | PyYAML, python-dotenv |
 
