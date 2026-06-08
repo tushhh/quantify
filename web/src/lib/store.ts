@@ -28,11 +28,11 @@ export const DEFAULT_RISK: RiskConfig = {
 };
 
 export const DEFAULT_STRATEGIES: Record<string, StrategyConfig> = {
-  trend_following:          { enabled: true,  allocation: 0.15, params: {} },
-  cross_sectional_momentum: { enabled: true,  allocation: 0.20, params: {} },
-  pairs_mean_reversion:     { enabled: true,  allocation: 0.20, params: {} },
+  trend_following:          { enabled: true,  allocation: 0.20, params: {} },
+  cross_sectional_momentum: { enabled: true,  allocation: 0.25, params: {} },
+  pairs_mean_reversion:     { enabled: true,  allocation: 0.25, params: {} },
   quality_value:            { enabled: true,  allocation: 0.20, params: {} },
-  ml_return_predictor:      { enabled: true,  allocation: 0.15, params: {} },
+  ml_return_predictor:      { enabled: false, allocation: 0.15, params: {} },
   volatility_regime:        { enabled: true,  allocation: 0.10, params: {} },
 };
 
@@ -83,7 +83,7 @@ type AppState = {
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useAppStore = create<AppState>((set, get) => ({
-  startDate: "2021-01-01",
+  startDate: "2023-01-01",
   endDate: "2024-01-01",
   initialCapital: 100_000,
   benchmark: "SPY",
