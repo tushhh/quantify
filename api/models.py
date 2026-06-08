@@ -42,3 +42,11 @@ class PredictionSubscription(Base):
     chat_id = Column(String(64), unique=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+class AdhocPredictionCache(Base):
+    __tablename__ = "adhoc_prediction_cache"
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String(16), unique=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    result_json = Column(String)  # Serialized PredictionItem JSON string
+
+

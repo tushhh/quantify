@@ -1,14 +1,132 @@
 import os
+import json
 import logging
+import asyncio
+from datetime import datetime, timezone, timedelta
+from typing import Optional
 from telegram import Bot, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from api.database import SessionLocal
-from api.models import PredictionSubscription
+from api.models import PredictionSubscription, AdhocPredictionCache
+from api.schemas import PredictionItem
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("prediction_bot")
 
 BOT_TOKEN = os.getenv("TELEGRAM_PREDICTION_BOT_TOKEN")
+
+# Rate limiter settings
+_user_request_timestamps = {}
+_RATE_LIMIT_WINDOW_SECONDS = 60
+_RATE_LIMIT_MAX_REQUESTS = 5
+
+# Concurrency safety: limit parallel ad-hoc queries to protect Heroku dyno memory/CPU
+prediction_semaphore = asyncio.Semaphore(2)
+
+def check_rate_limit(key: str) -> bool:
+    """Returns True if the request is within limits, False if rate-limited."""
+    now = datetime.now(timezone.utc).timestamp()
+    if key not in _user_request_timestamps:
+        _user_request_timestamps[key] = [now]
+        return True
+    
+    # Filter out timestamps older than the window
+    cutoff = now - _RATE_LIMIT_WINDOW_SECONDS
+    timestamps = [ts for ts in _user_request_timestamps[key] if ts > cutoff]
+    _user_request_timestamps[key] = timestamps
+    
+    if len(timestamps) >= _RATE_LIMIT_MAX_REQUESTS:
+        return False
+        
+    timestamps.append(now)
+    return True
+
+def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
+    """Blocking synchronous function to fetch data and run ML predictions for a single ticker.
+    
+    Runs inside a background thread pool via asyncio.to_thread.
+    """
+    try:
+        from quantify.data.providers.yfinance_provider import YFinanceProvider
+        from quantify.data.cache import ParquetCache
+        from quantify.data.features import FeatureEngine
+        from quantify.data.universe import get_sector_map
+        from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
+        from api.routers.predict import _latest_completed_session_date, _get_ticker_name
+
+        now_utc = datetime.now(timezone.utc)
+        session_date = _latest_completed_session_date(now_utc)
+        
+        # 3 years lookback for ML training features
+        end_dt = datetime.combine(session_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+        start_dt = end_dt - timedelta(days=365 * 3)
+
+        strat = MLReturnPredictorStrategy(universe=[symbol], train_enabled=False)
+
+        cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
+        provider = YFinanceProvider(cache=ParquetCache(cache_dir=cache_dir))
+        data = provider.get_multiple([symbol], start=start_dt, end=end_dt)
+
+        if not data or symbol not in data or data[symbol].empty:
+            log.warning("No market data returned for ad-hoc ticker %s", symbol)
+            return None
+
+        df = data[symbol]
+        # Require a minimum history to compute technical indicator features safely
+        if len(df) < 50:
+            log.warning("Insufficient history for ad-hoc ticker %s: %d rows", symbol, len(df))
+            return None
+
+        required = strat.get_required_features()
+        engine = FeatureEngine()
+        features = engine.compute(data, required=list(required))
+
+        feat_df = features.get(symbol)
+        if feat_df is not None:
+            enriched = {symbol: df.join(feat_df, how="left", rsuffix="_feat")}
+        else:
+            enriched = {symbol: df}
+
+        signals = strat.generate_signals(enriched)
+        if not signals:
+            log.warning("No signals generated for ad-hoc ticker %s", symbol)
+            return None
+
+        s = signals[0]
+        sector_map = get_sector_map()
+        sector = sector_map.get(symbol, "Unknown")
+        pred_return = s.metadata.get("predicted_return_1d", s.metadata.get("predicted_return_5d", 0.0)) if s.metadata else 0.0
+        explanations = s.metadata.get("explanations", []) if s.metadata else []
+        name = _get_ticker_name(symbol)
+
+        return PredictionItem(
+            symbol=symbol,
+            strength=s.strength,
+            side=s.direction,
+            sector=sector,
+            name=name,
+            predicted_return_pct=round(float(pred_return) * 100, 2),
+            explanations=explanations,
+        )
+    except Exception as e:
+        log.exception("Failed to run dynamic prediction for %s: %s", symbol, e)
+        return None
+
+def format_prediction_msg(signal: PredictionItem) -> str:
+    """Format a PredictionItem into a formatted HTML string."""
+    msg = (
+        f"📊 <b>ML Prediction for {signal.symbol} ({signal.name})</b>\n\n"
+        f"• <b>Side:</b> {signal.side.upper()}\n"
+        f"• <b>Strength:</b> {signal.strength:.2%}\n"
+        f"• <b>Predicted 1d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
+        f"• <b>Sector:</b> {signal.sector}\n"
+    )
+    if signal.explanations:
+        msg += "\n<b>Key Drivers:</b>\n"
+        for exp in signal.explanations[:3]:
+            sign = "+" if exp.zscore >= 0 else ""
+            msg += f"• <i>{exp.feature}</i>: z-score = {sign}{exp.zscore:.2f} ({exp.direction})\n"
+    return msg
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message and instructions."""
@@ -36,32 +154,86 @@ async def predict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     symbol = context.args[0].upper()
+    chat_key = f"chat_{update.effective_chat.id}"
+    user_key = f"user_{update.effective_user.id}"
+    
+    # Enforce rate-limits
+    if not check_rate_limit(chat_key) or not check_rate_limit(user_key):
+        await update.message.reply_text(
+            "⚠️ <b>Rate limit reached.</b> You are sending commands too quickly. Please wait a moment and try again.",
+            parse_mode="HTML"
+        )
+        return
+
     db = SessionLocal()
     try:
+        # Step 1: Check the pre-computed top 100 S&P 500 cache
         from api.routers.predict import _load_prediction_cache
         cache_result, _ = _load_prediction_cache(db, mode="previous_close")
-        if not cache_result or not cache_result.signals:
-            await update.message.reply_text("⚠️ No predictions available at this time. Run predictions from the dashboard first.")
-            return
+        
+        signal = None
+        if cache_result and cache_result.signals:
+            signal = next((s for s in cache_result.signals if s.symbol == symbol), None)
             
-        signal = next((s for s in cache_result.signals if s.symbol == symbol), None)
+        # Step 2: Check the ad-hoc database cache (4-hour TTL)
+        if not signal:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
+            cached_adhoc = db.query(AdhocPredictionCache).filter(
+                AdhocPredictionCache.symbol == symbol,
+                AdhocPredictionCache.created_at >= cutoff
+            ).first()
+            if cached_adhoc:
+                try:
+                    signal_dict = json.loads(cached_adhoc.result_json)
+                    signal = PredictionItem(**signal_dict)
+                    log.info("Ad-hoc cache hit for ticker %s", symbol)
+                except Exception:
+                    log.warning("Failed to deserialize ad-hoc cache for %s", symbol)
+
+        # Step 3: Serve from cache if available
         if signal:
-            msg = (
-                f"📊 <b>ML Prediction for {signal.symbol} ({signal.name})</b>\n\n"
-                f"• <b>Side:</b> {signal.side.upper()}\n"
-                f"• <b>Strength:</b> {signal.strength:.2%}\n"
-                f"• <b>Predicted 1d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
-                f"• <b>Sector:</b> {signal.sector}\n"
-            )
-            if signal.explanations:
-                msg += "\n<b>Key Drivers:</b>\n"
-                for exp in signal.explanations[:3]:
-                    sign = "+" if exp.zscore >= 0 else ""
-                    msg += f"• <i>{exp.feature}</i>: z-score = {sign}{exp.zscore:.2f} ({exp.direction})\n"
-            
+            msg = format_prediction_msg(signal)
             await update.message.reply_text(msg, parse_mode="HTML")
-        else:
-            await update.message.reply_text(f"❌ Could not find prediction details for '{symbol}'.")
+            return
+
+        # Step 4: Run live computation with concurrency controls
+        status_msg = await update.message.reply_text(
+            f"🔍 <b>Generating live ML prediction for {symbol}...</b>\n"
+            f"<i>This takes about 2-3 seconds to fetch data and compute indicators.</i>",
+            parse_mode="HTML"
+        )
+        
+        # Concurrency safety: limit parallel executions to avoid memory/CPU spikes
+        async with prediction_semaphore:
+            # Run the synchronous prediction logic in a background thread to prevent blocking
+            signal = await asyncio.to_thread(predict_single_ticker, symbol)
+            
+        if not signal:
+            await status_msg.edit_text(
+                f"❌ Failed to generate prediction for <b>{symbol}</b>.\n\n"
+                f"Please verify it is a valid ticker symbol and has at least 50 days of daily history.",
+                parse_mode="HTML"
+            )
+            return
+
+        # Cache the new ad-hoc prediction in the DB
+        try:
+            db.query(AdhocPredictionCache).filter(AdhocPredictionCache.symbol == symbol).delete()
+            new_cache = AdhocPredictionCache(
+                symbol=symbol,
+                result_json=json.dumps(signal.model_dump())
+            )
+            db.add(new_cache)
+            db.commit()
+            log.info("Saved ad-hoc prediction cache for %s", symbol)
+        except Exception as cache_err:
+            db.rollback()
+            log.error("Failed to save ad-hoc prediction cache for %s: %s", symbol, cache_err)
+
+        # Format and send final message (edit the status message)
+        msg = format_prediction_msg(signal)
+        await status_msg.edit_text(msg, parse_mode="HTML")
+
     except Exception as e:
         log.exception("Error in predict_cmd for symbol %s: %s", symbol, e)
         await update.message.reply_text("⚠️ Failed to load prediction details.")
@@ -182,11 +354,11 @@ async def broadcast_predictions(result=None):
         shorts = [s for s in result.signals if s.side == "short"]
 
         msg = (
-            f"📊 <b>Daily ML Prediction Signals</b>\n"
+            "📊 <b>Daily ML Prediction Signals</b>\n"
             f"📅 <b>Date:</b> {result.date}\n"
             f"📈 <b>Universe Size:</b> {result.universe_size} stocks\n"
-            f"───────────────────\n\n"
-            f"🟢 <b>Top Long Predictions (Buy)</b>\n"
+            "───────────────────\n\n"
+            "🟢 <b>Top Long Predictions (Buy)</b>\n"
         )
         for i, s in enumerate(longs[:5], 1):
             msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
