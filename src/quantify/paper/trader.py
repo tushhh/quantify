@@ -503,7 +503,7 @@ class PaperTrader:
         Called by the OrderManager whenever a fill is received.
 
         Updates the portfolio, logs the trade, and registers stop orders for
-        new long positions.
+        newly opened positions (long or short).
         """
         try:
             self.portfolio.update_from_fill(fill)
@@ -525,17 +525,56 @@ class PaperTrader:
         except Exception:
             log.exception("_on_fill: trade logging failed for %r", fill)
 
-        # Register a default stop for new long positions
+        # Register a default stop for newly opened positions.  The portfolio
+        # has already been updated above, so the resulting signed quantity
+        # tells us whether this fill opened a long, opened a short, or closed
+        # the position — which a side-only check cannot distinguish (a SELL
+        # may close a long or open a short, and vice versa).
         try:
-            if fill.side == OrderSide.BUY:
-                from quantify.risk.stop_manager import StopType
-                self._stop_manager.add_stop(
-                    symbol=fill.symbol,
-                    stop_type=StopType.FIXED_PCT,
-                    entry_price=fill.price,
-                    params={"stop_pct": self._config.risk.default_stop_loss},
-                    created_at=fill.timestamp,
+            from quantify.risk.stop_manager import StopType
+
+            resulting_qty = self.portfolio.get_position_quantity(fill.symbol)
+
+            if abs(resulting_qty) < 1e-9:
+                # Position fully closed — clear any residual stops.
+                self._stop_manager.remove_stops(fill.symbol)
+            else:
+                new_direction = "long" if resulting_qty > 0 else "short"
+
+                # If a single fill reverses the position (e.g. short -> long),
+                # the signed quantity never passes through exactly zero, so the
+                # close branch above does not fire.  Any stop registered for the
+                # opposite direction is now stale — an old long stop sits below
+                # a new short entry (and vice versa) and could immediately fire
+                # a bogus close.  Clear opposite-direction stops on reversal.
+                existing = self._stop_manager.active_stops(fill.symbol)
+                if any(s.direction != new_direction for s in existing):
+                    self._stop_manager.remove_stops(fill.symbol)
+
+                # Only register a stop on the fill that actually establishes the
+                # position in its resulting direction (a BUY that opens/extends
+                # a long, or a SELL that opens/extends a short).  A partial-close
+                # fill that leaves a residual position keeps its existing stop.
+                opens_position = (
+                    (new_direction == "long" and fill.side == OrderSide.BUY)
+                    or (new_direction == "short" and fill.side == OrderSide.SELL)
                 )
+                if opens_position:
+                    # Only pass stop_pct when it is configured; passing an
+                    # explicit None would shadow StopManager's own default
+                    # (params.get returns the stored None) and raise TypeError
+                    # in float(None), silently failing stop registration via
+                    # the broad except below.
+                    stop_pct = self._config.risk.default_stop_loss
+                    stop_params = {"stop_pct": stop_pct} if stop_pct is not None else {}
+                    self._stop_manager.add_stop(
+                        symbol=fill.symbol,
+                        stop_type=StopType.FIXED_PCT,
+                        entry_price=fill.price,
+                        params=stop_params,
+                        created_at=fill.timestamp,
+                        direction=new_direction,
+                    )
         except Exception:
             log.exception("_on_fill: stop registration failed for %s", fill.symbol)
 

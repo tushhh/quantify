@@ -172,12 +172,17 @@ def sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
 
     daily_rf = risk_free_rate / _TRADING_DAYS
     excess = s - daily_rf
-    downside = excess[excess < 0]
 
-    if downside.empty:
+    if not (excess < 0).any():
         # No negative excess returns — theoretically infinite Sortino
         return float("inf")
 
+    # Downside deviation: root-mean-square of the negative part of the excess
+    # returns, averaged over ALL observations (the standard Sortino
+    # definition, with the minimum-acceptable-return equal to `daily_rf`).
+    # Averaging only over the subset of negative returns — as a previous
+    # implementation did — overstates downside risk and understates Sortino.
+    downside = excess.clip(upper=0.0)
     downside_std = math.sqrt((downside ** 2).mean())
 
     if downside_std == 0.0:
@@ -235,22 +240,21 @@ def max_drawdown_duration(returns: pd.Series) -> int:
 
     cum = (1.0 + s).cumprod()
     running_max = cum.cummax()
-    underwater = cum < running_max
+    underwater = (cum < running_max).to_numpy()
 
     if not underwater.any():
         return 0
 
-    max_dur = 0
-    current_dur = 0
+    # Longest consecutive run of underwater (True) days, computed without a
+    # Python loop.  The indices where the curve is *not* underwater (i.e. at
+    # or above the prior peak) split the timeline into underwater runs; the
+    # number of underwater days between two consecutive peaks is the gap minus
+    # one.  Sentinels at -1 and len(underwater) handle leading/trailing runs.
+    peaks = np.flatnonzero(~underwater)
+    bounds = np.concatenate(([-1], peaks, [len(underwater)]))
+    run_lengths = np.diff(bounds) - 1
 
-    for in_dd in underwater:
-        if in_dd:
-            current_dur += 1
-            max_dur = max(max_dur, current_dur)
-        else:
-            current_dur = 0
-
-    return int(max_dur)
+    return int(run_lengths.max())
 
 
 def calmar_ratio(returns: pd.Series) -> float:
@@ -507,7 +511,8 @@ def beta(returns: pd.Series, benchmark_returns: pd.Series) -> float:
     Returns
     -------
     float
-        Beta.  Returns 1.0 if regression cannot be computed.
+        Beta.  Returns ``float('nan')`` if the regression cannot be computed
+        (fewer than 2 overlapping observations or zero benchmark variance).
     """
     s = _clean(returns)
     b = _clean(benchmark_returns)

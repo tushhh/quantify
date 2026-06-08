@@ -335,10 +335,22 @@ class MLReturnPredictorStrategy(Strategy):
         if not self._should_rebalance(timestamp):
             return list(self._signal_cache)
 
-        # ---- Build cross-sectional training dataset ----
-        X_all, y_all = self._build_training_data(data)
+        # ---- Build the cross-sectional training dataset only when needed ----
+        # Assembling this matrix is expensive (a concat across the universe
+        # plus several per-date groupby transforms over ~3 years of history).
+        # It is only required when we are about to retrain, or when no model
+        # exists yet and we must choose between training and the lightweight
+        # fallback.  On the intervening weekly rebalances — a model already
+        # exists and no retrain is due — we skip the rebuild and go straight
+        # to prediction.  (Retraining is monthly while rebalancing is weekly,
+        # so this avoids ~3 redundant rebuilds per retrain cycle.)
+        want_retrain = self.train_enabled and self._should_retrain(timestamp)
+        X_all = y_all = None
+        if want_retrain or self._model is None:
+            X_all, y_all = self._build_training_data(data)
 
-        if X_all is None or len(X_all) < self.min_train_bars:
+        # ---- No usable model AND insufficient training data → fallback ----
+        if self._model is None and (X_all is None or len(X_all) < self.min_train_bars):
             n_samples = 0 if X_all is None else len(X_all)
             log.warning(
                 "%s: only %d training samples available (need %d)",
@@ -362,9 +374,23 @@ class MLReturnPredictorStrategy(Strategy):
             self._last_rebalance_date = timestamp
             return []
 
-        # ---- Retrain if due ----
-        if self.train_enabled and self._should_retrain(timestamp):
-            self._train_model(X_all, y_all)
+        # ---- Retrain if due (and enough data was assembled) ----
+        if want_retrain:
+            if X_all is not None and len(X_all) >= self.min_train_bars:
+                self._train_model(X_all, y_all, timestamp)
+            else:
+                # Retrain was due but there isn't enough data to train on.
+                # Stamp the train date anyway so _should_retrain backs off for
+                # the normal interval; otherwise want_retrain stays True and
+                # the expensive cross-sectional training matrix is rebuilt on
+                # every weekly rebalance until enough history accrues.
+                log.warning(
+                    "%s: retrain due but skipped — only %d training samples (need %d)",
+                    self.name,
+                    0 if X_all is None else len(X_all),
+                    self.min_train_bars,
+                )
+                self._last_train_date = timestamp
         elif not self.train_enabled and self._model is None:
             # Attempt to load model dynamically if it was just downloaded
             try:
@@ -528,11 +554,22 @@ class MLReturnPredictorStrategy(Strategy):
     # ------------------------------------------------------------------
 
     def _train_model(
-        self, X: pd.DataFrame, y: pd.Series
+        self, X: pd.DataFrame, y: pd.Series, timestamp: Optional[datetime] = None
     ) -> None:
         """
         Fit a stacking ensemble (or sklearn fallback) regressor on the full
         training dataset, using a purged time-series split for validation.
+
+        Parameters
+        ----------
+        X, y:
+            Training feature matrix and target vector.
+        timestamp:
+            The *historical* timestamp of the current step (e.g. the backtest
+            bar date).  Recorded as ``_last_train_date`` so the time-based
+            retrain cadence in :meth:`_should_retrain` works in backtests.  If
+            omitted (e.g. one-off training from a script), the real wall-clock
+            time is used instead.
         """
         log.info(
             "%s: training model on %d samples × %d features",
@@ -631,8 +668,10 @@ class MLReturnPredictorStrategy(Strategy):
                 ", ".join(f"{k}={v:.3f}" for k, v in top5),
             )
 
-        # Record training date
-        self._last_train_date = datetime.now(timezone.utc)
+        # Record training date.  Prefer the historical (backtest) timestamp so
+        # the time-based retrain cadence works when replaying past data; fall
+        # back to wall-clock time for one-off/live training without a step ts.
+        self._last_train_date = timestamp if timestamp is not None else datetime.now(timezone.utc)
         log.info("%s: model training complete", self.name)
         log.info("%s: model backends in use: %s", self.name, ", ".join(self._model_backends))
 
@@ -935,7 +974,16 @@ class MLReturnPredictorStrategy(Strategy):
         return delta.days >= self.rebalance_days
 
     def _should_retrain(self, timestamp: datetime) -> bool:
-        if self._model is None or self._last_train_date is None:
+        # Retrain cadence is purely time-based: retrain on the first call (no
+        # prior train date) and thereafter once retrain_interval_days have
+        # elapsed.  This intentionally does NOT short-circuit on
+        # ``self._model is None`` — coupling the cadence to model existence made
+        # the _last_train_date back-off ineffective (it would keep returning
+        # True while no model existed, defeating the stamp set when a retrain is
+        # skipped for insufficient data).  The separate "build the matrix even
+        # without a model" cold-start need is handled by the build guard in
+        # generate_signals, not here.
+        if self._last_train_date is None:
             return True
         delta = timestamp - self._last_train_date
         return delta.days >= self.retrain_interval_days
