@@ -330,7 +330,7 @@ def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionR
     )
     shorts = sorted(
         [s for s in signals if s.direction == "short"],
-        key=lambda x: x.strength,
+        key=lambda x: x.strength, reverse=True,
     )
 
     all_signals = longs + shorts
