@@ -4,8 +4,8 @@ import { useLayoutEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, BarChart2, Activity, Layers, List,
-  LayoutDashboard, Filter, Globe, UserCircle,
+  Home, BarChart2, Activity, Layers,
+  LayoutDashboard, UserCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "@/lib/store";
@@ -23,15 +23,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/backtest", label: "Backtest", icon: BarChart2 },
       { href: "/predict", label: "Predict", icon: Activity },
-      { href: "/screener", label: "Screener", icon: Filter },
-      { href: "/universe", label: "Universe", icon: Globe },
       { href: "/strategies", label: "Strategies", icon: Layers },
-    ],
-  },
-  {
-    label: "Portfolio",
-    items: [
-      { href: "/trades", label: "Trades", icon: List },
     ],
   },
 ];
