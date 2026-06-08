@@ -1,7 +1,5 @@
 import os
-import asyncio
 import logging
-from datetime import datetime, timezone
 from telegram import Bot, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from api.database import SessionLocal
@@ -193,12 +191,12 @@ async def broadcast_predictions(result=None):
         for i, s in enumerate(longs[:5], 1):
             msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
 
-        msg += f"\n🔴 <b>Top Short Predictions (Sell)</b>\n"
+        msg += "\n🔴 <b>Top Short Predictions (Sell)</b>\n"
         for i, s in enumerate(shorts[:5], 1):
             msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
 
         msg += (
-            f"\n<i>Type /predict &lt;SYMBOL&gt; in this chat to see detailed analysis for any stock!</i>"
+            "\n<i>Type /predict &lt;SYMBOL&gt; in this chat to see detailed analysis for any stock!</i>"
         )
 
         subscriptions = db.query(PredictionSubscription).all()
