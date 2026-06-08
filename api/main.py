@@ -30,6 +30,7 @@ from api.telegram_bot import check_alerts_loop  # noqa: E402
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from api.telegram_bot import start_telegram_bot, stop_telegram_bot
+    from api.prediction_bot import start_prediction_bot, stop_prediction_bot
     
     # Initialize DB tables only if they don't exist. SQLAlchemy's checkfirst=True
     # (default) makes this a no-op on existing schema, so it's safe to call at startup.
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
         log.info(f"Starting Telegram bot polling on dyno: {dyno_type}")
         # Start telegram bot polling
         await start_telegram_bot()
+        await start_prediction_bot()
     else:
         log.info("Skipping Telegram bot polling on web dyno (Heroku). Run on worker dyno instead.")
     
@@ -65,6 +67,7 @@ async def lifespan(app: FastAPI):
         scheduler.shutdown()
     if not is_web_dyno:
         await stop_telegram_bot()
+        await stop_prediction_bot()
 
 # ---------------------------------------------------------------------------
 # Logging

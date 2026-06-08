@@ -380,6 +380,18 @@ def _run_and_cache_predictions(source: str = "scheduler", mode: PredictionMode =
         cache_slot["result"] = result
         cache_slot["timestamp"] = time.time()
         
+        # Broadcast prediction signals to subscribed Telegram chats/channels
+        try:
+            import asyncio
+            from api.prediction_bot import broadcast_predictions
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(broadcast_predictions(result))
+            except RuntimeError:
+                asyncio.run(broadcast_predictions(result))
+        except Exception as e:
+            log.error("Failed to broadcast predictions to Telegram: %s", e)
+            
     except Exception:
         log.exception("Screener prediction failed in background task")
     finally:

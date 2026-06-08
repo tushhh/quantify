@@ -35,3 +35,10 @@ class PredictionCache(Base):
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     result_json = Column(String)  # Full PredictionResponse JSON string
+
+class PredictionSubscription(Base):
+    __tablename__ = "prediction_subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String(64), unique=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
