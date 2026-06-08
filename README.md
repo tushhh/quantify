@@ -15,6 +15,8 @@
 - **Serverless ML Training Pipeline**: The heavy-lifting of the Machine Learning ensemble (LightGBM, XGBoost, CatBoost) has been entirely decoupled from the Heroku web server. 
 - **GitHub Actions Integration**: A new automated workflow (`.github/workflows/ml_train.yml`) now runs daily at 05:00 UTC. It spins up a 7GB GitHub runner, downloads 3 years of market data, trains the model, and pushes the `.joblib` model artifact to a hidden `model-cache` branch.
 - **Lightweight Inference**: The Heroku API (`/api/predict/best`) no longer attempts to train the model locally. Instead, it securely downloads the latest pre-trained model directly from GitHub and performs instant inference (taking <5 seconds), completely resolving all memory limit (R15) crashes.
+- **Telegram Bots Integration**: Added support for dual-Telegram-bot integration (Alerts Bot and Group Prediction Bot) to monitor portfolios and request on-demand predictions.
+- **Ad-Hoc Stock Predictions**: The prediction bot resolves queries for *any* global ticker by fetching daily prices, extracting features dynamically, and executing the pre-trained ML model, with rate-limiting, concurrency semaphores, and a 4-hour database caching layer to run safely on Heroku's basic dyno limits.
 
 ## What's New (May 2026)
 
@@ -211,6 +213,54 @@ Options:
 Options:
   --list        List all tickers grouped by sector
   --sector TEXT  Filter by GICS sector name
+```
+
+---
+
+## Telegram Integration
+
+Quantify features a dual-Telegram-bot architecture to provide real-time trade updates and interactive ML prediction queries.
+
+### 1. Alert Bot (Account-linked)
+Designed for individual users to receive real-time alerts for active trades.
+* **Alert Types**:
+  * **Holding Duration Alerts**: Notifies you when a trade's hold period ends so you can sell.
+  * **Drawdown / Dip Alerts**: Triggers if a stock drops below your custom percentage threshold (e.g. 10%) from entry.
+  * **Sell Signals**: Triggers if the strategy evaluates that the holding strength has deteriorated.
+* **Commands**:
+  * `/start` - Connects your Telegram chat ID to your Quantify account. Enter your exact Telegram username in the Account Settings dashboard first.
+
+### 2. Prediction Bot (Groups & Channels)
+An interactive bot that can be added to Telegram groups, channels, or queried directly in private chats to access the machine learning signals.
+* **Commands**:
+  * `/predict <SYMBOL>` - Query predictions for *any* global ticker.
+    * Checks pre-computed top 100 S&P 500 cache first.
+    * Checks the ad-hoc cache (4-hour TTL) in the database.
+    * On a cache miss, it dynamically downloads 3 years of price history from Yahoo Finance, extracts features via `FeatureEngine`, runs inference on the ML ensemble, caches the result, and returns the signal (direction, strength, 1d return, and top driver explanations).
+  * `/top` - List the top 10 bullish (long) predictions of the day.
+  * `/bottom` - List the top 10 bearish (short) predictions of the day.
+  * `/subscribe` - Subscribe the current group/channel to receive automatic daily predictions when computed.
+  * `/unsubscribe` - Disable daily broadcasts.
+  * `/help` - Show command instructions.
+
+### Concurrency and Resource Protections (Heroku Basic Dyno Safe)
+Dynamic stock predictions require fetching data and running feature engineering on-the-fly. To prevent exceeding Heroku RAM/CPU limits:
+* **Rate Limiting**: Users and chats are rate-limited to at most 5 requests per 60 seconds.
+* **Concurrency Semaphore**: Limits parallel ad-hoc calculations to at most 2 in parallel.
+* **Asynchronous Execution**: Dynamic computations run in worker threads (`asyncio.to_thread`) to prevent blocking the async FastAPI server.
+* **Short-Term Cache**: Results are cached in the database (`adhoc_prediction_cache`) for 4 hours to minimize network fetching.
+
+### Env Configurations
+Configure the following env keys in your `.env` file or Heroku Config Vars:
+```dotenv
+# Alert Bot token
+TELEGRAM_BOT_TOKEN="your_alerts_bot_token"
+
+# Prediction Query Bot token (Groups-enabled)
+TELEGRAM_PREDICTION_BOT_TOKEN="your_prediction_bot_token"
+
+# Set to true to run bot polling directly on Heroku web dynos (overrides worker checks)
+FORCE_RUN_BOTS=true
 ```
 
 ---
