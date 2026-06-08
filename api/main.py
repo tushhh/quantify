@@ -39,8 +39,10 @@ async def lifespan(app: FastAPI):
     ensure_user_columns()
     
     # Only run telegram bot on worker dyno, not web dyno (prevents polling conflicts on Heroku)
+    # unless FORCE_RUN_BOTS is explicitly set.
     dyno_type = os.getenv("DYNO", "local")
-    is_web_dyno = dyno_type.startswith("web.")
+    force_run = os.getenv("FORCE_RUN_BOTS", "").lower() in ("true", "1", "yes")
+    is_web_dyno = dyno_type.startswith("web.") and not force_run
     
     if not is_web_dyno:
         log.info(f"Starting Telegram bot polling on dyno: {dyno_type}")
