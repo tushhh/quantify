@@ -405,7 +405,6 @@ class BacktestEngine:
                     if bar is not None:
                         fills = broker.process_bar(bar)
                         bar_fills.extend(fills)
-                        all_fills.extend(fills)
                 except Exception as exc:
                     log.warning(
                         "process_bar failed for %s on %s: %s", symbol, current_date, exc
@@ -475,7 +474,7 @@ class BacktestEngine:
             # Combine stop signals with strategy signals
             all_signals = stop_signals + strategy_signals
 
-            # Log signals
+            # Log signals (no metadata — can be large for ML strategies)
             for sig in all_signals:
                 signals_log.append({
                     "date": current_date,
@@ -483,7 +482,6 @@ class BacktestEngine:
                     "symbol": sig.symbol,
                     "direction": sig.direction,
                     "strength": sig.strength,
-                    "metadata": sig.metadata,
                 })
 
             # ---- 5. Risk filtering ----
@@ -543,10 +541,6 @@ class BacktestEngine:
 
             # ---- 8. Record equity snapshot ----
             equity_by_date[current_date] = portfolio.equity
-            portfolio_snapshots.append({
-                "date": current_date,
-                **portfolio.snapshot(),
-            })
 
         # ---- Lifecycle cleanup ----
         for strat in self.strategies:
@@ -586,8 +580,8 @@ class BacktestEngine:
             trades=closed_trades,
             daily_returns=daily_returns,
             signals_log=signals_log,
-            portfolio_snapshots=portfolio_snapshots,
-            fills=all_fills,
+            portfolio_snapshots=[],
+            fills=[],
             metadata={
                 "start": trading_dates[0] if trading_dates else None,
                 "end": trading_dates[-1] if trading_dates else None,
@@ -680,12 +674,13 @@ class BacktestEngine:
         for symbol, df in data.items():
             try:
                 result = engine.compute({symbol: df}, required=list(required))
-                # Merge computed features into the original OHLCV DataFrame
-                # so that price columns (open, high, low, close, volume) are
-                # preserved alongside the new feature columns.
                 features_df = result[symbol]
-                merged = df.join(features_df, how="left", rsuffix="_feat")
-                enriched[symbol] = merged
+                # Assign new columns directly onto a copy — avoids an extra join allocation
+                out = df.copy()
+                for col in features_df.columns:
+                    if col not in out.columns:
+                        out[col] = features_df[col]
+                enriched[symbol] = out
             except Exception as exc:
                 log.warning("Feature computation failed for %s: %s — using raw data", symbol, exc)
                 enriched[symbol] = df

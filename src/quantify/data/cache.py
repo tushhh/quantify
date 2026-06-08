@@ -202,11 +202,8 @@ class ParquetCache:
                     existing = pd.read_parquet(path)
                     existing = _coerce(existing)
                     # Merge: existing first so new data overwrites on conflict
-                    merged = (
-                        pd.concat([existing, df])
-                        .loc[~pd.concat([existing, df]).index.duplicated(keep="last")]
-                        .sort_index()
-                    )
+                    combined = pd.concat([existing, df])
+                    merged = combined[~combined.index.duplicated(keep="last")].sort_index()
                 except Exception as exc:
                     logger.warning(
                         "Could not read existing cache for %s (%s); overwriting.",
@@ -357,7 +354,7 @@ def _coerce(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].astype("float64")
     if "volume" in df.columns:
-        df["volume"] = df["volume"].astype("int64")
+        df["volume"] = df["volume"].fillna(0).astype("int64")
 
     # Drop symbol column if present (redundant in per-symbol files)
     if "symbol" in df.columns:

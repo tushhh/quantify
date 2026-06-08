@@ -40,7 +40,7 @@ _active_jobs = set()
 
 
 def _save_result(job_id: str, result: Any):
-    if len(_backtest_results) >= 20:
+    if len(_backtest_results) >= 3:
         _backtest_results.popitem(last=False)
     _backtest_results[job_id] = result
 
@@ -453,7 +453,7 @@ async def stream_progress(job_id: str = "default") -> StreamingResponse:
     SSE endpoint – clients subscribe before posting /api/backtest
     to receive live progress messages.
     """
-    q: queue.Queue[str] = queue.Queue()
+    q: queue.Queue[str] = queue.Queue(maxsize=200)
     _progress_queues[job_id] = q
     loop = asyncio.get_running_loop()
 
