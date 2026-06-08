@@ -74,7 +74,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_MIN_TRAIN_BARS: int = 504          # minimum bars for initial model training
+_MIN_TRAIN_BARS: int = 126          # minimum bars for initial model training
 _RETRAIN_INTERVAL_DAYS: int = 21    # retrain every ~21 trading days
 _FORWARD_RETURN_DAYS: int = 1       # prediction target horizon
 _LONG_DECILE: float = 0.90          # top 10%
@@ -82,8 +82,8 @@ _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
 _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
-_TRAIN_WINDOW_DAYS: int = 756       # ~3 years of history for model training
-_DECAY_HALFLIFE_DAYS: int = 504     # time-decay half-life for sample weights (2 years)
+_TRAIN_WINDOW_DAYS: int = 252       # ~1 year of history for model training
+_DECAY_HALFLIFE_DAYS: int = 126     # time-decay half-life for sample weights
 _PURGE_EMBARGO_DAYS: int = 1        # embargo gap = forward return horizon
 
 
@@ -147,7 +147,7 @@ _LGBM_PARAMS: dict[str, Any] = {
     "reg_alpha": 0.1,
     "reg_lambda": 0.1,
     "random_state": 42,
-    "n_jobs": -1,
+    "n_jobs": 1,
     "verbose": -1,
 }
 
@@ -1165,7 +1165,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
             "colsample_bytree": params.get("colsample_bytree", 0.8),
             "reg_alpha": params.get("reg_alpha", 0.1),
             "reg_lambda": params.get("reg_lambda", 0.1),
-            "n_jobs": -1,
+            "n_jobs": 1,
             "random_state": 42,
             "verbosity": 0,
         }
@@ -1209,9 +1209,9 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
         stacking = StackingRegressor(
             estimators=estimators,
             final_estimator=Ridge(alpha=1.0),
-            cv=5,  # 5-fold CV for base estimator predictions
-            n_jobs=-1,
-            passthrough=False,  # only use base estimator predictions as meta-features
+            cv=2,
+            n_jobs=1,
+            passthrough=False,
         )
         return stacking, backends
     except Exception as exc:
