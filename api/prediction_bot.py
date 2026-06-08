@@ -43,24 +43,33 @@ def check_rate_limit(key: str) -> bool:
 
 def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
     """Blocking synchronous function to fetch data and run ML predictions for a single ticker.
-    
+
+    Bypasses the cross-sectional ranking in MLReturnPredictorStrategy (which always gives
+    a middle percentile of 0.5 when the universe contains only one symbol, resulting in
+    direction="close" and strength=0). Instead we load the model directly and score the
+    raw model output to derive side/strength.
+
     Runs inside a background thread pool via asyncio.to_thread.
     """
     try:
+        import joblib
+        import pandas as pd
         from quantify.data.providers.yfinance_provider import YFinanceProvider
         from quantify.data.cache import ParquetCache
         from quantify.data.features import FeatureEngine
         from quantify.data.universe import get_sector_map
         from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
-        from api.routers.predict import _latest_completed_session_date, _get_ticker_name
+        from api.routers.predict import _latest_completed_session_date, _get_ticker_name, _download_latest_model
 
         now_utc = datetime.now(timezone.utc)
         session_date = _latest_completed_session_date(now_utc)
-        
-        # 3 years lookback for ML training features
+
+        # 3 years lookback to compute technical indicator features
         end_dt = datetime.combine(session_date + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
         start_dt = end_dt - timedelta(days=365 * 3)
 
+        # Build a strategy instance just to access feature list and model path.
+        # train_enabled=False so we never trigger training here.
         strat = MLReturnPredictorStrategy(universe=[symbol], train_enabled=False)
 
         cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
@@ -72,40 +81,76 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
             return None
 
         df = data[symbol]
-        # Require a minimum history to compute technical indicator features safely
         if len(df) < 50:
             log.warning("Insufficient history for ad-hoc ticker %s: %d rows", symbol, len(df))
             return None
 
+        # Compute technical indicator features
         required = strat.get_required_features()
         engine = FeatureEngine()
         features = engine.compute(data, required=list(required))
 
         feat_df = features.get(symbol)
-        if feat_df is not None:
-            enriched = {symbol: df.join(feat_df, how="left", rsuffix="_feat")}
-        else:
-            enriched = {symbol: df}
+        enriched_df = df.join(feat_df, how="left", rsuffix="_feat") if feat_df is not None else df
 
-        signals = strat.generate_signals(enriched)
-        if not signals:
-            log.warning("No signals generated for ad-hoc ticker %s", symbol)
+        # --- Load the shared ML model (download from GitHub if needed) ---
+        model = strat._model  # may already be loaded from disk in __init__
+        if model is None:
+            log.info("Model not on disk — downloading from GitHub for %s", symbol)
+            _download_latest_model()
+            try:
+                model = joblib.load(strat._model_path)
+                log.info("Loaded ML model from disk after download for %s", symbol)
+            except Exception as load_err:
+                log.warning("Could not load ML model for %s: %s", symbol, load_err)
+
+        if model is None:
+            log.warning("No trained model available — cannot predict for %s", symbol)
             return None
 
-        s = signals[0]
+        # --- Direct model inference (bypass cross-sectional ranking) ---
+        # MLReturnPredictorStrategy.generate_signals ranks across the full universe.
+        # With only one symbol, the percentile rank is always 0.5 → direction="close"
+        # → strength=0. We bypass that and score the raw model output directly.
+        feat_cols = [f for f in strat.features if f in enriched_df.columns]
+        if not feat_cols:
+            log.warning("No feature columns found for %s", symbol)
+            return None
+
+        feat_row = enriched_df[feat_cols].iloc[-1].fillna(0.0)
+        X = feat_row.values.reshape(1, -1)
+
+        try:
+            raw_score = float(model.predict(X)[0])
+        except Exception as pred_err:
+            log.warning("Model prediction failed for %s: %s", symbol, pred_err)
+            return None
+
+        # raw_score is a cross-sectional rank value in [-1, 1]:
+        #   > 0 → bullish (long), < 0 → bearish (short)
+        # Strength = abs(raw_score) clipped to [0, 1]
+        side = "long" if raw_score >= 0 else "short"
+        strength = float(min(abs(raw_score), 1.0))
+        predicted_return_pct = round(raw_score * 100, 2)
+
+        # Best-effort feature explanations (z-score the row against its own values)
+        strat._last_feature_values = {
+            symbol: {f: float(enriched_df[f].iloc[-1]) for f in feat_cols if not pd.isna(enriched_df[f].iloc[-1])}
+        }
+        strat._last_feature_zscores = {symbol: feat_row.to_dict()}
+        explanations = strat._build_explanations(symbol)
+
         sector_map = get_sector_map()
         sector = sector_map.get(symbol, "Unknown")
-        pred_return = s.metadata.get("predicted_return_1d", s.metadata.get("predicted_return_5d", 0.0)) if s.metadata else 0.0
-        explanations = s.metadata.get("explanations", []) if s.metadata else []
         name = _get_ticker_name(symbol)
 
         return PredictionItem(
             symbol=symbol,
-            strength=s.strength,
-            side=s.direction,
+            strength=strength,
+            side=side,
             sector=sector,
             name=name,
-            predicted_return_pct=round(float(pred_return) * 100, 2),
+            predicted_return_pct=predicted_return_pct,
             explanations=explanations,
         )
     except Exception as e:
