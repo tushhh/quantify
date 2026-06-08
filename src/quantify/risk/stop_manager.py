@@ -20,6 +20,15 @@ Stop types
 * ``TIME_BASED``  — close after ``max_holding_days`` calendar days
 * ``TAKE_PROFIT`` — close when price rises above ``entry × (1 + profit_pct)``
 
+Direction
+---------
+The descriptions above are for **long** positions.  Each stop carries a
+``direction`` (``"long"`` or ``"short"``); for short positions every price
+threshold is mirrored around the entry price (e.g. a fixed stop sits *above*
+entry at ``entry × (1 + stop_pct)`` and fires when price *rises*, while a
+take-profit sits *below* entry).  Trailing stops ratchet downward with new
+lows instead of upward with new highs.
+
 Usage
 -----
     from quantify.risk.stop_manager import StopManager, StopType
@@ -27,6 +36,8 @@ Usage
     mgr = StopManager()
     mgr.add_stop("AAPL", StopType.TRAILING, entry_price=150.0, atr=2.5)
     mgr.add_stop("AAPL", StopType.TAKE_PROFIT, entry_price=150.0)
+    # Short position: mirror the thresholds
+    mgr.add_stop("TSLA", StopType.FIXED_PCT, entry_price=200.0, direction="short")
 
     # On each bar:
     close_signals = mgr.check_stops(current_prices, current_time=datetime.now(tz=timezone.utc))
@@ -84,7 +95,14 @@ class Stop:
     params:
         Free-form parameters (e.g. ``stop_pct``, ``max_holding_days``).
     highest_price:
-        Tracks the running high since entry, used by ``TRAILING`` stops.
+        Tracks the running high since entry, used by ``TRAILING`` stops on
+        long positions.
+    direction:
+        ``"long"`` or ``"short"``.  Determines whether price thresholds are
+        evaluated below (long) or above (short) the entry price.
+    lowest_price:
+        Tracks the running low since entry, used by ``TRAILING`` stops on
+        short positions.
     active:
         ``False`` once the stop has been triggered and consumed.
     """
@@ -96,6 +114,8 @@ class Stop:
     created_at: datetime
     params: dict[str, Any] = field(default_factory=dict)
     highest_price: float = 0.0
+    direction: str = "long"
+    lowest_price: float = 0.0
     active: bool = True
 
     def __post_init__(self) -> None:
@@ -103,8 +123,16 @@ class Stop:
             raise ValueError("Stop.symbol must not be empty")
         if self.entry_price <= 0:
             raise ValueError(f"Stop.entry_price must be positive, got {self.entry_price}")
+        if self.direction not in ("long", "short"):
+            raise ValueError(
+                f"Stop.direction must be 'long' or 'short', got {self.direction!r}"
+            )
+        # Running extremes since entry, used by TRAILING stops (highest for
+        # longs, lowest for shorts).  Seed both with the entry price.
         if self.highest_price == 0.0:
             self.highest_price = self.entry_price
+        if self.lowest_price == 0.0:
+            self.lowest_price = self.entry_price
 
     @property
     def expiry(self) -> datetime | None:
@@ -189,6 +217,7 @@ class StopManager:
         atr: float | None = None,
         params: dict[str, Any] | None = None,
         created_at: datetime | None = None,
+        direction: str = "long",
     ) -> Stop:
         """
         Create and register a new stop for *symbol*.
@@ -209,13 +238,25 @@ class StopManager:
             Optional overrides for defaults (e.g. ``{"stop_pct": 0.03}``).
         created_at:
             Timestamp for the stop (defaults to ``datetime.now(UTC)``).
+        direction:
+            ``"long"`` (default) or ``"short"``.  For short positions the
+            trigger thresholds are mirrored around the entry price.
 
         Returns
         -------
         Stop
             The newly created and registered stop.
         """
-        p = params or {}
+        if direction not in ("long", "short"):
+            raise ValueError(f"direction must be 'long' or 'short', got {direction!r}")
+        # Shallow-copy so we don't mutate the caller's dict as a side effect.
+        p = dict(params) if params else {}
+        # Persist the ATR used to seed the trigger so update_trailing() can
+        # ratchet the stop later.  Without this it reads params["atr"] as None
+        # and never moves the trailing stop until update_trailing_atr() is
+        # called externally.  setdefault lets an explicit params["atr"] win.
+        if atr is not None:
+            p.setdefault("atr", atr)
         ts = created_at or datetime.now(tz=timezone.utc)
 
         trigger = self._compute_initial_trigger(
@@ -223,6 +264,7 @@ class StopManager:
             entry_price=entry_price,
             atr=atr,
             params=p,
+            direction=direction,
         )
 
         stop = Stop(
@@ -233,6 +275,8 @@ class StopManager:
             created_at=ts,
             params=p,
             highest_price=entry_price,
+            lowest_price=entry_price,
+            direction=direction,
             active=True,
         )
 
@@ -241,8 +285,8 @@ class StopManager:
         self._stops[symbol].append(stop)
 
         log.info(
-            "StopManager.add_stop: %s [%s] entry=%.4f trigger=%s",
-            symbol, stop_type.name,
+            "StopManager.add_stop: %s [%s/%s] entry=%.4f trigger=%s",
+            symbol, stop_type.name, direction,
             entry_price,
             f"{trigger:.4f}" if trigger is not None else "time-based",
         )
@@ -254,11 +298,19 @@ class StopManager:
         entry_price: float,
         atr: float | None,
         params: dict[str, Any],
+        direction: str = "long",
     ) -> float | None:
-        """Compute the initial trigger price for a given stop type."""
+        """Compute the initial trigger price for a given stop type/direction."""
+        is_long = direction == "long"
+
         if stop_type is StopType.FIXED_PCT:
             stop_pct = float(params.get("stop_pct", self.default_stop_pct))
-            return entry_price * (1.0 - stop_pct)
+            # Long: stop sits below entry.  Short: stop sits above entry.
+            return (
+                entry_price * (1.0 - stop_pct)
+                if is_long
+                else entry_price * (1.0 + stop_pct)
+            )
 
         if stop_type is StopType.ATR_BASED:
             if atr is None or atr <= 0:
@@ -266,7 +318,11 @@ class StopManager:
                     "ATR_BASED stop requires a positive atr value"
                 )
             multiplier = float(params.get("atr_multiplier", self.default_atr_multiplier))
-            return entry_price - multiplier * atr
+            return (
+                entry_price - multiplier * atr
+                if is_long
+                else entry_price + multiplier * atr
+            )
 
         if stop_type is StopType.TRAILING:
             if atr is None or atr <= 0:
@@ -274,8 +330,13 @@ class StopManager:
                     "TRAILING stop requires a positive atr value"
                 )
             multiplier = float(params.get("atr_multiplier", self.default_atr_multiplier))
-            # Starts at entry - atr_multiplier * atr
-            return entry_price - multiplier * atr
+            # Starts at entry -/+ atr_multiplier * atr (below for long, above
+            # for short); ratchets toward price in update_trailing().
+            return (
+                entry_price - multiplier * atr
+                if is_long
+                else entry_price + multiplier * atr
+            )
 
         if stop_type is StopType.TIME_BASED:
             # No trigger price — evaluated by elapsed time
@@ -283,7 +344,12 @@ class StopManager:
 
         if stop_type is StopType.TAKE_PROFIT:
             profit_pct = float(params.get("profit_pct", self.default_profit_pct))
-            return entry_price * (1.0 + profit_pct)
+            # Long: target above entry.  Short: target below entry.
+            return (
+                entry_price * (1.0 + profit_pct)
+                if is_long
+                else entry_price * (1.0 - profit_pct)
+            )
 
         raise ValueError(f"Unknown StopType: {stop_type}")
 
@@ -375,24 +441,30 @@ class StopManager:
         """
         if stop.stop_type is StopType.FIXED_PCT:
             assert stop.trigger_price is not None
-            if price <= stop.trigger_price:
-                return True, (
-                    f"price {price:.4f} <= fixed stop {stop.trigger_price:.4f}"
-                )
+            if stop.direction == "long":
+                if price <= stop.trigger_price:
+                    return True, f"price {price:.4f} <= fixed stop {stop.trigger_price:.4f}"
+            else:
+                if price >= stop.trigger_price:
+                    return True, f"price {price:.4f} >= fixed stop {stop.trigger_price:.4f}"
 
         elif stop.stop_type is StopType.ATR_BASED:
             assert stop.trigger_price is not None
-            if price <= stop.trigger_price:
-                return True, (
-                    f"price {price:.4f} <= ATR stop {stop.trigger_price:.4f}"
-                )
+            if stop.direction == "long":
+                if price <= stop.trigger_price:
+                    return True, f"price {price:.4f} <= ATR stop {stop.trigger_price:.4f}"
+            else:
+                if price >= stop.trigger_price:
+                    return True, f"price {price:.4f} >= ATR stop {stop.trigger_price:.4f}"
 
         elif stop.stop_type is StopType.TRAILING:
             assert stop.trigger_price is not None
-            if price <= stop.trigger_price:
-                return True, (
-                    f"price {price:.4f} <= trailing stop {stop.trigger_price:.4f}"
-                )
+            if stop.direction == "long":
+                if price <= stop.trigger_price:
+                    return True, f"price {price:.4f} <= trailing stop {stop.trigger_price:.4f}"
+            else:
+                if price >= stop.trigger_price:
+                    return True, f"price {price:.4f} >= trailing stop {stop.trigger_price:.4f}"
 
         elif stop.stop_type is StopType.TIME_BASED:
             expiry = stop.expiry
@@ -406,10 +478,14 @@ class StopManager:
 
         elif stop.stop_type is StopType.TAKE_PROFIT:
             assert stop.trigger_price is not None
-            if price >= stop.trigger_price:
-                return True, (
-                    f"price {price:.4f} >= take-profit {stop.trigger_price:.4f}"
-                )
+            # Take-profit fires on a favourable move: above entry for longs,
+            # below entry for shorts.
+            if stop.direction == "long":
+                if price >= stop.trigger_price:
+                    return True, f"price {price:.4f} >= take-profit {stop.trigger_price:.4f}"
+            else:
+                if price <= stop.trigger_price:
+                    return True, f"price {price:.4f} <= take-profit {stop.trigger_price:.4f}"
 
         return False, ""
 
@@ -419,8 +495,9 @@ class StopManager:
 
     def update_trailing(self, current_prices: dict[str, float]) -> None:
         """
-        Ratchet trailing stops upward as prices rise above the recorded
-        high since entry.
+        Ratchet trailing stops in the trade's favour as price moves away from
+        entry: upward with new highs for longs, downward with new lows for
+        shorts.
 
         This should be called *after* :meth:`check_stops` on each bar so
         we do not trigger a stop and update it in the same cycle.
@@ -437,24 +514,43 @@ class StopManager:
             for stop in stops:
                 if not stop.active or stop.stop_type is not StopType.TRAILING:
                     continue
-                if price > stop.highest_price:
-                    old_high = stop.highest_price
-                    stop.highest_price = price
-                    atr = stop.params.get("atr")
-                    multiplier = float(
-                        stop.params.get("atr_multiplier", self.default_atr_multiplier)
-                    )
-                    if atr is not None and atr > 0:
-                        new_trigger = price - multiplier * float(atr)
-                        if new_trigger > (stop.trigger_price or 0.0):
-                            old_trigger = stop.trigger_price
-                            stop.trigger_price = new_trigger
-                            log.debug(
-                                "update_trailing: %s high %.4f→%.4f, "
-                                "trigger %.4f→%.4f",
-                                symbol, old_high, price,
-                                old_trigger, new_trigger,
-                            )
+                atr = stop.params.get("atr")
+                multiplier = float(
+                    stop.params.get("atr_multiplier", self.default_atr_multiplier)
+                )
+
+                if stop.direction == "long":
+                    # New high → consider raising the (below-price) stop.
+                    if price > stop.highest_price:
+                        old_high = stop.highest_price
+                        stop.highest_price = price
+                        if atr is not None and atr > 0:
+                            new_trigger = price - multiplier * float(atr)
+                            if new_trigger > (stop.trigger_price or 0.0):
+                                old_trigger = stop.trigger_price
+                                stop.trigger_price = new_trigger
+                                log.debug(
+                                    "update_trailing: %s high %.4f→%.4f, "
+                                    "trigger %.4f→%.4f",
+                                    symbol, old_high, price,
+                                    old_trigger, new_trigger,
+                                )
+                else:  # short
+                    # New low → consider lowering the (above-price) stop.
+                    if price < stop.lowest_price:
+                        old_low = stop.lowest_price
+                        stop.lowest_price = price
+                        if atr is not None and atr > 0:
+                            new_trigger = price + multiplier * float(atr)
+                            if stop.trigger_price is None or new_trigger < stop.trigger_price:
+                                old_trigger = stop.trigger_price
+                                stop.trigger_price = new_trigger
+                                log.debug(
+                                    "update_trailing: %s low %.4f→%.4f, "
+                                    "trigger %s→%.4f",
+                                    symbol, old_low, price,
+                                    old_trigger, new_trigger,
+                                )
 
     def update_trailing_atr(self, symbol: str, new_atr: float) -> None:
         """

@@ -243,6 +243,45 @@ def _pct_return(close: pd.Series, periods: int) -> pd.Series:
     return close.pct_change(periods)
 
 
+def _rolling_normalized_slope(series: pd.Series, window: int = 20) -> pd.Series:
+    """
+    Rolling OLS slope of *series* over a fixed window, normalised by the
+    absolute mean level within each window (dimensionless).
+
+    For a fixed window the regressor ``x = 0..window-1`` is constant, so the
+    OLS slope reduces to ``Σ (x - x̄)·y / Σ (x - x̄)²``.  Both the numerator
+    and the window mean are fixed-kernel cross-correlations, so the whole
+    series is computed with two vectorised passes instead of a Python loop
+    over every window (the previous implementation).
+
+    NaNs stay localised to the windows that overlap them (matching the old
+    per-window "skip on NaN" behaviour), and windows whose mean is zero yield
+    NaN after the inf-replacement below.
+    """
+    y = np.asarray(series, dtype=float)
+    n = y.shape[0]
+    out = np.full(n, np.nan, dtype=float)
+
+    if n >= window:
+        x = np.arange(window, dtype=float)
+        weights = x - x.mean()
+        x_var = float((weights ** 2).sum())
+
+        numerator = np.correlate(y, weights, mode="valid")
+        window_mean = np.correlate(y, np.full(window, 1.0 / window), mode="valid")
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            slope = numerator / x_var
+            normalized = slope / np.abs(window_mean)
+            # Windows with a zero mean produce +/-inf here; map them to NaN
+            # directly on the array (much cheaper than pd.Series.replace).
+            normalized[np.isinf(normalized)] = np.nan
+
+        out[window - 1:] = normalized
+
+    return pd.Series(out, index=series.index)
+
+
 # ===========================================================================
 # REGISTERED FEATURES
 # ===========================================================================
@@ -321,11 +360,14 @@ def _macd_histogram(df: pd.DataFrame) -> pd.Series:
         try:
             result = ta.macd(df["close"], fast=12, slow=26, signal=9)
             if result is not None and not result.empty:
-                # pandas_ta returns a DataFrame; check for common histogram column patterns
-                # Patterns: 'MACDh_12_26_9', 'MACD_Hist', etc.
-                hist_col = [c for c in result.columns if "H" in c.upper().split("_")[-1] or "HIST" in c.upper()]
-                if hist_col:
-                    return result[hist_col[0]]
+                # pandas_ta returns columns like MACD_12_26_9, MACDh_12_26_9,
+                # MACDs_12_26_9.  The histogram is the "MACDh" column.  The
+                # previous detection logic inspected only the trailing
+                # underscore-token ("9") and so never matched, silently
+                # falling through to the manual path.
+                hist_cols = [c for c in result.columns if "MACDH" in c.upper()]
+                if hist_cols:
+                    return result[hist_cols[0]]
         except Exception:
             pass # fall through to manual
 
@@ -444,25 +486,8 @@ def _obv_slope(df: pd.DataFrame) -> pd.Series:
     else:
         obv = _compute_obv(df)
 
-    # Rolling OLS slope (normalised)
-    window = 20
-    slopes = pd.Series(np.nan, index=df.index)
-    x = np.arange(window, dtype=float)
-    x_mean = x.mean()
-    x_var = ((x - x_mean) ** 2).sum()
-
-    obv_arr = obv.values.astype(float)
-    for i in range(window - 1, len(obv_arr)):
-        y = obv_arr[i - window + 1 : i + 1]
-        if np.any(np.isnan(y)):
-            continue
-        y_mean = y.mean()
-        if y_mean == 0:
-            continue
-        slope = ((x - x_mean) * (y - y_mean)).sum() / x_var
-        slopes.iloc[i] = slope / abs(y_mean)  # normalise
-
-    return slopes
+    # Rolling OLS slope over a 20-day window, normalised by mean OBV level.
+    return _rolling_normalized_slope(obv, window=20)
 
 
 def _compute_obv(df: pd.DataFrame) -> pd.Series:
@@ -578,24 +603,7 @@ def _price_to_low_52w(df: pd.DataFrame) -> pd.Series:
 @register_feature("volume_trend")
 def _volume_trend(df: pd.DataFrame) -> pd.Series:
     """Linear regression slope of volume over 20 days, normalised by mean volume."""
-    window = 20
-    slopes = pd.Series(np.nan, index=df.index)
-    x = np.arange(window, dtype=float)
-    x_mean = x.mean()
-    x_var = ((x - x_mean) ** 2).sum()
-
-    vol_arr = df["volume"].values.astype(float)
-    for i in range(window - 1, len(vol_arr)):
-        y = vol_arr[i - window + 1 : i + 1]
-        if np.any(np.isnan(y)):
-            continue
-        y_mean = y.mean()
-        if y_mean == 0:
-            continue
-        slope = ((x - x_mean) * (y - y_mean)).sum() / x_var
-        slopes.iloc[i] = slope / abs(y_mean)
-
-    return slopes
+    return _rolling_normalized_slope(df["volume"], window=20)
 
 
 # ---------------------------------------------------------------------------

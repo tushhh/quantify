@@ -47,6 +47,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
+import numpy as np
 import pandas as pd
 
 from quantify.backtest.costs import CostModel
@@ -307,6 +308,26 @@ class BacktestEngine:
         # Pre-compute date index to avoid O(n) lookups in the main loop
         date_index = {date: idx for idx, date in enumerate(trading_dates)}
 
+        # Pre-compute, ONCE per symbol, a sorted array of calendar days for
+        # each DataFrame's index.  The hot loop previously recomputed
+        # ``df.index.date`` (an O(n) conversion to Python ``date`` objects)
+        # for every symbol on every trading day inside several helpers; here
+        # we materialise it a single time and use ``np.searchsorted`` for
+        # O(log n) positional slicing instead of full-array boolean masks.
+        #
+        # ``to_numpy(dtype="datetime64[D]")`` is far cheaper than ``.date``
+        # (no Python objects), but it truncates in UTC.  ``_get_trading_dates``
+        # and ``target_day`` both derive the day from ``.date`` (wall-clock
+        # local date), so for a tz-aware index we drop the tz first — keeping
+        # the wall-clock time — to stay consistent and avoid off-by-one-day
+        # slicing.
+        day_index: dict[str, np.ndarray] = {}
+        for sym, df in data.items():
+            idx = df.index
+            if idx.tz is not None:
+                idx = idx.tz_localize(None)
+            day_index[sym] = idx.to_numpy(dtype="datetime64[D]")
+
         log.info(
             "BacktestEngine.run: %d trading days from %s to %s",
             len(trading_dates), trading_dates[0], trading_dates[-1],
@@ -343,12 +364,15 @@ class BacktestEngine:
             current_ts = datetime.combine(current_date, datetime.min.time()).replace(
                 tzinfo=timezone.utc
             )
+            # datetime64[D] view of the current date for fast searchsorted
+            # cutoffs against the precomputed per-symbol day arrays.
+            target_day = np.datetime64(current_date)
 
             # ---- 1. Collect current close prices for all symbols ----
             current_prices: dict[str, float] = {}
             for symbol, df in data.items():
                 try:
-                    price = self._get_close_price(df, current_date)
+                    price = self._get_close_price(df, day_index[symbol], target_day)
                     if price is not None and price > 0:
                         current_prices[symbol] = price
                 except Exception as exc:
@@ -377,7 +401,7 @@ class BacktestEngine:
             bar_fills: list = []
             for symbol, df in data.items():
                 try:
-                    bar = self._make_bar_data(df, current_date, symbol, current_ts)
+                    bar = self._make_bar_data(df, day_index[symbol], target_day, symbol, current_ts)
                     if bar is not None:
                         fills = broker.process_bar(bar)
                         bar_fills.extend(fills)
@@ -406,7 +430,7 @@ class BacktestEngine:
                 if not self._should_rebalance(strat, current_date, trading_dates, date_index):
                     continue
                 try:
-                    window_data = self._slice_lookback(data, current_date, strat.lookback_days)
+                    window_data = self._slice_lookback(data, day_index, target_day, strat.lookback_days)
                     if not window_data:
                         log.debug(
                             "%s: insufficient data window on %s, skipping signals",
@@ -467,7 +491,7 @@ class BacktestEngine:
                 try:
                     portfolio_adapter = _PortfolioAdapter(portfolio)
                     # Build returns data for correlation check
-                    returns_data = self._build_returns_df(data, current_date, window=60)
+                    returns_data = self._build_returns_df(data, day_index, target_day, window=60)
                     all_signals = self.risk_manager.apply_risk_adjustments(
                         all_signals,
                         portfolio_adapter,
@@ -484,12 +508,13 @@ class BacktestEngine:
                 entry_signals = [s for s in all_signals if s.direction in ("long", "short")]
                 n_entry = len(entry_signals)
 
+                price_frames: dict[str, pd.Series] = {}
+                for sym, df in data.items():
+                    pos = int(np.searchsorted(day_index[sym], target_day, side="right"))
+                    if pos > 0:
+                        price_frames[sym] = df["close"].iloc[:pos]
                 market_data = MarketData(
-                    prices={
-                        sym: df["close"][df.index.date <= current_date]
-                        for sym, df in data.items()
-                        if len(df[df.index.date <= current_date]) > 0
-                    },
+                    prices=price_frames,
                     current_prices=current_prices,
                 )
                 portfolio_adapter = _PortfolioAdapter(portfolio)
@@ -683,27 +708,29 @@ class BacktestEngine:
 
         return sorted_dates
 
-    def _get_close_price(self, df: pd.DataFrame, target_date: date) -> Optional[float]:
-        """Return the close price on or before target_date."""
-        mask = df.index.date <= target_date
-        sub = df[mask]
-        if sub.empty:
+    def _get_close_price(
+        self, df: pd.DataFrame, days: np.ndarray, target_day: np.datetime64
+    ) -> Optional[float]:
+        """Return the close price on or before *target_day* (O(log n))."""
+        pos = int(np.searchsorted(days, target_day, side="right"))
+        if pos == 0:
             return None
-        return float(sub["close"].iloc[-1])
+        return float(df["close"].iat[pos - 1])
 
     def _make_bar_data(
         self,
         df: pd.DataFrame,
-        target_date: date,
+        days: np.ndarray,
+        target_day: np.datetime64,
         symbol: str,
         timestamp: datetime,
     ) -> Optional[BarData]:
-        """Create a BarData object for the given date if data exists."""
-        mask = df.index.date == target_date
-        sub = df[mask]
-        if sub.empty:
+        """Create a BarData object for the given day if data exists."""
+        lo = int(np.searchsorted(days, target_day, side="left"))
+        hi = int(np.searchsorted(days, target_day, side="right"))
+        if hi <= lo:
             return None
-        row = sub.iloc[0]
+        row = df.iloc[lo]
         try:
             return BarData(
                 symbol=symbol,
@@ -715,29 +742,32 @@ class BacktestEngine:
                 volume=float(row.get("volume", 0.0)),
             )
         except Exception as exc:
-            log.debug("Cannot create BarData for %s on %s: %s", symbol, target_date, exc)
+            log.debug("Cannot create BarData for %s on %s: %s", symbol, target_day, exc)
             return None
 
     def _slice_lookback(
         self,
         data: dict[str, pd.DataFrame],
-        current_date: date,
+        day_index: dict[str, np.ndarray],
+        target_day: np.datetime64,
         lookback_days: int,
     ) -> dict[str, pd.DataFrame]:
         """
-        Return a window of data up to (but NOT including) current_date to
-        prevent look-ahead bias.
+        Return a window of data up to (but NOT including) *target_day* to
+        prevent look-ahead bias, trimmed to the strategy's lookback window.
         """
         result: dict[str, pd.DataFrame] = {}
         for symbol, df in data.items():
-            # Exclude current date — signals are generated from previous bars
-            hist = df[df.index.date < current_date]
-            if hist.empty or len(hist) < 2:
+            days = day_index.get(symbol)
+            if days is None:
                 continue
-            # Trim to lookback window
-            if len(hist) > lookback_days:
-                hist = hist.iloc[-lookback_days:]
-            result[symbol] = hist
+            # Number of bars strictly before target_day (current date excluded
+            # — signals are generated from previous bars only).
+            pos = int(np.searchsorted(days, target_day, side="left"))
+            if pos < 2:
+                continue
+            start = pos - lookback_days if pos > lookback_days else 0
+            result[symbol] = df.iloc[start:pos]
         return result
 
     def _should_rebalance(
@@ -976,15 +1006,20 @@ class BacktestEngine:
     def _build_returns_df(
         self,
         data: dict[str, pd.DataFrame],
-        current_date: date,
+        day_index: dict[str, np.ndarray],
+        target_day: np.datetime64,
         window: int = 60,
     ) -> pd.DataFrame:
         """Build a returns DataFrame for the risk manager's correlation check."""
         close_frames: dict[str, pd.Series] = {}
         for symbol, df in data.items():
-            hist = df[df.index.date < current_date]["close"]
-            if len(hist) > 1:
-                close_frames[symbol] = hist.iloc[-window:] if len(hist) > window else hist
+            days = day_index.get(symbol)
+            if days is None:
+                continue
+            pos = int(np.searchsorted(days, target_day, side="left"))
+            if pos > 1:
+                start = pos - window if pos > window else 0
+                close_frames[symbol] = df["close"].iloc[start:pos]
 
         if not close_frames:
             return pd.DataFrame()
