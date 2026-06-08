@@ -355,10 +355,8 @@ class BacktestEngine:
         # Accumulators
         equity_by_date: dict[date, float] = {}
         signals_log: list[dict] = []
-        portfolio_snapshots: list[dict] = []
         open_trades: dict[str, dict] = {}  # symbol -> open trade record
         closed_trades: list[dict] = []
-        all_fills: list = []
 
         for current_date in trading_dates:
             current_ts = datetime.combine(current_date, datetime.min.time()).replace(
