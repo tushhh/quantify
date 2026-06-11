@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Sun, Moon, Menu } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useThemeStore, useThemeEffect } from "@/lib/themeStore";
 import { useAppStore } from "@/lib/store";
@@ -44,7 +45,13 @@ export default function Topbar({ title }: { title?: string }) {
           {theme === "dark" ? <Sun className="h-5 w-5 text-[var(--color-text-secondary)]" /> : <Moon className="h-5 w-5 text-[var(--color-text-secondary)]" />}
         </button>
 
-        <button className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)]" />
+        <Link
+          href="/account"
+          aria-label="Account"
+          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-accent)] transition-colors"
+        >
+          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">U</span>
+        </Link>
       </div>
     </header>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, Radar, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, Radar, ShieldCheck } from "lucide-react";
 
 const FEATURES = [
   {
