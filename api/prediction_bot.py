@@ -313,10 +313,20 @@ async def top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display top bullish predictions."""
     db = SessionLocal()
     try:
-        from api.routers.predict import _load_prediction_cache
+        from api.routers.predict import _load_prediction_cache, _is_computing, _run_and_cache_predictions
         cache_result, _ = _load_prediction_cache(db, mode="previous_close")
+
         if not cache_result or not cache_result.signals:
-            await update.message.reply_text("⚠️ No predictions available at this time. Run predictions from the dashboard first.")
+            chat_id = str(update.effective_chat.id)
+            add_pending_result_notification(chat_id)
+            if not _is_computing:
+                asyncio.create_task(asyncio.to_thread(_run_and_cache_predictions, "bot"))
+            await update.message.reply_text(
+                "⏳ <b>Predictions are being computed now.</b>\n\n"
+                "This usually takes 2–3 minutes for the full 500-stock universe. "
+                "I'll send you the results here as soon as they're ready!",
+                parse_mode="HTML",
+            )
             return
 
         longs = [s for s in cache_result.signals if s.side == "long"]
@@ -339,10 +349,20 @@ async def bottom_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display top bearish predictions."""
     db = SessionLocal()
     try:
-        from api.routers.predict import _load_prediction_cache
+        from api.routers.predict import _load_prediction_cache, _is_computing, _run_and_cache_predictions
         cache_result, _ = _load_prediction_cache(db, mode="previous_close")
+
         if not cache_result or not cache_result.signals:
-            await update.message.reply_text("⚠️ No predictions available at this time. Run predictions from the dashboard first.")
+            chat_id = str(update.effective_chat.id)
+            add_pending_result_notification(chat_id)
+            if not _is_computing:
+                asyncio.create_task(asyncio.to_thread(_run_and_cache_predictions, "bot"))
+            await update.message.reply_text(
+                "⏳ <b>Predictions are being computed now.</b>\n\n"
+                "This usually takes 2–3 minutes for the full 500-stock universe. "
+                "I'll send you the results here as soon as they're ready!",
+                parse_mode="HTML",
+            )
             return
 
         shorts = [s for s in cache_result.signals if s.side == "short"]
@@ -557,6 +577,48 @@ async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ <b>Could not start the scan.</b>\n\nGitHub Actions integration may not be configured. Try /top for cached results.",
             parse_mode="HTML",
         )
+
+
+# Chat IDs waiting for the next completed prediction run (populated by top/bottom when cache is cold)
+_pending_result_chats: set[str] = set()
+
+
+def add_pending_result_notification(chat_id: str) -> None:
+    _pending_result_chats.add(chat_id)
+
+
+async def _send_results_to_pending_chats(result) -> None:
+    """Notify chats that were waiting for predictions after a cold-cache request."""
+    global _pending_result_chats
+    if not _pending_result_chats or not BOT_TOKEN:
+        return
+
+    chats_to_notify = _pending_result_chats.copy()
+    _pending_result_chats.clear()
+
+    longs = [s for s in result.signals if s.side == "long"]
+    shorts = [s for s in result.signals if s.side == "short"]
+
+    msg = (
+        f"✅ <b>Predictions are ready!</b>\n"
+        f"📅 <b>Date:</b> {result.date} · {result.universe_size} stocks\n"
+        "───────────────────\n\n"
+        "🟢 <b>Top Longs</b>\n"
+    )
+    for i, s in enumerate(longs[:5], 1):
+        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+    msg += "\n🔴 <b>Top Shorts</b>\n"
+    for i, s in enumerate(shorts[:5], 1):
+        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+    msg += "\n<i>Use /top and /bottom for the full list, or /predict &lt;SYMBOL&gt; for details.</i>"
+
+    bot = Bot(token=BOT_TOKEN)
+    for chat_id in chats_to_notify:
+        try:
+            await bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+            log.info("Sent pending-result notification to chat %s", chat_id)
+        except Exception as e:
+            log.error("Failed to notify pending chat %s: %s", chat_id, e)
 
 
 # Global bot application instance

@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -102,26 +103,43 @@ def fetch_fundamentals(
     result: dict[str, dict] = {}
     cache_dirty = False
 
-    for i, symbol in enumerate(symbols):
-        if i and i % 50 == 0:
-            log.info("fundamentals: fetched %d/%d symbols", i, len(symbols))
-
+    # Split into cached (fresh) vs symbols that need a network fetch
+    to_fetch: list[str] = []
+    for symbol in symbols:
         entry = cache.get(symbol)
         if entry and (now_ts - float(entry.get("fetched_at", 0))) < ttl_seconds:
             data = entry.get("data")
             if data:
                 result[symbol] = data
-            continue
+        else:
+            to_fetch.append(symbol)
 
-        data = _fetch_one(symbol)
-        if data is not None:
-            cache[symbol] = {"fetched_at": now_ts, "data": data}
-            cache_dirty = True
-            result[symbol] = data
-        elif entry and entry.get("data"):
-            # Fetch failed — fall back to stale cache if available
-            log.debug("fundamentals: using stale cache for %s", symbol)
-            result[symbol] = entry["data"]
+    if to_fetch:
+        log.info("fundamentals: fetching %d symbols concurrently…", len(to_fetch))
+        # 20 threads: fast enough to cut cold-cache time by ~20x, conservative
+        # enough to avoid Yahoo Finance rate limits.
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            futures = {pool.submit(_fetch_one, sym): sym for sym in to_fetch}
+            completed = 0
+            for future in as_completed(futures):
+                sym = futures[future]
+                completed += 1
+                if completed % 50 == 0:
+                    log.info("fundamentals: fetched %d/%d", completed, len(to_fetch))
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    log.debug("fundamentals: fetch raised for %s: %s", sym, exc)
+                    data = None
+
+                entry = cache.get(sym)
+                if data is not None:
+                    cache[sym] = {"fetched_at": now_ts, "data": data}
+                    cache_dirty = True
+                    result[sym] = data
+                elif entry and entry.get("data"):
+                    log.debug("fundamentals: using stale cache for %s", sym)
+                    result[sym] = entry["data"]
 
     if cache_dirty:
         _save_cache(cache_dir, cache)
