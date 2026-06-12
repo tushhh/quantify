@@ -345,15 +345,12 @@ def paper_trade(strategies: tuple[str, ...], dry_run: bool) -> None:
         return
 
     # Live paper trading
-    click.echo("Connecting to Alpaca paper trading account...")
+    click.echo("Starting Simulated Broker for paper trading...")
     try:
-        from quantify.execution.broker.alpaca_broker import AlpacaBroker
-        broker = AlpacaBroker(settings.alpaca)
+        from quantify.execution.broker.simulated import SimulatedBroker
+        broker = SimulatedBroker()
     except Exception as exc:
-        raise click.ClickException(
-            f"Failed to connect to Alpaca broker: {exc}. "
-            "Ensure ALPACA_API_KEY and ALPACA_SECRET_KEY are set."
-        )
+        raise click.ClickException(f"Failed to start SimulatedBroker: {exc}")
 
     click.echo("Starting paper trader...")
     try:

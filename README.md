@@ -28,7 +28,7 @@
 
 ---
 
-Quantify is a modular, research-driven **quantitative trading framework** built in Python. It ships with six production-ready strategies, a full backtesting engine with realistic cost modeling, a multi-layered risk management system, and seamless integration with [Alpaca Markets](https://alpaca.markets/) for paper and live trading.
+Quantify is a modular, research-driven **quantitative trading framework** built in Python. It ships with six production-ready strategies, a full backtesting engine with realistic cost modeling, and a multi-layered risk management system.
 
 ## Highlights
 
@@ -37,7 +37,7 @@ Quantify is a modular, research-driven **quantitative trading framework** built 
 | **6 Built-in Strategies** | Trend following, cross-sectional momentum, pairs mean reversion, quality/value, ML return prediction (LightGBM), and volatility regime switching |
 | **Realistic Backtesting** | Event-driven engine with configurable commissions, spread, slippage, and benchmark comparison |
 | **Risk Management** | Portfolio drawdown limits, position sizing (equal-weight, vol-target, Kelly), stop-loss/take-profit, sector exposure caps |
-| **Paper and Live Trading** | Scheduled execution via Alpaca with dry-run mode for signal inspection |
+| **Paper Trading** | Scheduled execution with simulated local broker and dry-run mode |
 | **Performance Analytics** | Tearsheet generation, Sharpe/Sortino/Calmar ratios, drawdown analysis, and benchmark comparison |
 | **Telegram Bots** | Real-time trade alerts and interactive ML predictions via [@QuantifyAlertbot](https://t.me/QuantifyAlertbot) and [@quantifychatbot](https://t.me/quantifychatbot) |
 
@@ -63,7 +63,6 @@ Allocations and parameters are fully configurable in [`config/settings.yaml`](co
 ### Prerequisites
 
 - **Python >= 3.11**
-- An [Alpaca](https://alpaca.markets/) paper-trading account (free) for live/paper trading
 
 ### Installation
 
@@ -93,12 +92,10 @@ cp .env.example .env
 copy .env.example .env
 ```
 
-Then fill in your keys:
+Then fill in your keys (if needed):
 
 ```dotenv
-ALPACA_API_KEY=your_paper_api_key_here
-ALPACA_SECRET_KEY=your_paper_secret_key_here
-ALPACA_PAPER=true
+# Your environment variables here
 ```
 
 ### Run a Backtest
@@ -287,7 +284,7 @@ src/quantify/
 |   |-- cache.py            # Parquet-based local data cache
 |   |-- features.py         # Technical feature engineering
 |   |-- models.py           # Bar / OHLCV data models
-|   |-- providers/          # Market data providers (yfinance, Alpaca)
+|   |-- providers/          # Market data providers (yfinance)
 |   +-- universe.py         # S&P 500 universe and sector mapping
 |-- strategy/
 |   |-- base.py             # Abstract strategy interface
@@ -304,7 +301,7 @@ src/quantify/
 |   |-- analysis.py         # Post-backtest analysis
 |   +-- report.py           # HTML and console report generation
 |-- execution/
-|   |-- broker/             # Broker adapters (Alpaca)
+|   |-- broker/             # Broker adapters (simulated)
 |   |-- order.py            # Order types and lifecycle
 |   |-- order_manager.py    # Order routing and fill tracking
 |   +-- portfolio.py        # Live portfolio state
@@ -335,7 +332,7 @@ All runtime behaviour is controlled by two files:
 
 | File | Purpose |
 |---|---|
-| [`config/settings.yaml`](config/settings.yaml) | Strategy params, risk limits, backtest defaults, universe, Alpaca endpoints |
+| [`config/settings.yaml`](config/settings.yaml) | Strategy params, risk limits, backtest defaults, universe |
 | [`.env`](.env.example) | API keys and secret overrides (never committed) |
 
 Key configuration sections:
@@ -368,7 +365,7 @@ Test modules cover `backtest`, `data`, `execution`, `risk`, and `strategy`.
 | Data | pandas, NumPy, yfinance, pyarrow |
 | ML / Stats | scikit-learn, LightGBM, XGBoost, CatBoost, statsmodels |
 | Indicators | pandas-ta |
-| Broker | alpaca-py |
+| Broker | simulated |
 | Scheduling | APScheduler |
 | Notifications | python-telegram-bot |
 | Visualisation | matplotlib, seaborn |
@@ -381,6 +378,6 @@ Test modules cover `backtest`, `data`, `execution`, `risk`, and `strategy`.
 
 ## License
 
-Copyright (c) 2026 Tushar. All rights reserved.
+Copyright (c) 2026 Tushar Gupta. All rights reserved.
 
 This software is **proprietary and confidential**. No part of this software may be reproduced, distributed, or transmitted in any form without the prior written permission of the copyright owner. See the `LICENSE` file for full details.
