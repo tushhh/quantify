@@ -20,11 +20,12 @@ Quick start
 ::
 
     from quantify.config import load_settings
-    from quantify.execution.broker.alpaca_broker import AlpacaBroker
-    from quantify.paper import PaperTrader
+    from quantify.execution.broker.simulated import SimulatedBroker
+    from quantify.paper.trader import PaperTrader
+    from quantify.strategy.cross_sectional_momentum import CrossSectionalMomentumStrategy
 
     config = load_settings()
-    broker = AlpacaBroker(config.alpaca)
+    broker = SimulatedBroker()
     # strategies = [...]
 
     trader = PaperTrader(strategies=strategies, broker=broker, config=config)

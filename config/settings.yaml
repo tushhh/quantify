@@ -5,7 +5,7 @@
 # ── Data ──────────────────────────────────────────────────────────────────────
 data:
   cache_dir: data/cache
-  default_provider: yfinance        # yfinance | alpaca
+  default_provider: yfinance
   universe:
     - AAPL
     - MSFT
@@ -30,17 +30,8 @@ data:
     - SPY
     - QQQ
     - IWM
-  bar_timeframe: "1Day"             # Alpaca bar timeframe string
+  bar_timeframe: "1Day"             # Bar timeframe string
   history_years: 5                  # years of history to fetch on first run
-
-# ── Alpaca ────────────────────────────────────────────────────────────────────
-alpaca:
-  paper: true
-  base_url_paper: "https://paper-api.alpaca.markets"
-  base_url_live:  "https://api.alpaca.markets"
-  data_url:       "https://data.alpaca.markets"
-  # API credentials are loaded from environment variables:
-  #   ALPACA_API_KEY and ALPACA_SECRET_KEY
 
 # ── Risk ──────────────────────────────────────────────────────────────────────
 risk:

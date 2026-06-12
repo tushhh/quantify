@@ -37,11 +37,11 @@ Usage
 
     from quantify.paper.trader import PaperTrader
     from quantify.config import load_settings
-    from quantify.execution.broker.alpaca_broker import AlpacaBroker
+    from quantify.execution.broker.simulated import SimulatedBroker
     from quantify.strategy.cross_sectional_momentum import CrossSectionalMomentum
 
     config = load_settings()
-    broker = AlpacaBroker(config.alpaca)
+    broker = SimulatedBroker()
     strategies = [CrossSectionalMomentum(universe=config.data.universe)]
 
     trader = PaperTrader(strategies=strategies, broker=broker, config=config)
@@ -99,8 +99,7 @@ class PaperTrader:
     broker:
         A connected :class:`~quantify.execution.broker.base.Broker` instance.
         For paper trading this is typically
-        :class:`~quantify.execution.broker.alpaca_broker.AlpacaBroker`
-        configured with ``paper=True``.
+        :class:`~quantify.execution.broker.simulated.SimulatedBroker`.
     config:
         Application settings loaded via
         :func:`~quantify.config.load_settings`.

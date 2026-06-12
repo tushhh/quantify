@@ -99,9 +99,6 @@ loggers:
     level: WARNING
     propagate: true
 
-  alpaca:
-    level: WARNING
-    propagate: true
 
   yfinance:
     level: WARNING
