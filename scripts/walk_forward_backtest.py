@@ -1,81 +1,158 @@
+#!/usr/bin/env python
 """
-Simple walk-forward backtest runner for `MLReturnPredictorStrategy`.
-Runs expanding-window walk-forward retrain and evaluates IC and hit-rate.
+Walk-forward validation for `MLReturnPredictorStrategy`.
 
-Key improvements:
-- Aligned with the fixed forward return computation
-- Reports both raw-return and rank-based metrics
-- Tracks cumulative IC over time
+Per period (every ``--interval`` calendar days):
+
+1. Train on data strictly before ``window_end`` (lookback-limited).
+2. Predict as-of the last bar BEFORE ``window_end`` — i.e. ``_predict`` on the
+   training slice, which uses each symbol's most recent bar.
+3. Realized outcome: for each symbol, the forward return from the last close
+   in the training slice to the close ``_FORWARD_RETURN_DAYS`` trading bars
+   later, looked up positionally in the full enriched frame.  This keeps the
+   prediction and the realized outcome aligned on the same as-of date (the
+   previous implementation predicted on the *last* bar of the evaluation
+   slice while measuring returns from its *first* bar — a misalignment of
+   ~retrain_interval days).
+4. Metrics: Spearman IC, hit rate, top-minus-bottom quintile spread.
+
+Outputs ``walk_forward_results.json`` (per-period results) and
+``walk_forward_summary.json`` (aggregate statistics).
 """
-from datetime import datetime, timezone, timedelta
+
+import argparse
 import json
+import logging
+import os
+import sys
+from datetime import datetime, timezone, timedelta
+
 import numpy as np
 import pandas as pd
 
-from quantify.data.providers.yfinance_provider import YFinanceProvider
-from quantify.data.cache import ParquetCache
-from quantify.data.features import FeatureEngine
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
+from quantify.data.fundamentals import FUNDAMENTAL_FEATURES
 from quantify.data.universe import get_sp500
-from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy, _FORWARD_RETURN_DAYS
+from quantify.screener import prepare_enriched_data
+from quantify.strategy.ml_return_predictor import (
+    MLReturnPredictorStrategy,
+    _FORWARD_RETURN_DAYS,
+)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s – %(message)s")
+log = logging.getLogger("walk_forward")
+
+_RESULTS_PATH = "walk_forward_results.json"
+_SUMMARY_PATH = "walk_forward_summary.json"
 
 
-def run_walk_forward(start_date: datetime, end_date: datetime, universe_size: int = 100, retrain_interval_days: int = 21):
-    universe = get_sp500()[:universe_size]
-    provider = YFinanceProvider(cache=ParquetCache(cache_dir="./data/cache"))
-    data = provider.get_multiple(universe, start=start_date - timedelta(days=4000), end=end_date)
-
-    # Prepare features once
-    fe = FeatureEngine()
-    strat_default = MLReturnPredictorStrategy()
-    feats = fe.compute(data, required=list(strat_default.get_required_features()))
-    enriched = {s: data[s].join(feats.get(s, pd.DataFrame()), how='left') for s in universe if s in data}
-
-    # Walk-forward: re-train every `retrain_interval_days` on data up to that date
-    current = start_date
-    results = []
+def _fresh_strategy(universe: list[str]) -> MLReturnPredictorStrategy:
+    """Build a strategy that trains from scratch (no persisted-model state)."""
     strat = MLReturnPredictorStrategy(universe=universe)
+    # Discard any model/feature-list loaded from disk in __init__ — walk-forward
+    # must train fresh per window — and avoid clobbering the production model
+    # artifacts when _train_model persists.
+    strat._model = None
+    strat.features = list(strat.technical_features) + (
+        list(FUNDAMENTAL_FEATURES) if strat.use_fundamentals else []
+    )
+    strat._model_path = "./models/walk_forward_tmp.joblib"
+    strat._model_meta_path = "./models/walk_forward_tmp_meta.json"
+    return strat
+
+
+def run_walk_forward(
+    start_date: datetime,
+    end_date: datetime,
+    universe_size: int = 100,
+    retrain_interval_days: int = 21,
+) -> list[dict]:
+    universe = get_sp500()[:universe_size]
+
+    # Load enough history before start_date to cover the 756-trading-day
+    # training window plus feature warm-up.
+    cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
+    strat = _fresh_strategy(universe)
+    enriched, strat = prepare_enriched_data(
+        universe,
+        start_dt=start_date - timedelta(days=365 * 4),
+        end_dt=end_date,
+        cache_dir=cache_dir,
+        strategy=strat,
+    )
+
+    results: list[dict] = []
+    current = start_date
 
     while current <= end_date:
         window_end = current
-        train_start = current - timedelta(days=365 * 3)
-        # Build train/eval slices
-        slice_data = {
-            s: df.loc[(df.index.date >= train_start.date()) & (df.index.date < window_end.date())]
+        train_start = window_end - timedelta(days=365 * 4)
+
+        # 1. Train on data strictly before window_end (lookback-limited;
+        #    _build_training_data further limits to train_window_days).
+        train_slice = {
+            s: df.loc[
+                (df.index.date >= train_start.date())
+                & (df.index.date < window_end.date())
+            ]
             for s, df in enriched.items()
         }
+        train_slice = {s: df for s, df in train_slice.items() if not df.empty}
 
-        X_all, y_all = strat._build_training_data(slice_data)
+        X_all, y_all = strat._build_training_data(train_slice)
         if X_all is None or len(X_all) < strat.min_train_bars:
-            print(f"Skipping retrain at {window_end.date()}; insufficient samples ({0 if X_all is None else len(X_all)})")
+            log.info(
+                "Skipping %s; insufficient samples (%d)",
+                window_end.date(),
+                0 if X_all is None else len(X_all),
+            )
             current += timedelta(days=retrain_interval_days)
             continue
 
-        strat._train_model(X_all, y_all)
+        strat._train_model(X_all, y_all, timestamp=window_end)
+        if strat._model is None:
+            log.warning("Training failed at %s; skipping period", window_end.date())
+            current += timedelta(days=retrain_interval_days)
+            continue
 
-        # Evaluate one-step ahead predictions for the next period
-        next_period_end = window_end + timedelta(days=retrain_interval_days)
-        pred_slice = {
-            s: df.loc[(df.index.date >= window_end.date()) & (df.index.date < next_period_end.date())]
-            for s, df in enriched.items()
-        }
-        preds = strat._predict(pred_slice)
+        # 2. Predict as-of the last bar before window_end: _predict uses the
+        #    most recent bar of each frame in the training slice.
+        preds = strat._predict(train_slice)
+        if not preds:
+            current += timedelta(days=retrain_interval_days)
+            continue
 
-        # Compute true forward returns using the corrected formula
-        true_returns = {}
-        for s, df in pred_slice.items():
-            if df is None or df.empty or len(df) < _FORWARD_RETURN_DAYS + 1:
+        # 3. Realized outcome: forward return from the last close in the train
+        #    slice to the close _FORWARD_RETURN_DAYS trading bars later,
+        #    looked up in the full enriched frame.
+        true_returns: dict[str, float] = {}
+        for s in preds:
+            full_df = enriched.get(s)
+            tdf = train_slice.get(s)
+            if full_df is None or tdf is None or tdf.empty:
                 continue
             try:
-                # Correct forward return: close[t+N] / close[t] - 1
-                close = df['close']
-                if len(close) > _FORWARD_RETURN_DAYS:
-                    fwd_ret = float(close.iloc[_FORWARD_RETURN_DAYS] / close.iloc[0] - 1.0)
-                    true_returns[s] = fwd_ret
+                pos = full_df.index.get_loc(tdf.index[-1])
+                if not isinstance(pos, (int, np.integer)):
+                    continue
+                fwd_pos = pos + _FORWARD_RETURN_DAYS
+                if fwd_pos >= len(full_df):
+                    continue  # not enough future bars
+                c0 = float(full_df["close"].iloc[pos])
+                c1 = float(full_df["close"].iloc[fwd_pos])
+                if c0 > 0:
+                    true_returns[s] = c1 / c0 - 1.0
             except Exception:
                 continue
 
-        paired = [(preds.get(s), true_returns.get(s)) for s in preds.keys() if s in true_returns]
-        paired = [(p, t) for p, t in paired if p is not None and t is not None and not np.isnan(p) and not np.isnan(t)]
+        paired = [
+            (preds[s], true_returns[s])
+            for s in preds
+            if s in true_returns
+            and not np.isnan(preds[s])
+            and not np.isnan(true_returns[s])
+        ]
 
         if not paired:
             current += timedelta(days=retrain_interval_days)
@@ -84,10 +161,11 @@ def run_walk_forward(start_date: datetime, end_date: datetime, universe_size: in
         ps = np.array([p for p, _ in paired])
         ts = np.array([t for _, t in paired])
 
-        ic = float(pd.Series(ps).corr(pd.Series(ts), method='spearman'))
+        # 4. Metrics
+        ic = float(pd.Series(ps).corr(pd.Series(ts), method="spearman"))
         hit = float((np.sign(ps) == np.sign(ts)).mean())
 
-        # Top-quintile return spread: mean return of top 20% predicted minus bottom 20%
+        # Top-minus-bottom quintile spread
         n = len(ps)
         if n >= 5:
             sorted_idx = np.argsort(ps)
@@ -96,42 +174,85 @@ def run_walk_forward(start_date: datetime, end_date: datetime, universe_size: in
             bottom_return = float(np.mean(ts[sorted_idx[:q]]))
             spread = top_return - bottom_return
         else:
-            spread = float('nan')
+            spread = float("nan")
 
         result = {
-            'date': window_end.date().isoformat(),
-            'ic': round(ic, 4),
-            'hit_rate': round(hit, 3),
-            'spread': round(spread, 6) if not np.isnan(spread) else None,
-            'n': len(paired),
+            "date": window_end.date().isoformat(),
+            "ic": round(ic, 4),
+            "hit_rate": round(hit, 3),
+            "spread": round(spread, 6) if not np.isnan(spread) else None,
+            "n": len(paired),
         }
         results.append(result)
-        print(f"{window_end.date()}: IC={ic:.4f}, hit={hit:.3f}, spread={spread:.4f}, n={len(paired)}")
+        log.info(
+            "%s: IC=%.4f, hit=%.3f, spread=%s, n=%d",
+            window_end.date(),
+            ic,
+            hit,
+            f"{spread:.4f}" if not np.isnan(spread) else "n/a",
+            len(paired),
+        )
         current += timedelta(days=retrain_interval_days)
 
-    # Summary statistics
-    if results:
-        ics = [r['ic'] for r in results]
-        hits = [r['hit_rate'] for r in results]
-        spreads = [r['spread'] for r in results if r['spread'] is not None]
+    _write_outputs(results)
+    return results
 
-        print('\n' + '=' * 60)
-        print('Walk-forward summary:')
-        print(f'  Periods:       {len(results)}')
-        print(f'  Mean IC:       {np.mean(ics):.4f} ± {np.std(ics):.4f}')
-        print(f'  Mean hit rate: {np.mean(hits):.3f}')
-        if spreads:
-            print(f'  Mean spread:   {np.mean(spreads):.4f}')
-        print(f'  IC > 0:        {sum(1 for ic in ics if ic > 0)}/{len(ics)} ({sum(1 for ic in ics if ic > 0)/len(ics)*100:.0f}%)')
-        print('=' * 60)
 
-    # Save full results
-    with open('walk_forward_results.json', 'w') as fh:
+def _write_outputs(results: list[dict]) -> None:
+    with open(_RESULTS_PATH, "w") as fh:
         json.dump(results, fh, indent=2)
-    print(f'\nSaved {len(results)} results to walk_forward_results.json')
+    log.info("Saved %d period results to %s", len(results), _RESULTS_PATH)
+
+    ics = [r["ic"] for r in results if r["ic"] is not None]
+    hits = [r["hit_rate"] for r in results]
+    spreads = [r["spread"] for r in results if r["spread"] is not None]
+
+    mean_ic = float(np.mean(ics)) if ics else None
+    ic_std = float(np.std(ics)) if ics else None
+    ic_t_stat = (
+        float(mean_ic / ic_std * np.sqrt(len(ics)))
+        if ics and ic_std and ic_std > 0
+        else None
+    )
+    pct_positive = float(sum(1 for ic in ics if ic > 0) / len(ics)) if ics else None
+
+    summary = {
+        "mean_ic": round(mean_ic, 4) if mean_ic is not None else None,
+        "ic_std": round(ic_std, 4) if ic_std is not None else None,
+        "ic_t_stat": round(ic_t_stat, 3) if ic_t_stat is not None else None,
+        "pct_positive": round(pct_positive, 3) if pct_positive is not None else None,
+        "mean_hit_rate": round(float(np.mean(hits)), 3) if hits else None,
+        "mean_spread": round(float(np.mean(spreads)), 6) if spreads else None,
+        "n_periods": len(results),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    with open(_SUMMARY_PATH, "w") as fh:
+        json.dump(summary, fh, indent=2)
+
+    print("\n" + "=" * 60)
+    print("Walk-forward summary:")
+    for key, value in summary.items():
+        print(f"  {key}: {value}")
+    print("=" * 60)
+    log.info("Saved summary to %s", _SUMMARY_PATH)
 
 
-if __name__ == '__main__':
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Walk-forward validation for the ML return predictor")
+    parser.add_argument("--universe-size", type=int, default=100, help="Number of S&P 500 symbols (default 100)")
+    parser.add_argument("--years", type=int, default=2, help="Evaluation span in years (default 2)")
+    parser.add_argument("--interval", type=int, default=21, help="Days between retrain/evaluation periods (default 21)")
+    args = parser.parse_args()
+
     end = datetime.now(timezone.utc)
-    start = end - timedelta(days=365 * 2)
-    run_walk_forward(start, end)
+    start = end - timedelta(days=365 * args.years)
+    run_walk_forward(
+        start,
+        end,
+        universe_size=args.universe_size,
+        retrain_interval_days=args.interval,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -95,6 +95,17 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
         feat_df = features.get(symbol)
         enriched_df = df.join(feat_df, how="left", rsuffix="_feat") if feat_df is not None else df
 
+        # Append fundamental valuation features so the feature vector matches
+        # the model trained with fundamentals (earnings_yield, book_to_market,
+        # fcf_yield, roe).
+        try:
+            from quantify.data.fundamentals import fetch_fundamentals, add_fundamental_features
+
+            fundamentals = fetch_fundamentals([symbol], cache_dir=cache_dir)
+            enriched_df = add_fundamental_features({symbol: enriched_df}, fundamentals)[symbol]
+        except Exception as fund_err:
+            log.warning("Failed to add fundamental features for %s: %s", symbol, fund_err)
+
         # --- Load the shared ML model (download from GitHub if needed) ---
         model = strat._model  # may already be loaded from disk in __init__
         if model is None:
