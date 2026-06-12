@@ -77,7 +77,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MIN_TRAIN_BARS: int = 126          # minimum bars for initial model training
 _RETRAIN_INTERVAL_DAYS: int = 21    # retrain every ~21 trading days
-_FORWARD_RETURN_DAYS: int = 5       # prediction target horizon
+_FORWARD_RETURN_DAYS: int = 21      # prediction target horizon (1 month)
 _LONG_DECILE: float = 0.90          # top 10%
 _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
@@ -85,7 +85,7 @@ _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
 _TRAIN_WINDOW_DAYS: int = 756       # ~1 year of history for model training
 _DECAY_HALFLIFE_DAYS: int = 126     # time-decay half-life for sample weights
-_PURGE_EMBARGO_DAYS: int = 5        # embargo gap = forward return horizon
+_PURGE_EMBARGO_DAYS: int = 21       # embargo gap = forward return horizon
 
 
 # All available features from FeatureEngine (18 original + 12 new)
