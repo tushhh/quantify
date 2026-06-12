@@ -282,7 +282,7 @@ def _download_latest_model() -> bool:
 
 def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
-    from quantify.data.universe import get_sp500
+    from quantify.data.universe import Universe, get_russell1000
     from quantify.screener import run_screener
 
     now_utc = datetime.now(timezone.utc)
@@ -291,7 +291,12 @@ def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionR
     # Ensure we have the latest model downloaded from GitHub before starting
     _download_latest_model()
 
-    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
+    try:
+        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
+    except Exception as e:
+        log.warning("Screener: Failed to fetch from Wikipedia, falling back to Russell 1000: %s", e)
+        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
+        
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
 
     result = run_screener(universe, end_dt=end_dt, cache_dir=cache_dir)
@@ -475,9 +480,14 @@ async def get_best_predictions(
 @router.get("/sectors", response_model=list[str])
 async def get_prediction_sectors():
     """Return the list of GICS sectors available in the screener universe."""
-    from quantify.data.universe import get_sector_map, get_sp500
+    from quantify.data.universe import Universe, get_sector_map, get_russell1000
     sector_map = get_sector_map()
-    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
+    
+    try:
+        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
+    except Exception:
+        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
+        
     sectors = sorted({sector_map.get(t, "Unknown") for t in universe if sector_map.get(t, "Unknown") != "Unknown"})
     return sectors
 
