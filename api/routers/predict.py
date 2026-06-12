@@ -338,15 +338,17 @@ def _run_and_cache_predictions(source: str = "scheduler", mode: PredictionMode =
         cache_slot["result"] = result
         cache_slot["timestamp"] = time.time()
         
-        # Broadcast prediction signals to subscribed Telegram chats/channels
+        # Broadcast to subscribed chats and notify any chats waiting on a cold-cache request
         try:
             import asyncio
-            from api.prediction_bot import broadcast_predictions
+            from api.prediction_bot import broadcast_predictions, _send_results_to_pending_chats
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(broadcast_predictions(result))
+                loop.create_task(_send_results_to_pending_chats(result))
             except RuntimeError:
                 asyncio.run(broadcast_predictions(result))
+                asyncio.run(_send_results_to_pending_chats(result))
         except Exception as e:
             log.error("Failed to broadcast predictions to Telegram: %s", e)
             
