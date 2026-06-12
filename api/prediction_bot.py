@@ -535,7 +535,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
 
 
 async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Trigger a full 500-stock screener via GitHub Actions: /fullscan"""
+    """Run a full 500-stock screener directly on the server: /fullscan"""
     chat_id = str(update.effective_chat.id)
     chat_key = f"chat_{chat_id}"
     user_key = f"user_{update.effective_user.id}"
@@ -547,6 +547,17 @@ async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    from api.routers.predict import _is_computing, _run_and_cache_predictions
+
+    if _is_computing:
+        add_pending_result_notification(chat_id)
+        await update.message.reply_text(
+            "⏳ <b>A scan is already in progress.</b>\n\n"
+            "I'll send you the results here as soon as they're ready!",
+            parse_mode="HTML",
+        )
+        return
+
     await update.message.reply_text(
         "🔍 <b>Full 500-stock scan triggered!</b>\n\n"
         "I'm running the complete S&P 500 screener now. "
@@ -554,27 +565,17 @@ async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
-    # Call the internal API to trigger the GitHub Actions workflow
-    internal_secret = os.getenv("INTERNAL_API_SECRET", "")
-    heroku_url = os.getenv("HEROKU_APP_URL", "http://localhost:8000").rstrip("/")
-    payload = json.dumps({"chat_id": chat_id}).encode()
-    req = urllib.request.Request(
-        f"{heroku_url}/api/internal/trigger-screener",
-        data=payload,
-        method="POST",
-    )
-    req.add_header("Content-Type", "application/json")
-    if internal_secret:
-        req.add_header("X-Internal-Secret", internal_secret)
+    # Register this chat to receive results when the computation finishes
+    add_pending_result_notification(chat_id)
 
+    # Run the screener directly in a background thread (same mechanism /top uses)
     try:
-        with urllib.request.urlopen(req, timeout=10):
-            pass
-        log.info("Triggered full screener workflow for chat_id=%s", chat_id)
+        asyncio.create_task(asyncio.to_thread(_run_and_cache_predictions, "fullscan"))
+        log.info("Started full screener computation for chat_id=%s", chat_id)
     except Exception as e:
-        log.error("Failed to trigger screener for chat_id=%s: %s", chat_id, e)
+        log.error("Failed to start screener for chat_id=%s: %s", chat_id, e)
         await update.message.reply_text(
-            "⚠️ <b>Could not start the scan.</b>\n\nGitHub Actions integration may not be configured. Try /top for cached results.",
+            "⚠️ <b>Could not start the scan.</b>\n\nPlease try again later, or use /top for cached results.",
             parse_mode="HTML",
         )
 
