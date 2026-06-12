@@ -381,4 +381,6 @@ Test modules cover `backtest`, `data`, `execution`, `risk`, and `strategy`.
 
 ## License
 
-This project is for personal / educational use. See the repository for license details.
+Copyright (c) 2026 Tushar. All rights reserved.
+
+This software is **proprietary and confidential**. No part of this software may be reproduced, distributed, or transmitted in any form without the prior written permission of the copyright owner. See the `LICENSE` file for full details.
