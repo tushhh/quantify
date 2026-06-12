@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Clock, Database,
   AlertTriangle, Info, ArrowUpRight,
@@ -121,17 +121,27 @@ export default function PredictPage() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [predictionMode, setPredictionMode] = useState<"live" | "previous_close">("previous_close");
 
+  // Use a ref to track computing state inside callbacks without causing
+  // dependency changes that would re-trigger useEffect and create an
+  // infinite render loop.
+  const isComputingRef = useRef(false);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchPredictions = useCallback(async function fetchPredictions(force = false, mode: "live" | "previous_close" = predictionMode) {
     setError(null);
     if (force) setForcing(true);
-    else if (!isComputing) setLoading(true);
+    else if (!isComputingRef.current) setLoading(true);
 
     try {
       const data = await api.predict.best(50, sectorFilter || undefined, force, mode);
       if (data.status === "computing") {
+        isComputingRef.current = true;
         setIsComputing(true);
-        setTimeout(() => fetchPredictions(false), 10000);
+        // Clear any existing poll timer before setting a new one
+        if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = setTimeout(() => fetchPredictions(false, mode), 10000);
       } else {
+        isComputingRef.current = false;
         setIsComputing(false);
         setResult(data);
         setHasLoaded(true);
@@ -140,20 +150,31 @@ export default function PredictPage() {
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load predictions. Please try again.");
+      isComputingRef.current = false;
       setIsComputing(false);
       setLoading(false);
       setForcing(false);
     }
-  }, [predictionMode, sectorFilter, isComputing]);
+  }, [predictionMode, sectorFilter]);
 
   const handleModeChange = useCallback((nextMode: "live" | "previous_close") => {
     if (nextMode === predictionMode) return;
+    // Clear any pending poll when switching modes
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    isComputingRef.current = false;
+    setIsComputing(false);
     setPredictionMode(nextMode);
     fetchPredictions(false, nextMode);
   }, [fetchPredictions, predictionMode]);
 
+  // Initial load — only runs when predictionMode or sectorFilter changes,
+  // NOT when isComputing toggles (which was the source of the infinite loop).
   useEffect(() => {
     fetchPredictions(false);
+    return () => {
+      // Cleanup poll timer on unmount or dependency change
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
   }, [fetchPredictions]);
 
   useEffect(() => {
