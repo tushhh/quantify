@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 # Add src to path so we can run directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from quantify.data.universe import get_sp500
+from quantify.data.universe import Universe, get_russell1000
 from quantify.screener import prepare_enriched_data, DEFAULT_LOOKBACK_DAYS
 from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
 
@@ -32,7 +32,11 @@ def main():
 
     # 1. Define universe and timeline (4 years of history to support the
     #    756-trading-day training window plus feature warm-up)
-    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
+    try:
+        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
+    except Exception as e:
+        log.warning("Failed to fetch from Wikipedia, falling back to Russell 1000: %s", e)
+        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(days=DEFAULT_LOOKBACK_DAYS)
 

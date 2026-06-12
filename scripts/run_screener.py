@@ -13,7 +13,7 @@ import urllib.error
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from quantify.data.universe import get_sp500
+from quantify.data.universe import Universe, get_russell1000
 from quantify.screener import run_screener
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s – %(message)s")
@@ -29,7 +29,11 @@ def main():
 
     log.info("Starting full screener for %d stocks (chat_id=%s)", _SCREENER_UNIVERSE_SIZE, chat_id or "none")
 
-    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
+    try:
+        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
+    except Exception as e:
+        log.warning("Failed to fetch from Wikipedia, falling back to Russell 1000: %s", e)
+        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
 
     try:
