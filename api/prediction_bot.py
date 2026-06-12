@@ -535,7 +535,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
 
 
 async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Run a full 500-stock screener directly on the server: /fullscan"""
+    """Trigger the full 500-stock screener via GitHub Actions: /fullscan"""
     chat_id = str(update.effective_chat.id)
     chat_key = f"chat_{chat_id}"
     user_key = f"user_{update.effective_user.id}"
@@ -547,33 +547,76 @@ async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    from api.routers.predict import _is_computing, _run_and_cache_predictions
+    # Check GitHub integration is configured
+    repo = os.getenv("GITHUB_REPOSITORY")
+    token = os.getenv("GH_WORKFLOW_TOKEN") or os.getenv("GITHUB_TOKEN")
 
-    if _is_computing:
-        add_pending_result_notification(chat_id)
+    if not repo or not token:
         await update.message.reply_text(
-            "⏳ <b>A scan is already in progress.</b>\n\n"
-            "I'll send you the results here as soon as they're ready!",
+            "⚠️ <b>GitHub Actions not configured.</b>\n\n"
+            "Set GITHUB_REPOSITORY and GH_WORKFLOW_TOKEN (or GITHUB_TOKEN) env vars. "
+            "Try /top for cached results.",
             parse_mode="HTML",
         )
         return
 
     await update.message.reply_text(
         "🔍 <b>Full 500-stock scan triggered!</b>\n\n"
-        "I'm running the complete S&P 500 screener now. "
+        "I'm dispatching the screener to GitHub Actions now. "
         "This takes about 2-3 minutes. I'll send you the results here when it's done — no need to wait.",
         parse_mode="HTML",
     )
 
-    # Register this chat to receive results when the computation finishes
-    add_pending_result_notification(chat_id)
-
-    # Run the screener directly in a background thread (same mechanism /top uses)
+    # Create a pending job record in DB
+    db = SessionLocal()
     try:
-        asyncio.create_task(asyncio.to_thread(_run_and_cache_predictions, "fullscan"))
-        log.info("Started full screener computation for chat_id=%s", chat_id)
+        from api.models import AsyncPredictionJob
+        job = AsyncPredictionJob(chat_id=chat_id, status="pending")
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        job_id = job.id
     except Exception as e:
-        log.error("Failed to start screener for chat_id=%s: %s", chat_id, e)
+        log.error("Failed to create job record for chat_id=%s: %s", chat_id, e)
+        db.rollback()
+        job_id = 0
+    finally:
+        db.close()
+
+    # Dispatch the workflow directly via GitHub Actions API
+    heroku_url = os.getenv("HEROKU_APP_URL", "").rstrip("/")
+    internal_secret = os.getenv("INTERNAL_API_SECRET", "")
+    callback_url = f"{heroku_url}/api/internal/job-complete" if heroku_url else ""
+
+    payload = json.dumps({
+        "ref": "main",
+        "inputs": {
+            "chat_id": chat_id,
+            "job_id": str(job_id),
+            "heroku_callback_url": callback_url,
+        }
+    }).encode()
+
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/full_screener.yml/dispatches"
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"token {token}")
+    req.add_header("Accept", "application/vnd.github.v3+json")
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15):
+            pass
+        log.info("Triggered full_screener workflow for chat_id=%s job_id=%d", chat_id, job_id)
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        log.error("GitHub API error triggering workflow: HTTP %d — %s", e.code, error_body)
+        await update.message.reply_text(
+            f"⚠️ <b>GitHub API error ({e.code}).</b>\n\n"
+            "The workflow token may lack permissions. Ensure GH_WORKFLOW_TOKEN has <code>actions:write</code> scope.",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        log.error("Failed to trigger screener for chat_id=%s: %s", chat_id, e)
         await update.message.reply_text(
             "⚠️ <b>Could not start the scan.</b>\n\nPlease try again later, or use /top for cached results.",
             parse_mode="HTML",
