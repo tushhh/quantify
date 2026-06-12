@@ -594,6 +594,7 @@ async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "chat_id": chat_id,
             "job_id": str(job_id),
             "heroku_callback_url": callback_url,
+            "internal_secret": internal_secret,
         }
     }).encode()
 

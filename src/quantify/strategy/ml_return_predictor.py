@@ -1187,7 +1187,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     2. It captures complementary strengths of each base learner
     3. Cross-validated base predictions prevent overfitting
     """
-    from sklearn.linear_model import Ridge, RidgeCV
+    from sklearn.linear_model import RidgeCV
 
     estimators: list[tuple[str, Any]] = []
     backends: list[str] = []

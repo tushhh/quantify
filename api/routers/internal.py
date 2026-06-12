@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from api.database import SessionLocal
-from api.models import AsyncPredictionJob, PredictionCache
+from api.models import AsyncPredictionJob
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 log = logging.getLogger("quantify.api.internal")
