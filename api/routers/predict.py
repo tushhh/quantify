@@ -282,74 +282,32 @@ def _download_latest_model() -> bool:
 
 def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionResponse:
     """Blocking prediction logic — computes for the full universe."""
-    from quantify.data.providers.yfinance_provider import YFinanceProvider
-    from quantify.data.cache import ParquetCache
-    from quantify.data.features import FeatureEngine
-    from quantify.data.universe import get_sp500, get_sector_map
-    from quantify.strategy.ml_return_predictor import MLReturnPredictorStrategy
+    from quantify.data.universe import get_sp500
+    from quantify.screener import run_screener
 
     now_utc = datetime.now(timezone.utc)
-    session_date, start_dt, end_dt = _resolve_prediction_window(mode, now_utc)
+    session_date, _start_dt, end_dt = _resolve_prediction_window(mode, now_utc)
 
     # Ensure we have the latest model downloaded from GitHub before starting
     _download_latest_model()
 
-    full_universe = get_sp500()
-    universe = full_universe[:_SCREENER_UNIVERSE_SIZE]
-    sector_map = get_sector_map()
-
-    strat = MLReturnPredictorStrategy(universe=universe, train_enabled=False)
-
-    log.info("Screener: fetching data for %d symbols from S&P 500…", len(universe))
+    universe = get_sp500()[:_SCREENER_UNIVERSE_SIZE]
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
-    provider = YFinanceProvider(cache=ParquetCache(cache_dir=cache_dir))
-    data = provider.get_multiple(universe, start=start_dt, end=end_dt)
 
-    if not data:
-        raise ValueError("Market data provider returned empty results.")
+    result = run_screener(universe, end_dt=end_dt, cache_dir=cache_dir)
 
-    log.info("Screener: computing features for %d symbols…", len(data))
-    required = strat.get_required_features()
-    engine = FeatureEngine()
-    features = engine.compute(data, required=list(required))
-
-    enriched = {}
-    for sym, raw_df in data.items():
-        feat_df = features.get(sym)
-        if feat_df is not None:
-            enriched[sym] = raw_df.join(feat_df, how="left", rsuffix="_feat")
-        else:
-            enriched[sym] = raw_df
-
-    log.info("Screener: generating signals…")
-    signals = strat.generate_signals(enriched)
-
-    longs = sorted(
-        [s for s in signals if s.direction == "long"],
-        key=lambda x: x.strength, reverse=True,
-    )
-    shorts = sorted(
-        [s for s in signals if s.direction == "short"],
-        key=lambda x: x.strength, reverse=True,
-    )
-
-    all_signals = longs + shorts
-
-    items = []
-    for s in all_signals:
-        sym = s.symbol
-        sector = sector_map.get(sym, "Unknown")
-        pred_return = s.metadata.get("predicted_return_1d", s.metadata.get("predicted_return_5d", 0.0)) if s.metadata else 0.0
-        explanations = s.metadata.get("explanations", []) if s.metadata else []
-        items.append(PredictionItem(
-            symbol=sym,
-            strength=s.strength,
-            side=s.direction,
-            sector=sector,
-            name=_get_ticker_name(sym),
-            predicted_return_pct=round(float(pred_return) * 100, 2),
-            explanations=explanations,
-        ))
+    items = [
+        PredictionItem(
+            symbol=sig["symbol"],
+            strength=sig["strength"],
+            side=sig["side"],
+            sector=sig["sector"],
+            name=_get_ticker_name(sig["symbol"]),
+            predicted_return_pct=sig["predicted_return_pct"],
+            explanations=sig["explanations"],
+        )
+        for sig in result["signals"]
+    ]
 
     return PredictionResponse(
         status="ok",
@@ -358,8 +316,8 @@ def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionR
         signals=items,
         cached=False,
         cache_age_minutes=0.0,
-        universe_size=len(universe),
-        model_metrics=strat._model_metrics,
+        universe_size=result["universe_size"],
+        model_metrics=result["model_metrics"],
     )
 
 

@@ -65,6 +65,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from quantify.data.fundamentals import FUNDAMENTAL_FEATURES
 from quantify.data.universe import get_sp500
 from quantify.strategy.base import Strategy
 from quantify.strategy.signal import Signal
@@ -196,6 +197,12 @@ class MLReturnPredictorStrategy(Strategy):
     purge_embargo_days:
         Number of days to embargo between train and validation sets to
         prevent forward return overlap / data leakage.
+    use_fundamentals:
+        If True (default), append the fundamental valuation features from
+        ``quantify.data.fundamentals`` (earnings_yield, book_to_market,
+        fcf_yield, roe) to the technical feature set.  These columns must be
+        added to the input data frames via ``add_fundamental_features``;
+        they are not computed by FeatureEngine.
     """
 
     name: str = "ml_return_predictor"
@@ -221,9 +228,19 @@ class MLReturnPredictorStrategy(Strategy):
         use_rank_target: bool = True,
         purge_embargo_days: int = _PURGE_EMBARGO_DAYS,
         train_enabled: bool = True,
+        use_fundamentals: bool = True,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
-        self.features = features if features is not None else list(_ALL_FEATURES)
+        self.use_fundamentals = use_fundamentals
+        # Technical features come from FeatureEngine; fundamental features are
+        # appended onto the data frames separately (see quantify.data.fundamentals).
+        self.technical_features: list[str] = (
+            list(features) if features is not None else list(_ALL_FEATURES)
+        )
+        if use_fundamentals:
+            self.features = self.technical_features + list(FUNDAMENTAL_FEATURES)
+        else:
+            self.features = list(self.technical_features)
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
         self.rebalance_days = rebalance_days
@@ -266,6 +283,21 @@ class MLReturnPredictorStrategy(Strategy):
 
             self._model = joblib.load(self._model_path)
             log.info("%s: loaded persisted model from %s", self.name, self._model_path)
+
+            # Align the feature list with the persisted model's metadata so
+            # inference always matches the feature set the model was trained
+            # with (prevents shape mismatch when the cached model was trained
+            # with a different feature list).
+            try:
+                import json
+
+                with open(self._model_meta_path) as fh:
+                    meta = json.load(fh)
+                persisted_features = meta.get("features")
+                if isinstance(persisted_features, list) and persisted_features:
+                    self.features = list(persisted_features)
+            except Exception:
+                pass
         except Exception:
             # No persisted model available — will train on demand
             self._model = None
@@ -281,8 +313,14 @@ class MLReturnPredictorStrategy(Strategy):
         )
 
     def get_required_features(self) -> list[str]:
-        """Return all feature names required from FeatureEngine."""
-        return list(self.features)
+        """
+        Return the technical feature names required from FeatureEngine.
+
+        Fundamental features (see ``quantify.data.fundamentals``) are NOT
+        included here because they are not registered with FeatureEngine —
+        they are appended onto the data frames separately.
+        """
+        return list(self.technical_features)
 
     def on_start(self) -> None:
         """
@@ -716,6 +754,7 @@ class MLReturnPredictorStrategy(Strategy):
                 "model_backends": self._model_backends,
                 "feature_importances": self._feature_importances,
                 "model_metrics": self._model_metrics,
+                "features": list(self.features),
             }
             with open(self._model_meta_path, "w") as fh:
                 json.dump(meta, fh)
