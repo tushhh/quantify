@@ -134,19 +134,19 @@ _ALL_FEATURES: list[str] = [
     "mean_reversion_5d",
 ]
 
-# LightGBM hyperparameters (production-suitable; tune offline)
+# LightGBM hyperparameters (tuned to prevent overfitting on noisy financial data)
 _LGBM_PARAMS: dict[str, Any] = {
     "objective": "regression",
     "metric": "rmse",
     "learning_rate": 0.02,
     "n_estimators": 400,
-    "max_depth": 6,
-    "num_leaves": 63,
-    "min_child_samples": 30,
+    "max_depth": 3,
+    "num_leaves": 7,
+    "min_child_samples": 100,
     "subsample": 0.8,
     "colsample_bytree": 0.8,
-    "reg_alpha": 0.1,
-    "reg_lambda": 0.1,
+    "reg_alpha": 1.0,
+    "reg_lambda": 1.0,
     "random_state": 42,
     "n_jobs": -1,
     "verbose": -1,
@@ -1207,6 +1207,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
             "n_estimators": params.get("n_estimators", 200),
             "learning_rate": params.get("learning_rate", 0.02),
             "max_depth": params.get("max_depth", 6),
+            "min_child_weight": params.get("min_child_samples", 30),
             "subsample": params.get("subsample", 0.8),
             "colsample_bytree": params.get("colsample_bytree", 0.8),
             "reg_alpha": params.get("reg_alpha", 0.1),
@@ -1227,6 +1228,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
             "iterations": params.get("n_estimators", 200),
             "learning_rate": params.get("learning_rate", 0.05),
             "depth": params.get("max_depth", 6),
+            "min_data_in_leaf": params.get("min_child_samples", 30),
             "l2_leaf_reg": params.get("reg_lambda", 0.1),
             "verbose": False,
             "random_seed": 42,
