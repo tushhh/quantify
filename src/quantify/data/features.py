@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import functools
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 import numpy as np
@@ -185,32 +186,36 @@ class FeatureEngine:
                 f"Available: {self.available_features()}"
             )
 
-        results: dict[str, pd.DataFrame] = {}
-
-        for symbol, df in data.items():
+        def _compute_one(symbol: str, df: pd.DataFrame) -> tuple[str, pd.DataFrame]:
             if df.empty:
                 logger.warning("Skipping %s: empty DataFrame.", symbol)
-                continue
-
+                return symbol, pd.DataFrame(index=df.index)
             feature_series: dict[str, pd.Series] = {}
             for feat_name in required:
                 fn = self._registry[feat_name]
                 try:
                     series = fn(df)
                     series = series.replace([np.inf, -np.inf], np.nan)
-                    # Enforce consistent name
                     series.name = feat_name
                     feature_series[feat_name] = series
                 except Exception as exc:
                     logger.warning(
                         "Feature %r failed for %s: %s", feat_name, symbol, exc
                     )
-                    # Fill with NaN so callers can detect the failure
                     feature_series[feat_name] = pd.Series(
                         np.nan, index=df.index, name=feat_name
                     )
+            return symbol, pd.DataFrame(feature_series, index=df.index)
 
-            results[symbol] = pd.DataFrame(feature_series, index=df.index)
+        results: dict[str, pd.DataFrame] = {}
+        # Use threads (not processes): pandas/numpy release the GIL for most
+        # numeric work, giving real parallelism without pickling overhead.
+        with ThreadPoolExecutor(max_workers=min(8, len(data) or 1)) as pool:
+            futures = {pool.submit(_compute_one, sym, df): sym for sym, df in data.items()}
+            for future in futures:
+                sym, feat_df = future.result()
+                if not feat_df.empty:
+                    results[sym] = feat_df
 
         return results
 
