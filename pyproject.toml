@@ -24,6 +24,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "matplotlib>=3.7",
     "seaborn>=0.12",
+    "lxml>=4.9",
 ]
 
 [project.optional-dependencies]
