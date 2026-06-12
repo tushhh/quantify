@@ -22,7 +22,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: E402
 
-from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils  # noqa: E402
+from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils, internal  # noqa: E402
 from api.database import engine, ensure_trade_columns, ensure_user_columns  # noqa: E402
 from api import models  # noqa: E402
 from api.telegram_bot import check_alerts_loop  # noqa: E402
@@ -131,6 +131,7 @@ app.include_router(risk.router, prefix="/api")
 app.include_router(predict.router, prefix="/api")
 app.include_router(trades.router, prefix="/api")
 app.include_router(utils.router, prefix="/api")
+app.include_router(internal.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

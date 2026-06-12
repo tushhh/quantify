@@ -28,8 +28,8 @@ _is_computing = False
 _LIVE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_LIVE_CACHE_TTL_SECONDS", "300"))
 _PREVIOUS_CLOSE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_PREVIOUS_CLOSE_CACHE_TTL_SECONDS", "604800"))
 
-# S&P 500 universe size (top ~100 liquid constituents)
-_SCREENER_UNIVERSE_SIZE = 100
+# Full S&P 500 universe — inference is fast since model is pre-trained
+_SCREENER_UNIVERSE_SIZE = 500
 
 
 def _should_force_run_synchronously() -> bool:
