@@ -76,15 +76,15 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MIN_TRAIN_BARS: int = 126          # minimum bars for initial model training
 _RETRAIN_INTERVAL_DAYS: int = 21    # retrain every ~21 trading days
-_FORWARD_RETURN_DAYS: int = 1       # prediction target horizon
+_FORWARD_RETURN_DAYS: int = 5       # prediction target horizon
 _LONG_DECILE: float = 0.90          # top 10%
 _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
 _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
-_TRAIN_WINDOW_DAYS: int = 252       # ~1 year of history for model training
+_TRAIN_WINDOW_DAYS: int = 756       # ~1 year of history for model training
 _DECAY_HALFLIFE_DAYS: int = 126     # time-decay half-life for sample weights
-_PURGE_EMBARGO_DAYS: int = 1        # embargo gap = forward return horizon
+_PURGE_EMBARGO_DAYS: int = 5        # embargo gap = forward return horizon
 
 
 # All available features from FeatureEngine (18 original + 12 new)
@@ -137,17 +137,17 @@ _ALL_FEATURES: list[str] = [
 _LGBM_PARAMS: dict[str, Any] = {
     "objective": "regression",
     "metric": "rmse",
-    "learning_rate": 0.05,
-    "n_estimators": 200,
-    "max_depth": 5,
-    "num_leaves": 31,
-    "min_child_samples": 20,
+    "learning_rate": 0.02,
+    "n_estimators": 400,
+    "max_depth": 6,
+    "num_leaves": 63,
+    "min_child_samples": 30,
     "subsample": 0.8,
     "colsample_bytree": 0.8,
     "reg_alpha": 0.1,
     "reg_lambda": 0.1,
     "random_state": 42,
-    "n_jobs": 1,
+    "n_jobs": -1,
     "verbose": -1,
 }
 
@@ -200,7 +200,7 @@ class MLReturnPredictorStrategy(Strategy):
 
     name: str = "ml_return_predictor"
     rebalance_frequency: str = "weekly"
-    lookback_days: int = 600  # 504 train + buffer
+    lookback_days: int = 1200  # 504 train + buffer
 
     def __init__(
         self,
@@ -830,18 +830,25 @@ class MLReturnPredictorStrategy(Strategy):
                 if df.empty or len(df) < 5:
                     continue
 
-                # Prefer feature if present
-                if "return_5d" in df.columns:
-                    recent_ret = float(df["return_5d"].iloc[-1])
-                else:
-                    recent_ret = float(df["close"].pct_change(5).iloc[-1])
+                horizons = [
+                    ("return_5d", 5, 0.50),
+                    ("return_21d", 21, 0.30),
+                    ("return_63d", 63, 0.20),
+                ]
+                weighted_ret = 0.0
+                for feat, days, weight in horizons:
+                    if feat in df.columns:
+                        r = float(df[feat].iloc[-1])
+                    else:
+                        r = float(df["close"].pct_change(days).iloc[-1])
+                    if not pd.isna(r):
+                        weighted_ret += weight * r
 
-                # Simple volatility normaliser (20-day std of returns)
                 vol = float(df["close"].pct_change().rolling(20).std().iloc[-1])
                 if vol <= 0 or pd.isna(vol):
                     vol = 1.0
 
-                score = recent_ret / vol
+                score = weighted_ret / vol
                 scores[symbol] = float(score)
             except Exception:
                 continue
@@ -1141,7 +1148,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     2. It captures complementary strengths of each base learner
     3. Cross-validated base predictions prevent overfitting
     """
-    from sklearn.linear_model import Ridge
+    from sklearn.linear_model import Ridge, RidgeCV
 
     estimators: list[tuple[str, Any]] = []
     backends: list[str] = []
@@ -1159,13 +1166,13 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
         from xgboost import XGBRegressor
         xgb_params = {
             "n_estimators": params.get("n_estimators", 200),
-            "learning_rate": params.get("learning_rate", 0.05),
-            "max_depth": params.get("max_depth", 5),
+            "learning_rate": params.get("learning_rate", 0.02),
+            "max_depth": params.get("max_depth", 6),
             "subsample": params.get("subsample", 0.8),
             "colsample_bytree": params.get("colsample_bytree", 0.8),
             "reg_alpha": params.get("reg_alpha", 0.1),
             "reg_lambda": params.get("reg_lambda", 0.1),
-            "n_jobs": 1,
+            "n_jobs": -1,
             "random_state": 42,
             "verbosity": 0,
         }
@@ -1180,7 +1187,7 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
         cb_params = {
             "iterations": params.get("n_estimators", 200),
             "learning_rate": params.get("learning_rate", 0.05),
-            "depth": params.get("max_depth", 5),
+            "depth": params.get("max_depth", 6),
             "l2_leaf_reg": params.get("reg_lambda", 0.1),
             "verbose": False,
             "random_seed": 42,
@@ -1208,9 +1215,9 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
 
         stacking = StackingRegressor(
             estimators=estimators,
-            final_estimator=Ridge(alpha=1.0),
-            cv=2,
-            n_jobs=1,
+            final_estimator=RidgeCV(alphas=[0.01, 0.1, 1.0, 10.0, 100.0]),
+            cv=5,
+            n_jobs=-1,
             passthrough=False,
         )
         return stacking, backends

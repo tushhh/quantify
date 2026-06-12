@@ -27,7 +27,7 @@ logging.basicConfig(
 log = logging.getLogger("train_ml_model")
 
 # Use top 100 symbols for screener performance consistency
-_SCREENER_UNIVERSE_SIZE = 100
+_SCREENER_UNIVERSE_SIZE = 500
 
 def main():
     log.info("Starting offline ML model training")

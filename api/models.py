@@ -49,4 +49,11 @@ class AdhocPredictionCache(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     result_json = Column(String)  # Serialized PredictionItem JSON string
 
-
+class AsyncPredictionJob(Base):
+    __tablename__ = "async_prediction_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String(64), index=True)
+    status = Column(String(16), default="pending")  # pending | complete | failed
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
+    result_json = Column(String, nullable=True)

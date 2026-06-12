@@ -2,6 +2,8 @@ import os
 import json
 import logging
 import asyncio
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from telegram import Bot, Update
@@ -184,6 +186,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /bottom - View top 10 bearish predictions of the day\n"
         "• /subscribe - Subscribe this chat to daily prediction signals\n"
         "• /unsubscribe - Stop receiving daily summaries\n"
+        "• /fullscan - Run a live full 500-stock S&P 500 scan (results sent when ready)\n"
         "• /help - Display this help message"
     )
     await update.message.reply_text(msg, parse_mode="HTML")
@@ -457,6 +460,94 @@ async def broadcast_predictions(result=None):
     finally:
         db.close()
 
+async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error: Optional[str]):
+    """Send the completed full 500-stock screener results to a Telegram chat."""
+    if not BOT_TOKEN:
+        return
+    bot = Bot(token=BOT_TOKEN)
+
+    if error or not result_json:
+        await bot.send_message(
+            chat_id=chat_id,
+            text="⚠️ <b>Full scan failed.</b>\n\nPlease try again later.",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        from api.schemas import PredictionResponse
+        result = PredictionResponse(**json.loads(result_json))
+    except Exception:
+        await bot.send_message(chat_id=chat_id, text="⚠️ Failed to parse screener results.", parse_mode="HTML")
+        return
+
+    longs = [s for s in result.signals if s.side == "long"]
+    shorts = [s for s in result.signals if s.side == "short"]
+
+    msg = (
+        f"✅ <b>Full 500-Stock Scan Complete</b>\n"
+        f"📅 <b>Date:</b> {result.date}\n"
+        f"📈 <b>Universe:</b> {result.universe_size} stocks\n"
+        "───────────────────\n\n"
+        "🟢 <b>Top Longs</b>\n"
+    )
+    for i, s in enumerate(longs[:8], 1):
+        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+
+    msg += "\n🔴 <b>Top Shorts</b>\n"
+    for i, s in enumerate(shorts[:8], 1):
+        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+
+    msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
+
+    await bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+
+
+async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Trigger a full 500-stock screener via GitHub Actions: /fullscan"""
+    chat_id = str(update.effective_chat.id)
+    chat_key = f"chat_{chat_id}"
+    user_key = f"user_{update.effective_user.id}"
+
+    if not check_rate_limit(chat_key) or not check_rate_limit(user_key):
+        await update.message.reply_text(
+            "⚠️ <b>Rate limit reached.</b> Please wait a moment and try again.",
+            parse_mode="HTML",
+        )
+        return
+
+    await update.message.reply_text(
+        "🔍 <b>Full 500-stock scan triggered!</b>\n\n"
+        "I'm running the complete S&P 500 screener now. "
+        "This takes about 2-3 minutes. I'll send you the results here when it's done — no need to wait.",
+        parse_mode="HTML",
+    )
+
+    # Call the internal API to trigger the GitHub Actions workflow
+    internal_secret = os.getenv("INTERNAL_API_SECRET", "")
+    heroku_url = os.getenv("HEROKU_APP_URL", "http://localhost:8000").rstrip("/")
+    payload = json.dumps({"chat_id": chat_id}).encode()
+    req = urllib.request.Request(
+        f"{heroku_url}/api/internal/trigger-screener",
+        data=payload,
+        method="POST",
+    )
+    req.add_header("Content-Type", "application/json")
+    if internal_secret:
+        req.add_header("X-Internal-Secret", internal_secret)
+
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+        log.info("Triggered full screener workflow for chat_id=%s", chat_id)
+    except Exception as e:
+        log.error("Failed to trigger screener for chat_id=%s: %s", chat_id, e)
+        await update.message.reply_text(
+            "⚠️ <b>Could not start the scan.</b>\n\nGitHub Actions integration may not be configured. Try /top for cached results.",
+            parse_mode="HTML",
+        )
+
+
 # Global bot application instance
 prediction_app = None
 
@@ -476,7 +567,8 @@ async def start_prediction_bot():
     prediction_app.add_handler(CommandHandler("bottom", bottom_cmd))
     prediction_app.add_handler(CommandHandler("subscribe", subscribe_cmd))
     prediction_app.add_handler(CommandHandler("unsubscribe", unsubscribe_cmd))
-    
+    prediction_app.add_handler(CommandHandler("fullscan", fullscan_cmd))
+
     await prediction_app.initialize()
     await prediction_app.start()
     await prediction_app.updater.start_polling(drop_pending_updates=True)
