@@ -78,6 +78,7 @@ def test_forward_return_no_leakage():
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
         use_rank_target=False,  # disable rank transform to check raw returns
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -126,6 +127,7 @@ def test_purged_embargo_gap():
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
         purge_embargo_days=5,
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -198,6 +200,7 @@ def test_rank_target_transformation():
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
         use_rank_target=True,
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -231,6 +234,7 @@ def test_raw_target_when_rank_disabled():
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
         use_rank_target=False,
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -308,6 +312,7 @@ def test_ml_predictor_training_data_construction():
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
         use_rank_target=False,  # test raw features, not ranks
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -394,6 +399,7 @@ def test_ml_predictor_ignores_non_universe_symbols():
         universe=["AAPL", "MSFT", "GOOG"],
         features=["return_5d", "volatility_20d"],
         min_train_bars=50,
+        use_fundamentals=False,
     )
 
     class DummyModel:
@@ -427,6 +433,7 @@ def test_ml_predictor_emits_explanations():
     strat = MLReturnPredictorStrategy(
         features=["return_5d", "volatility_20d"],
         min_train_bars=1,
+        use_fundamentals=False,
     )
 
     class DummyModel:
@@ -464,7 +471,8 @@ def test_ml_predictor_predict_cross_sectional_standardization():
     """
     strat = MLReturnPredictorStrategy(
         features=["return_5d", "volatility_20d"],
-        min_train_bars=50
+        min_train_bars=50,
+        use_fundamentals=False,
     )
 
     start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)

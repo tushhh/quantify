@@ -555,25 +555,25 @@ def _atr_14(df: pd.DataFrame) -> pd.Series:
 @register_feature("return_std_21d")
 def _return_std_21d(df: pd.DataFrame) -> pd.Series:
     """21-day rolling standard deviation of daily returns (idiosyncratic risk proxy)."""
-    return df["close"].pct_change().rolling(21, min_periods=15).std()
+    return df["close"].pct_change().rolling(21, min_periods=21).std()
 
 
 @register_feature("skewness_21d")
 def _skewness_21d(df: pd.DataFrame) -> pd.Series:
     """21-day rolling skewness of daily returns (crash risk indicator)."""
-    return df["close"].pct_change().rolling(21, min_periods=15).skew()
+    return df["close"].pct_change().rolling(21, min_periods=21).skew()
 
 
 @register_feature("max_return_21d")
 def _max_return_21d(df: pd.DataFrame) -> pd.Series:
     """Maximum single-day return over the last 21 trading days (lottery demand)."""
-    return df["close"].pct_change().rolling(21, min_periods=15).max()
+    return df["close"].pct_change().rolling(21, min_periods=21).max()
 
 
 @register_feature("min_return_21d")
 def _min_return_21d(df: pd.DataFrame) -> pd.Series:
     """Minimum single-day return over the last 21 trading days (tail risk)."""
-    return df["close"].pct_change().rolling(21, min_periods=15).min()
+    return df["close"].pct_change().rolling(21, min_periods=21).min()
 
 
 # ---------------------------------------------------------------------------
@@ -616,7 +616,7 @@ def _return_consistency(df: pd.DataFrame) -> pd.Series:
     """Fraction of positive-return days over the last 21 trading days."""
     daily_ret = df["close"].pct_change()
     positive = (daily_ret > 0).astype(float)
-    return positive.rolling(21, min_periods=15).mean()
+    return positive.rolling(21, min_periods=21).mean()
 
 
 @register_feature("gap_return")
@@ -627,7 +627,7 @@ def _gap_return(df: pd.DataFrame) -> pd.Series:
     """
     prev_close = df["close"].shift(1)
     gap = (df["open"] - prev_close) / prev_close
-    return gap.rolling(20, min_periods=10).mean()
+    return gap.rolling(20, min_periods=20).mean()
 
 
 @register_feature("intraday_range")
@@ -637,7 +637,7 @@ def _intraday_range(df: pd.DataFrame) -> pd.Series:
     Proxy for realized intraday volatility.
     """
     daily_range = (df["high"] - df["low"]) / df["close"]
-    return daily_range.rolling(20, min_periods=10).mean()
+    return daily_range.rolling(20, min_periods=20).mean()
 
 
 # ---------------------------------------------------------------------------

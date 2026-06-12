@@ -1,0 +1,50 @@
+name: Walk-Forward Validation
+
+on:
+  schedule:
+    - cron: '0 6 1 * *' # Monthly, on the 1st at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  walk-forward:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install '.[dev]'
+
+      - name: Run walk-forward validation
+        env:
+          PREDICTION_DATA_CACHE_DIR: "./data/cache"
+        run: |
+          python scripts/walk_forward_backtest.py --universe-size 100 --years 2
+
+      - name: Print summary
+        run: cat walk_forward_summary.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: walk-forward-results
+          path: |
+            walk_forward_results.json
+            walk_forward_summary.json
