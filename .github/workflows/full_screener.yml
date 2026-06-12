@@ -1,0 +1,68 @@
+name: Full 500-Stock Screener
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: "Telegram chat_id to notify when complete"
+        required: false
+        default: ""
+      job_id:
+        description: "Internal job ID for tracking"
+        required: false
+        default: ""
+      heroku_callback_url:
+        description: "Heroku API callback URL"
+        required: false
+        default: ""
+
+jobs:
+  screener:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install '.[dev]'
+
+      - name: Download latest trained model
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p models
+          BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/model-cache"
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor.joblib" -o models/ml_return_predictor.joblib
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor_meta.json" -o models/ml_return_predictor_meta.json || true
+          echo "Model downloaded ($(du -sh models/ml_return_predictor.joblib | cut -f1))"
+
+      - name: Run Full Screener
+        env:
+          PREDICTION_DATA_CACHE_DIR: "./data/cache"
+          INPUT_CHAT_ID: ${{ github.event.inputs.chat_id }}
+          INPUT_HEROKU_CALLBACK_URL: ${{ github.event.inputs.heroku_callback_url }}
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+        run: |
+          python scripts/run_screener.py

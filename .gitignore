@@ -94,8 +94,8 @@ secrets.json
 # Database initialization script with credentials
 create_tables.py
 
-# Claude Code — local settings are machine-specific
-.claude/settings.local.json
+# Claude Code — local settings and worktrees are machine-specific
+.claude/
 
 # Gemini / AI skill files — local only, not for the repo
 .gemini/

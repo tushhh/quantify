@@ -3,7 +3,12 @@ name: Train ML Model
 on:
   schedule:
     - cron: '0 5 * * *' # Run daily at 05:00 UTC (before market open)
-  workflow_dispatch: {} # Allow manual trigger via GitHub UI or API
+  workflow_dispatch:
+    inputs:
+      notify_chat_id:
+        description: "Optional Telegram chat_id to notify when training completes"
+        required: false
+        default: ""
 
 jobs:
   train:
