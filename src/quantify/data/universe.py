@@ -652,7 +652,12 @@ class Universe:
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
         logger.info("Fetching S&P 500 list from %s", url)
         try:
-            tables = pd.read_html(url, header=0)
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            resp = requests.get(url, headers=headers, timeout=15)
+            resp.raise_for_status()
+            
+            import io
+            tables = pd.read_html(io.StringIO(resp.text), header=0)
         except Exception as exc:
             raise RuntimeError(
                 f"Could not parse Wikipedia S&P 500 table: {exc}"
