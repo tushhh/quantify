@@ -193,3 +193,42 @@ class TestAddSectorRsFeatures:
             assert "sector_rs_10d" in df.columns
             assert "sector_rs_63d" in df.columns
             assert "sector_rs_5d" not in df.columns
+
+    def test_etf_fetch_end_extends_past_last_bar(
+        self, stock_data: dict[str, pd.DataFrame], sector_map: dict[str, str]
+    ) -> None:
+        """
+        Regression: yfinance's `end` is exclusive, so fetching ETFs with
+        end=stocks' last bar would drop that very day and leave sector_rs NaN
+        at every stock's last bar (→ _predict skips all symbols).  The ETF
+        fetch must request an end strictly after the stocks' last bar.
+        """
+        etf_data = self._etf_data()
+        mock_provider = _mock_provider(etf_data)
+        with (
+            patch(
+                "quantify.data.providers.yfinance_provider.YFinanceProvider",
+                return_value=mock_provider,
+            ),
+            patch("quantify.data.cache.ParquetCache"),
+        ):
+            add_sector_rs_features(
+                stock_data, sector_map, cache_dir="/tmp/test_cache"
+            )
+
+        stock_last = max(df.index.max() for df in stock_data.values())
+        _, kwargs = mock_provider.get_multiple.call_args
+        assert kwargs["end"] > stock_last, (
+            "ETF fetch end must extend past the stocks' last bar so the most "
+            "recent trading day is included (yfinance end is exclusive)"
+        )
+
+    def test_sector_rs_present_at_last_bar(
+        self, stock_data: dict[str, pd.DataFrame], sector_map: dict[str, str]
+    ) -> None:
+        """When ETF data covers the stock index, sector_rs must be populated at
+        the last bar — the row _predict actually consumes."""
+        result = self._run(stock_data, sector_map)
+        for sym, df in result.items():
+            assert not np.isnan(df["sector_rs_5d"].iloc[-1]), f"{sym} NaN at last bar"
+            assert not np.isnan(df["sector_rs_21d"].iloc[-1]), f"{sym} NaN at last bar"
