@@ -305,16 +305,24 @@ class MLReturnPredictorStrategy(Strategy):
             # inference always matches the feature set the model was trained
             # with (prevents shape mismatch when the cached model was trained
             # with a different feature list).
-            try:
-                import json
+            #
+            # Only do this for inference (train_enabled=False).  In training
+            # mode we must keep the freshly-built full feature set: otherwise
+            # each training run would inherit the *previously persisted*
+            # model's feature list and re-save it, a feedback loop that can
+            # silently collapse the model to whatever reduced set was last
+            # written to disk.
+            if not self.train_enabled:
+                try:
+                    import json
 
-                with open(self._model_meta_path) as fh:
-                    meta = json.load(fh)
-                persisted_features = meta.get("features")
-                if isinstance(persisted_features, list) and persisted_features:
-                    self.features = list(persisted_features)
-            except Exception:
-                pass
+                    with open(self._model_meta_path) as fh:
+                        meta = json.load(fh)
+                    persisted_features = meta.get("features")
+                    if isinstance(persisted_features, list) and persisted_features:
+                        self.features = list(persisted_features)
+                except Exception:
+                    pass
         except Exception:
             # No persisted model available — will train on demand
             self._model = None
