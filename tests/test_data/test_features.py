@@ -280,6 +280,85 @@ class TestAtrFeature:
         assert (atr[common_idx] < close[common_idx]).all()
 
 
+class TestVolumeProfileFeatures:
+    """Tests for the four new volume-profile / confirmation features."""
+
+    def test_volume_price_corr_20d_range(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["volume_price_corr_20d"])
+        corr = result["X"]["volume_price_corr_20d"].dropna()
+        assert not corr.empty
+        assert (corr >= -1.0).all() and (corr <= 1.0).all()
+
+    def test_volume_price_corr_20d_first_rows_nan(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["volume_price_corr_20d"])
+        corr = result["X"]["volume_price_corr_20d"]
+        # First 19 rows are definitely NaN (window=20, min_periods=20;
+        # pct_change NaN at row 0 means full window first fills at row 20).
+        assert corr.iloc[:19].isna().all()
+
+    def test_mfi_14_range(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["mfi_14"])
+        mfi = result["X"]["mfi_14"].dropna()
+        assert not mfi.empty
+        assert (mfi >= 0.0).all() and (mfi <= 100.0).all()
+
+    def test_mfi_14_varies(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["mfi_14"])
+        mfi = result["X"]["mfi_14"].dropna()
+        assert mfi.std() > 0
+
+    def test_vwap_ratio_positive(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["vwap_ratio"])
+        ratio = result["X"]["vwap_ratio"].dropna()
+        assert not ratio.empty
+        assert (ratio > 0).all()
+
+    def test_vwap_ratio_near_one(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        """VWAP ratio should be close to 1 — price doesn't drift far from its VWAP."""
+        result = engine.compute({"X": ohlcv_300}, required=["vwap_ratio"])
+        ratio = result["X"]["vwap_ratio"].dropna()
+        assert (ratio > 0.5).all() and (ratio < 2.0).all()
+
+    def test_volume_price_divergence_varies(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        result = engine.compute({"X": ohlcv_300}, required=["volume_price_divergence"])
+        div = result["X"]["volume_price_divergence"].dropna()
+        assert not div.empty
+        assert div.std() > 0
+
+    def test_volume_price_divergence_signed(
+        self, engine: FeatureEngine, ohlcv_300: pd.DataFrame
+    ) -> None:
+        """Divergence should take both positive and negative values."""
+        result = engine.compute({"X": ohlcv_300}, required=["volume_price_divergence"])
+        div = result["X"]["volume_price_divergence"].dropna()
+        assert (div > 0).any() and (div < 0).any()
+
+    def test_new_volume_features_registered(self) -> None:
+        features = set(list_features())
+        new_vol = {
+            "volume_price_corr_20d",
+            "mfi_14",
+            "vwap_ratio",
+            "volume_price_divergence",
+        }
+        missing = new_vol - features
+        assert not missing, f"New volume features not registered: {missing}"
+
+
 class TestExtraFeatureRegistration:
     def test_instance_extra_feature(self, ohlcv_300: pd.DataFrame) -> None:
         def _custom(df: pd.DataFrame) -> pd.Series:

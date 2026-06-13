@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, Radar, ShieldCheck } from "lucide-react";
+import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, Radar, ShieldCheck, Sparkles } from "lucide-react";
 
 const FEATURES = [
   {
@@ -68,11 +68,11 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold shadow-sm hover:bg-[var(--color-accent-hover)] transition-colors">
-                Open Backtest Lab <ChevronRight size={18} />
+              <Link href="/predict" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold shadow-sm hover:bg-[var(--color-accent-hover)] transition-colors">
+                <Sparkles size={18} /> See Today&apos;s Picks
               </Link>
-              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
-                View Portfolio Tools
+              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
+                Open Backtest Lab <ChevronRight size={18} />
               </Link>
             </div>
 

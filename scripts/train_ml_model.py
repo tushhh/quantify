@@ -42,7 +42,7 @@ def main():
 
     # 2. Fetch data and compute all features (technical + fundamental)
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
-    strat = MLReturnPredictorStrategy(universe=universe)
+    strat = MLReturnPredictorStrategy(universe=universe, use_sector_rs=True)
     log.info(f"Fetching and enriching data for {len(universe)} symbols from {start_dt.date()} to {end_dt.date()}...")
     enriched, strat = prepare_enriched_data(
         universe, start_dt, end_dt, cache_dir=cache_dir, strategy=strat
