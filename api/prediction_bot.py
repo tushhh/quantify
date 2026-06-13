@@ -11,6 +11,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from api.database import SessionLocal
 from api.models import PredictionSubscription, AdhocPredictionCache
 from api.schemas import PredictionItem
+from api.driver_explain import humanize_driver, build_plain_summary
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("prediction_bot")
@@ -170,20 +171,41 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
         log.exception("Failed to run dynamic prediction for %s: %s", symbol, e)
         return None
 
+def _signal_one_liner(signal: PredictionItem) -> str:
+    """Plain-English 'why' line for a single predicted stock (no leading bullet)."""
+    summary = build_plain_summary(signal.side, signal.explanations)
+    if summary:
+        lead = "Bullish" if signal.side == "long" else "Bearish"
+        return f"{lead} — {summary}."
+    return "Bullish signal." if signal.side == "long" else "Bearish signal."
+
+
 def format_prediction_msg(signal: PredictionItem) -> str:
     """Format a PredictionItem into a formatted HTML string."""
+    side_word = "Bullish 🟢" if signal.side == "long" else "Bearish 🔴"
     msg = (
         f"📊 <b>ML Prediction for {signal.symbol} ({signal.name})</b>\n\n"
-        f"• <b>Side:</b> {signal.side.upper()}\n"
+        f"• <b>Signal:</b> {side_word}\n"
         f"• <b>Strength:</b> {signal.strength:.2%}\n"
         f"• <b>Predicted 1d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
         f"• <b>Sector:</b> {signal.sector}\n"
     )
+
+    # Plain-English summary line so non-expert users understand the call.
+    summary = build_plain_summary(signal.side, signal.explanations)
+    if summary:
+        msg += f"\n💡 <b>In plain terms:</b> {summary}.\n"
+
     if signal.explanations:
-        msg += "\n<b>Key Drivers:</b>\n"
+        msg += "\n<b>What's driving it:</b>\n"
         for exp in signal.explanations[:3]:
-            sign = "+" if exp.zscore >= 0 else ""
-            msg += f"• <i>{exp.feature}</i>: z-score = {sign}{exp.zscore:.2f} ({exp.direction})\n"
+            label, meaning = humanize_driver(exp.feature, exp.direction)
+            msg += f"• <b>{label}:</b> {meaning}\n"
+
+    msg += (
+        "\n<i>Strength = model conviction (higher = stronger signal). "
+        "Not financial advice.</i>"
+    )
     return msg
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -336,8 +358,15 @@ async def top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg = f"🟢 <b>Top Bullish Predictions ({cache_result.date})</b>\n\n"
         for i, s in enumerate(longs[:10], 1):
-            msg += f"{i}. <b>{s.symbol}</b> ({s.name})\n   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+            msg += (
+                f"{i}. <b>{s.symbol}</b> ({s.name})\n"
+                f"   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+            )
+            summary = build_plain_summary(s.side, s.explanations)
+            if summary:
+                msg += f"   <i>{summary}</i>\n"
 
+        msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
         await update.message.reply_text(msg, parse_mode="HTML")
     except Exception as e:
         log.exception("Error in top_cmd: %s", e)
@@ -372,8 +401,15 @@ async def bottom_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg = f"🔴 <b>Top Bearish Predictions ({cache_result.date})</b>\n\n"
         for i, s in enumerate(shorts[:10], 1):
-            msg += f"{i}. <b>{s.symbol}</b> ({s.name})\n   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+            msg += (
+                f"{i}. <b>{s.symbol}</b> ({s.name})\n"
+                f"   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+            )
+            summary = build_plain_summary(s.side, s.explanations)
+            if summary:
+                msg += f"   <i>{summary}</i>\n"
 
+        msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
         await update.message.reply_text(msg, parse_mode="HTML")
     except Exception as e:
         log.exception("Error in bottom_cmd: %s", e)
@@ -451,13 +487,20 @@ async def broadcast_predictions(result=None):
         )
         for i, s in enumerate(longs[:5], 1):
             msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
+            summary = build_plain_summary(s.side, s.explanations)
+            if summary:
+                msg += f"   <i>{summary}</i>\n"
 
         msg += "\n🔴 <b>Top Short Predictions (Sell)</b>\n"
         for i, s in enumerate(shorts[:5], 1):
             msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
+            summary = build_plain_summary(s.side, s.explanations)
+            if summary:
+                msg += f"   <i>{summary}</i>\n"
 
         msg += (
-            "\n<i>Type /predict &lt;SYMBOL&gt; in this chat to see detailed analysis for any stock!</i>"
+            "\n<i>Strength = model conviction. Type /predict &lt;SYMBOL&gt; for a full breakdown. "
+            "Not financial advice.</i>"
         )
 
         subscriptions = db.query(PredictionSubscription).all()
@@ -524,10 +567,16 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
     )
     for i, s in enumerate(longs[:8], 1):
         msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+        summary = build_plain_summary(s.side, s.explanations)
+        if summary:
+            msg += f"   <i>{summary}</i>\n"
 
     msg += "\n🔴 <b>Top Shorts</b>\n"
     for i, s in enumerate(shorts[:8], 1):
         msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+        summary = build_plain_summary(s.side, s.explanations)
+        if summary:
+            msg += f"   <i>{summary}</i>\n"
 
     msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
 
