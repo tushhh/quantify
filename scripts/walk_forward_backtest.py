@@ -49,12 +49,12 @@ _SUMMARY_PATH = "walk_forward_summary.json"
 
 def _fresh_strategy(universe: list[str]) -> MLReturnPredictorStrategy:
     """Build a strategy that trains from scratch (no persisted-model state)."""
-    strat = MLReturnPredictorStrategy(universe=universe)
+    strat = MLReturnPredictorStrategy(universe=universe, use_sector_rs=True)
     # Discard any model/feature-list loaded from disk in __init__ — walk-forward
     # must train fresh per window — and avoid clobbering the production model
     # artifacts when _train_model persists.
     strat._model = None
-    strat.features = list(strat.technical_features) + (
+    strat.features = list(strat.technical_features) + strat.sector_features + (
         list(FUNDAMENTAL_FEATURES) if strat.use_fundamentals else []
     )
     strat._model_path = "./models/walk_forward_tmp.joblib"
