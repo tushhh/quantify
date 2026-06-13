@@ -323,6 +323,26 @@ class MLReturnPredictorStrategy(Strategy):
                         self.features = list(persisted_features)
                 except Exception:
                     pass
+            else:
+                # Training mode: keep the full intended feature set.
+                # If the persisted model was trained on a different set, discard
+                # it so any prediction before the first retrain uses the new
+                # set rather than causing a shape mismatch.
+                try:
+                    import json
+
+                    with open(self._model_meta_path) as fh:
+                        meta = json.load(fh)
+                    persisted_features = meta.get("features")
+                    if isinstance(persisted_features, list) and persisted_features != self.features:
+                        log.info(
+                            "%s: persisted model feature set differs from current — "
+                            "discarding loaded model; will retrain.",
+                            self.name,
+                        )
+                        self._model = None
+                except Exception:
+                    pass
         except Exception:
             # No persisted model available — will train on demand
             self._model = None
