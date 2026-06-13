@@ -105,6 +105,14 @@ def add_sector_rs_features(
     buffer = timedelta(days=max(horizons) * 3)
     start_dt = start_dt - buffer
 
+    # yfinance treats `end` as EXCLUSIVE ([start, end)).  end_dt here is the
+    # stocks' last bar (the most recent trading day), so fetching the ETFs with
+    # end=end_dt would drop that very day — leaving sector_rs NaN at every
+    # stock's last bar and causing _predict to skip all symbols.  Extend the
+    # end by a few days so the last trading day is always included; the later
+    # reindex onto each stock's index discards any surplus ETF dates.
+    end_dt = end_dt + timedelta(days=5)
+
     # Identify which sector ETFs we actually need
     needed_etfs: set[str] = set()
     for sym in data:
