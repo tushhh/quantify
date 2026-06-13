@@ -29,7 +29,9 @@ Volatility     : volatility_20d, volatility_60d, volatility_126d,
 Momentum       : rsi_14, macd_histogram
 Bands          : bollinger_width
 Moving averages: sma_50, sma_200, sma_crossover
-Volume         : volume_ratio_20d, obv_slope
+Volume         : volume_ratio_20d, obv_slope, volume_trend,
+                 volume_price_corr_20d, mfi_14, vwap_ratio,
+                 volume_price_divergence
 Liquidity      : amihud_illiquidity
 Volatility ATR : atr_14
 """
@@ -676,6 +678,89 @@ def _mean_reversion_5d(df: pd.DataFrame) -> pd.Series:
     ret_5d = df["close"].pct_change(5)
     ret_21d = df["close"].pct_change(21)
     return ret_5d * ret_21d
+
+
+# ---------------------------------------------------------------------------
+# Volume profile / confirmation features
+# ---------------------------------------------------------------------------
+
+
+@register_feature("volume_price_corr_20d")
+def _volume_price_corr_20d(df: pd.DataFrame) -> pd.Series:
+    """
+    20-day rolling Pearson correlation between daily close returns and daily
+    volume changes.
+
+    Positive values mean volume rises with price (trend confirmation).
+    Negative / near-zero values flag thin-volume moves such as dead-cat bounces.
+    Range: [-1, +1].
+    """
+    daily_ret = df["close"].pct_change()
+    vol_change = df["volume"].pct_change()
+    return daily_ret.rolling(20, min_periods=20).corr(vol_change)
+
+
+@register_feature("mfi_14")
+def _mfi_14(df: pd.DataFrame) -> pd.Series:
+    """
+    Money Flow Index (14 periods) — RSI weighted by dollar volume.
+
+    Uses typical price (H+L+C)/3 × volume as the raw money flow.
+    MFI > 80 = overbought with volume support; < 20 = oversold.
+    Range: [0, 100].
+    """
+    if _TA_AVAILABLE:
+        try:
+            result = ta.mfi(df["high"], df["low"], df["close"], df["volume"], length=14)
+            if result is not None and not result.empty:
+                return result.reindex(df.index)
+        except Exception:
+            pass
+
+    # Manual implementation
+    tp = (df["high"] + df["low"] + df["close"]) / 3.0
+    rmf = tp * df["volume"]
+    tp_diff = tp.diff()
+
+    pos_flow = rmf.where(tp_diff > 0, 0.0).rolling(14, min_periods=14).sum()
+    neg_flow = rmf.where(tp_diff < 0, 0.0).rolling(14, min_periods=14).sum()
+
+    # When neg_flow is zero the entire window was positive → MFI = 100
+    with np.errstate(divide="ignore", invalid="ignore"):
+        money_ratio = np.where(neg_flow == 0, np.inf, pos_flow / neg_flow)
+    mfi = 100.0 - (100.0 / (1.0 + money_ratio))
+    return pd.Series(mfi, index=df.index)
+
+
+@register_feature("vwap_ratio")
+def _vwap_ratio(df: pd.DataFrame) -> pd.Series:
+    """
+    Price relative to 20-day rolling VWAP (Volume-Weighted Average Price).
+
+    VWAP_20d = Σ(close × volume, 20d) / Σ(volume, 20d).
+    Values > 1 mean price is above its recent volume-weighted centre (demand
+    dominant); < 1 means price has drifted below it (supply dominant).
+    """
+    dollar_vol = df["close"] * df["volume"]
+    roll_vol = df["volume"].rolling(20, min_periods=15).sum()
+    roll_vol = roll_vol.replace(0, np.nan)
+    vwap_20d = dollar_vol.rolling(20, min_periods=15).sum() / roll_vol
+    return df["close"] / vwap_20d
+
+
+@register_feature("volume_price_divergence")
+def _volume_price_divergence(df: pd.DataFrame) -> pd.Series:
+    """
+    OBV trend minus price trend (both normalised, 20-day window).
+
+    Positive → OBV trending up more than price = accumulation (bullish signal).
+    Negative → price trending up more than OBV = thin-volume move / dead-cat
+    bounce (bearish warning).
+    """
+    obv = _compute_obv(df)
+    obv_slope = _rolling_normalized_slope(obv, window=20)
+    price_slope = _rolling_normalized_slope(df["close"], window=20)
+    return obv_slope - price_slope
 
 
 # ---------------------------------------------------------------------------

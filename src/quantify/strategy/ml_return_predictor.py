@@ -88,7 +88,7 @@ _DECAY_HALFLIFE_DAYS: int = 126     # time-decay half-life for sample weights
 _PURGE_EMBARGO_DAYS: int = 21       # embargo gap = forward return horizon
 
 
-# All available features from FeatureEngine (18 original + 12 new)
+# Technical features sourced from FeatureEngine (per-symbol, no cross-sectional data needed)
 _ALL_FEATURES: list[str] = [
     # Return-based
     "return_1d",
@@ -109,10 +109,15 @@ _ALL_FEATURES: list[str] = [
     "bollinger_width",
     # Moving averages
     "sma_crossover",
-    # Volume
+    # Volume (core)
     "volume_ratio_20d",
     "obv_slope",
     "volume_trend",
+    # Volume profile / confirmation
+    "volume_price_corr_20d",
+    "mfi_14",
+    "vwap_ratio",
+    "volume_price_divergence",
     # Liquidity
     "amihud_illiquidity",
     # ATR
@@ -133,6 +138,15 @@ _ALL_FEATURES: list[str] = [
     "rsi_divergence",
     "mean_reversion_5d",
 ]
+
+# Cross-sectional features added by prepare_enriched_data (not FeatureEngine).
+# Follows the same pattern as FUNDAMENTAL_FEATURES — included in self.features
+# but NOT returned by get_required_features(), so FeatureEngine is never asked
+# to compute them.
+_SECTOR_FEATURES: tuple[str, ...] = (
+    "sector_rs_5d",
+    "sector_rs_21d",
+)
 
 # LightGBM hyperparameters (tuned to prevent overfitting on noisy financial data)
 _LGBM_PARAMS: dict[str, Any] = {
@@ -229,18 +243,21 @@ class MLReturnPredictorStrategy(Strategy):
         purge_embargo_days: int = _PURGE_EMBARGO_DAYS,
         train_enabled: bool = True,
         use_fundamentals: bool = True,
+        use_sector_rs: bool = False,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.use_fundamentals = use_fundamentals
-        # Technical features come from FeatureEngine; fundamental features are
-        # appended onto the data frames separately (see quantify.data.fundamentals).
+        self.use_sector_rs = use_sector_rs
+        # Technical features come from FeatureEngine; sector RS and fundamental
+        # features are appended onto the data frames separately.
         self.technical_features: list[str] = (
             list(features) if features is not None else list(_ALL_FEATURES)
         )
+        self.sector_features: list[str] = list(_SECTOR_FEATURES) if use_sector_rs else []
         if use_fundamentals:
-            self.features = self.technical_features + list(FUNDAMENTAL_FEATURES)
+            self.features = self.technical_features + self.sector_features + list(FUNDAMENTAL_FEATURES)
         else:
-            self.features = list(self.technical_features)
+            self.features = self.technical_features + self.sector_features
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
         self.rebalance_days = rebalance_days
