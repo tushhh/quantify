@@ -186,6 +186,49 @@ def test_on_start_preserves_model():
     assert strat._model_metrics is None, "on_start() should reset metrics"
 
 
+def test_training_does_not_inherit_persisted_feature_list(tmp_path, monkeypatch):
+    """
+    Regression: a persisted model with a *reduced* feature list must not
+    shrink the feature set of a NEW training run.
+
+    __init__ loads the persisted model's metadata to align inference with the
+    trained model. That alignment must NOT happen in training mode
+    (train_enabled=True); otherwise each training run inherits the previously
+    persisted (possibly reduced) feature list and re-saves it — a feedback
+    loop that silently collapses the model to whatever was last on disk.
+    """
+    import joblib
+    import json
+
+    from sklearn.dummy import DummyRegressor
+
+    # The strategy loads ./models/ml_return_predictor.{joblib,_meta.json} in
+    # __init__, so place a reduced-feature artifact there via a temp cwd.
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    joblib.dump(
+        DummyRegressor().fit([[0], [1]], [0, 1]),
+        models_dir / "ml_return_predictor.joblib",
+    )
+    (models_dir / "ml_return_predictor_meta.json").write_text(
+        json.dumps({"features": ["return_5d", "volatility_20d"]})
+    )
+    monkeypatch.chdir(tmp_path)
+
+    # Training mode: keeps the full intended feature set.
+    train_strat = MLReturnPredictorStrategy(universe=["AAPL"], use_sector_rs=True)
+    assert len(train_strat.features) > 2
+    assert "rsi_14" in train_strat.features
+    assert "sector_rs_5d" in train_strat.features
+
+    # Inference mode: adopts the persisted (reduced) feature set so the matrix
+    # shape matches the trained model.
+    infer_strat = MLReturnPredictorStrategy(
+        universe=["AAPL"], use_sector_rs=True, train_enabled=False
+    )
+    assert infer_strat.features == ["return_5d", "volatility_20d"]
+
+
 # ---------------------------------------------------------------------------
 # Bug #7: Rank target transformation
 # ---------------------------------------------------------------------------
