@@ -459,7 +459,7 @@ class LimitsEnforcer:
                 return False, reason
 
         log.debug(
-            "can_open_position: ALLOWED %s qty=%+.0f projected_weight=%.2%%",
+            "can_open_position: ALLOWED %s qty=%+.0f projected_weight=%.2f%%",
             order.symbol, order.quantity, projected_weight * 100,
         )
         return True, "OK"
