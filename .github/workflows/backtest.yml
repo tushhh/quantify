@@ -1,0 +1,77 @@
+name: Cloud Backtest
+
+# Runs a heavy backtest on a full-memory GitHub-hosted runner instead of the
+# Heroku dyno, then POSTs the result back to the web process via an
+# authenticated callback. Triggered by the API (workflow_dispatch) when a run is
+# offloaded; the client keeps polling /api/backtest/result/{job_id}.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Backtest job id (echoed back on the result callback)"
+        required: true
+        default: "default"
+      request_json:
+        description: "Serialized BacktestRequest JSON"
+        required: true
+        default: "{}"
+      heroku_callback_url:
+        description: "Heroku callback URL for the result"
+        required: false
+        default: ""
+      internal_secret:
+        description: "Secret to authenticate the Heroku callback"
+        required: false
+        default: ""
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install '.[dev]'
+
+      - name: Download latest trained model
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p models
+          BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/model-cache"
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor.joblib" -o models/ml_return_predictor.joblib || true
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor_meta.json" -o models/ml_return_predictor_meta.json || true
+
+      - name: Run backtest
+        env:
+          PREDICTION_DATA_CACHE_DIR: "./data/cache"
+          INPUT_JOB_ID: ${{ github.event.inputs.job_id }}
+          INPUT_REQUEST_JSON: ${{ github.event.inputs.request_json }}
+          INPUT_HEROKU_CALLBACK_URL: ${{ github.event.inputs.heroku_callback_url }}
+          INTERNAL_API_SECRET: ${{ github.event.inputs.internal_secret || secrets.INTERNAL_API_SECRET }}
+        run: |
+          python scripts/run_backtest.py

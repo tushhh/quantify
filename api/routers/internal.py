@@ -37,6 +37,13 @@ class JobCompletePayload(BaseModel):
     error: Optional[str] = None
 
 
+class BacktestCompletePayload(BaseModel):
+    job_id: str
+    status: str  # "complete" or "failed"
+    result_json: Optional[str] = None  # serialized BacktestResponse JSON
+    error: Optional[str] = None
+
+
 @router.post("/trigger-screener")
 async def trigger_screener(
     body: TriggerScreenerRequest,
@@ -138,5 +145,31 @@ async def job_complete(
                 asyncio.run(_send_fullscan_result(body.chat_id, body.result_json, body.error))
         except Exception as e:
             log.error("Failed to send Telegram notification: %s", e)
+
+    return {"status": "received"}
+
+
+@router.post("/backtest-complete")
+async def backtest_complete(
+    body: BacktestCompletePayload,
+    x_internal_secret: Optional[str] = Header(None),
+):
+    """Receive a backtest result from the GitHub Actions runner and store it so
+    the frontend's /api/backtest/result/{job_id} polling can serve it."""
+    _verify_secret(x_internal_secret)
+
+    from api.routers.backtest import store_offloaded_result
+
+    if body.status == "complete" and body.result_json:
+        try:
+            from api.schemas import BacktestResponse
+            result = BacktestResponse(**json.loads(body.result_json))
+            store_offloaded_result(body.job_id, result)
+            log.info("Stored offloaded backtest result for job_id=%s", body.job_id)
+        except Exception as e:
+            log.exception("Failed to parse offloaded backtest result: %s", e)
+            store_offloaded_result(body.job_id, RuntimeError(f"Result parse error: {e}"))
+    else:
+        store_offloaded_result(body.job_id, RuntimeError(body.error or "Backtest failed on runner"))
 
     return {"status": "received"}
