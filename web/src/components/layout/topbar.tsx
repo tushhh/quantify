@@ -32,6 +32,23 @@ export default function Topbar({ title }: { title?: string }) {
         <h2 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)] truncate">{inferredTitle}</h2>
       </div>
 
+      {/* Centered brand logo — absolutely positioned so it stays optically
+          centered regardless of the left/right content widths. */}
+      <Link
+        href="/"
+        aria-label="Quantify home"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 transition-opacity hover:opacity-80"
+      >
+        <img
+          src="/logo-emblem.png"
+          alt="Quantify"
+          className="h-7 w-7 sm:h-8 sm:w-8 object-contain"
+        />
+        <span className="hidden sm:inline text-sm font-semibold tracking-wide text-[var(--color-text-primary)]">
+          Quantify
+        </span>
+      </Link>
+
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <button className="p-2 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-raised)]">
           <Bell className="h-5 w-5 text-[var(--color-text-secondary)]" />
