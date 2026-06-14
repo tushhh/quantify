@@ -1,0 +1,71 @@
+name: Screener Cache Cron
+
+on:
+  schedule:
+    - cron: '*/20 * * * *' # Run every 20 minutes
+  workflow_dispatch:
+
+jobs:
+  cache_screener:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install '.[dev]'
+
+      - name: Download latest trained model
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p models
+          BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/model-cache"
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor.joblib" -o models/ml_return_predictor.joblib
+          curl -fsSL -H "Authorization: token $GITHUB_TOKEN" \
+            "$BASE_URL/ml_return_predictor_meta.json" -o models/ml_return_predictor_meta.json || true
+
+      - name: Run Full Screener and Save to JSON
+        env:
+          PREDICTION_DATA_CACHE_DIR: "./data/cache"
+          OUTPUT_JSON_PATH: "screener_results.json"
+        run: |
+          python scripts/run_screener.py
+
+      - name: Push Results to Screener-Cache Branch
+        run: |
+          mkdir -p screener-out
+          # Move the json output into the isolation directory
+          mv screener_results.json screener-out/
+          cd screener-out
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b screener-cache
+          git add screener_results.json
+          git commit -m "Automated screener cache update [skip ci]"
+          # Force push to overwrite the screener-cache branch entirely (keeping history at 1 commit)
+          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git screener-cache
+          # Remove the nested .git folder so checkout's post-job cleanup doesn't crash
+          rm -rf .git

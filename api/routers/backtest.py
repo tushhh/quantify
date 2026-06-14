@@ -357,6 +357,16 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
     except Exception as exc:
         log.warning(f"Failed to fetch and append fundamental features: {exc}")
 
+    try:
+        from quantify.data.sector import add_sector_rs_features
+        from quantify.data.universe import get_sector_map
+        _progress("Computing sector relative strength features…")
+        sector_map = get_sector_map()
+        data = add_sector_rs_features(data, sector_map, horizons=[5, 21], min_periods=5)
+        _progress("Successfully appended sector RS features")
+    except Exception as exc:
+        log.warning(f"Failed to compute sector RS features: {exc}")
+
     # ── Build engine components ────────────────────────────────────────────
     _progress("Step 2/5: Instantiating strategies…")
     strategies = _build_strategy_instances(req)
