@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from api.database import Base
 
 class User(Base):
@@ -57,3 +57,17 @@ class AsyncPredictionJob(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     result_json = Column(String, nullable=True)
+
+
+class BacktestJob(Base):
+    """Persists offloaded (cloud) backtest jobs so a dyno restart between dispatch
+    and the GitHub Actions callback doesn't drop the job from memory."""
+    __tablename__ = "backtest_jobs"
+    id = Column(String(64), primary_key=True)           # job_id chosen by the web process
+    status = Column(String(16), default="running")      # running | complete | failed
+    request_json = Column(String, nullable=True)
+    result_json = Column(String, nullable=True)
+    error = Column(String, nullable=True)
+    is_cloud_run = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)

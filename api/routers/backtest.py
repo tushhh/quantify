@@ -492,6 +492,40 @@ def store_offloaded_result(job_id: str, result: Any) -> None:
     _active_jobs.discard(job_id)
 
 
+def _db_persist_job(job_id: str, request_json: str) -> None:
+    """Write a cloud job row to the DB so it survives a dyno restart."""
+    try:
+        from api.database import SessionLocal
+        from api.models import BacktestJob
+        db = SessionLocal()
+        try:
+            job = BacktestJob(id=job_id, status="running", request_json=request_json, is_cloud_run=True)
+            db.merge(job)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as exc:
+        log.warning("Failed to persist cloud backtest job %s to DB: %s", job_id, exc)
+
+
+def _db_lookup_job(job_id: str) -> Optional[dict]:
+    """Check DB for a job. Returns None if not found or on error."""
+    try:
+        from api.database import SessionLocal
+        from api.models import BacktestJob
+        db = SessionLocal()
+        try:
+            job = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
+            if job is None:
+                return None
+            return {"status": job.status, "result_json": job.result_json, "error": job.error}
+        finally:
+            db.close()
+    except Exception as exc:
+        log.warning("DB lookup for backtest job %s failed: %s", job_id, exc)
+        return None
+
+
 def _offload_is_configured() -> bool:
     repo = os.getenv("GITHUB_REPOSITORY")
     token = os.getenv("GH_WORKFLOW_TOKEN") or os.getenv("GITHUB_TOKEN")
@@ -521,11 +555,12 @@ def _should_offload(req: BacktestRequest, offload: Optional[bool]) -> bool:
 def _dispatch_backtest_workflow(req: BacktestRequest, job_id: str) -> bool:
     """Trigger the backtest GitHub Actions workflow via workflow_dispatch.
     Returns True on success; False if not configured or the dispatch failed
-    (caller falls back to in-process execution)."""
+    (caller falls back to in-process execution).
+    The internal_secret is intentionally NOT passed as an input so it never
+    appears in Actions logs — the workflow reads it from the repo secret."""
     repo = os.getenv("GITHUB_REPOSITORY")
     token = os.getenv("GH_WORKFLOW_TOKEN") or os.getenv("GITHUB_TOKEN")
     heroku_url = os.getenv("HEROKU_APP_URL", "").rstrip("/")
-    secret = os.getenv("INTERNAL_API_SECRET", "")
     if not (repo and token and heroku_url):
         return False
 
@@ -533,7 +568,8 @@ def _dispatch_backtest_workflow(req: BacktestRequest, job_id: str) -> bool:
         "job_id": job_id,
         "request_json": req.model_dump_json(),
         "heroku_callback_url": f"{heroku_url}/api/internal/backtest-complete",
-        "internal_secret": secret,
+        # internal_secret left empty — workflow falls back to secrets.INTERNAL_API_SECRET
+        "internal_secret": "",
     }
     payload = json.dumps({"ref": os.getenv("GH_WORKFLOW_REF", "main"), "inputs": inputs}).encode()
     url = f"https://api.github.com/repos/{repo}/actions/workflows/backtest.yml/dispatches"
@@ -544,6 +580,7 @@ def _dispatch_backtest_workflow(req: BacktestRequest, job_id: str) -> bool:
     try:
         with urllib.request.urlopen(gh_req, timeout=10) as resp:
             log.info("Dispatched backtest workflow for job_id=%s (HTTP %d)", job_id, resp.status)
+        _db_persist_job(job_id, req.model_dump_json())
         return True
     except urllib.error.HTTPError as e:
         log.error("Failed to dispatch backtest workflow: HTTP %d — %s", e.code, e.read().decode()[:300])
@@ -592,7 +629,7 @@ async def run_backtest(
         loop = asyncio.get_running_loop()
         dispatched = await loop.run_in_executor(None, _dispatch_backtest_workflow, req, job_id)
         if dispatched:
-            return BacktestSubmitResponse(status="running", job_id=job_id)
+            return BacktestSubmitResponse(status="running", job_id=job_id, is_cloud_run=True)
         log.info("Backtest offload unavailable; running in-process for job_id=%s", job_id)
 
     # Async background task (in-process)
@@ -604,18 +641,38 @@ async def run_backtest(
 @router.get("/result/{job_id}")
 async def get_backtest_result(job_id: str):
     """Retrieve the results of a completed backtest job."""
-    if job_id not in _backtest_results:
-        if job_id in _active_jobs or job_id in _progress_queues:
-            return {"status": "running"}
-        raise HTTPException(status_code=404, detail="Job not found or expired")
+    # Fast in-memory path
+    if job_id in _backtest_results:
+        res = _backtest_results[job_id]
+        if isinstance(res, Exception):
+            raise HTTPException(
+                status_code=500,
+                detail=f"An error occurred during backtest execution: {res}",
+            )
+        return res
 
-    res = _backtest_results[job_id]
-    if isinstance(res, Exception):
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred during backtest execution: {res}",
-        )
-    return res
+    if job_id in _active_jobs or job_id in _progress_queues:
+        return {"status": "running"}
+
+    # DB fallback: covers dyno restarts between cloud dispatch and callback.
+    loop = asyncio.get_running_loop()
+    job_row = await loop.run_in_executor(None, _db_lookup_job, job_id)
+    if job_row:
+        if job_row["status"] == "running":
+            _active_jobs.add(job_id)  # re-register so next poll skips DB
+            return {"status": "running"}
+        if job_row["status"] == "failed":
+            raise HTTPException(status_code=500, detail=job_row["error"] or "Backtest failed on runner")
+        if job_row["status"] == "complete" and job_row["result_json"]:
+            try:
+                result = BacktestResponse(**json.loads(job_row["result_json"]))
+                _save_result(job_id, result)
+                return result
+            except Exception as exc:
+                log.error("Failed to re-parse stored result for job %s: %s", job_id, exc)
+                raise HTTPException(status_code=500, detail="Failed to parse stored result")
+
+    raise HTTPException(status_code=404, detail="Job not found or expired")
 
 
 

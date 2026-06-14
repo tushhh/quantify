@@ -103,6 +103,7 @@ class BacktestResponse(BaseModel):
 class BacktestSubmitResponse(BaseModel):
     status: str = "running"
     job_id: str
+    is_cloud_run: bool = False
 
 
 
