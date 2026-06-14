@@ -1,0 +1,29 @@
+<!-- @dsCard group="Type" viewport="700x150" name="Micro-labels & numerics" subtitle="Uppercase overlines, tabular figures" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; gap: 28px; align-items: center; }
+  .eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em; color: var(--color-accent); }
+  .overline { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
+  .stat { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 700; color: var(--color-text-primary); }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="col">
+      <span class="eyebrow">What changed</span>
+      <span class="overline">Driver legend</span>
+      <span class="overline">Rank 01 · Strength</span>
+    </div>
+    <div class="col">
+      <span class="stat">+12.41%</span>
+      <span class="stat" style="color:var(--color-success)">1.84</span>
+    </div>
+  </div>
+</body>
+</html>

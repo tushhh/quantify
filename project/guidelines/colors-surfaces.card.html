@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x190" name="Surfaces & borders" subtitle="Dark canvas, panels, hairlines" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .row { display: flex; gap: 14px; }
+  .sw { flex: 1; border-radius: var(--radius-md); border: 1px solid var(--color-border); overflow: hidden; }
+  .chip { height: 76px; }
+  .meta { padding: 8px 10px; background: var(--color-surface); border-top: 1px solid var(--color-border); }
+  .name { font-size: 12px; color: var(--color-text-primary); font-weight: 600; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--color-bg)"></div><div class="meta"><div class="name">bg</div><div class="hex">#0B1220</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-surface)"></div><div class="meta"><div class="name">surface</div><div class="hex">#0F1724</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-surface-raised)"></div><div class="meta"><div class="name">surface-raised</div><div class="hex">#0D1320</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-border)"></div><div class="meta"><div class="name">border</div><div class="hex">#1F2937</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-border-bright)"></div><div class="meta"><div class="name">border-bright</div><div class="hex">#334155</div></div></div>
+  </div>
+</body>
+</html>

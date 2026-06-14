@@ -1,0 +1,26 @@
+<!-- @dsCard group="Spacing" viewport="700x170" name="Radius" subtitle="6 / 10 / 14 / 20 / 28 / full" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .row { display: flex; gap: 16px; align-items: flex-end; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+  .box { width: 100%; height: 64px; background: var(--color-surface-raised); border: 1px solid var(--color-border-bright); }
+  .tag { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); }
+  .px { font-size: 11px; color: var(--color-text-secondary); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="box" style="border-radius:var(--radius-sm)"></div><span class="px">6</span><span class="tag">sm</span></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-md)"></div><span class="px">10</span><span class="tag">md</span></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-lg)"></div><span class="px">14</span><span class="tag">lg</span></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-xl)"></div><span class="px">20</span><span class="tag">xl</span></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-2xl)"></div><span class="px">28</span><span class="tag">2xl</span></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-full)"></div><span class="px">full</span><span class="tag">full</span></div>
+  </div>
+</body>
+</html>

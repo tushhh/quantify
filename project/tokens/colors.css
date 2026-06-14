@@ -1,0 +1,102 @@
+/* ============================================================
+   Quantify — Color tokens
+   The product ships DARK by default (layout hardcodes data-theme="dark"),
+   so :root is the dark theme. A light theme is available via
+   [data-theme="light"]. Base palette + semantic aliases.
+   ============================================================ */
+
+:root {
+  /* ---- Surfaces ---- */
+  --color-bg: #0B1220;              /* app canvas */
+  --color-surface: #0F1724;         /* cards, panels */
+  --color-surface-raised: #0D1320;  /* inputs, insets, raised chips */
+  --color-border: #1F2937;          /* default hairline */
+  --color-border-subtle: #111827;   /* faintest divider */
+  --color-border-bright: #334155;   /* hover / emphasized border */
+  --color-overlay: rgba(0,0,0,0.8); /* modal scrim */
+
+  /* ---- Text ---- */
+  --color-text-primary: #E6EEF8;    /* headings, key values */
+  --color-text-secondary: #9AA6B2;  /* body, labels */
+  --color-text-muted: #7B8791;      /* captions, hints */
+  --color-text-inverse: #FFFFFF;    /* text on accent fills */
+
+  /* ---- Brand accent (steel-teal, from the logo emblem) ---- */
+  --color-accent: #2F8DBA;
+  --color-accent-hover: #25749B;
+  --color-accent-subtle: rgba(47,141,186,0.14);
+  --color-accent-foreground: #FFFFFF;
+
+  /* ---- Gold highlight (the logo arrow) — used sparingly: small
+     highlights, premium/live accents, the 'up' motif. Gains stay green. ---- */
+  --color-gold: #D9A93E;
+  --color-gold-hover: #C2942F;
+  --color-gold-subtle: rgba(217,169,62,0.14);
+  --color-highlight: var(--color-gold);
+
+  /* ---- Semantic / status ---- */
+  --color-success: #34D399;         /* gains, long, positive */
+  --color-success-subtle: rgba(52,211,153,0.10);
+  --color-danger: #FB7185;          /* losses, short, alerts */
+  --color-danger-subtle: rgba(251,113,133,0.10);
+  --color-warning: #FBBF24;         /* caution */
+  --color-warning-subtle: rgba(251,191,36,0.10);
+  --color-info: #60A5FA;            /* neutral informational */
+  --color-info-subtle: rgba(96,165,250,0.10);
+
+  /* ---- Legacy / convenience aliases used across components ---- */
+  --surface: var(--color-surface);
+  --surface-raised: var(--color-surface-raised);
+  --border: var(--color-border);
+  --border-bright: var(--color-border-bright);
+  --panel-border: var(--color-border);
+  --text: var(--color-text-primary);
+  --bg: var(--color-bg);
+  --color-cta: var(--color-success);  /* dashboards use "cta" for the live/positive accent */
+}
+
+/* ============================================================
+   Light theme — opt in with data-theme="light"
+   ============================================================ */
+[data-theme="light"] {
+  --color-bg: #F8F9FB;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F1F3F7;
+  --color-border: #E4E7EC;
+  --color-border-subtle: #F0F2F5;
+  --color-border-bright: #CBD5E1;
+  --color-overlay: rgba(0,0,0,0.8);
+
+  --color-text-primary: #0D1117;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+
+  --color-accent: #2474A0;
+  --color-accent-hover: #1C5C80;
+  --color-accent-subtle: #E7F2F8;
+  --color-accent-foreground: #FFFFFF;
+
+  --color-gold: #C2942F;
+  --color-gold-hover: #A87D24;
+  --color-gold-subtle: #FBF3DE;
+  --color-highlight: var(--color-gold);
+
+  --color-success: #10B981;
+  --color-success-subtle: #ECFDF5;
+  --color-danger: #EF4444;
+  --color-danger-subtle: #FEF2F2;
+  --color-warning: #F59E0B;
+  --color-warning-subtle: #FFFBEB;
+  --color-info: #3B82F6;
+  --color-info-subtle: #EFF6FF;
+
+  --surface: var(--color-surface);
+  --surface-raised: var(--color-surface-raised);
+  --border: var(--color-border);
+  --border-bright: var(--color-border-bright);
+  --panel-border: var(--color-border);
+  --text: var(--color-text-primary);
+  --bg: var(--color-bg);
+  --color-cta: var(--color-success);
+}

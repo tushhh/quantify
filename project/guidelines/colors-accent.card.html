@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x190" name="Brand accent" subtitle="Steel-teal primary, from the logo" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .row { display: flex; gap: 14px; }
+  .sw { flex: 1; border-radius: var(--radius-md); border: 1px solid var(--color-border); overflow: hidden; }
+  .chip { height: 76px; display: flex; align-items: flex-end; padding: 8px 10px; }
+  .meta { padding: 8px 10px; background: var(--color-surface); }
+  .name { font-size: 12px; color: var(--color-text-primary); font-weight: 600; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+  .onfill { font-size: 11px; color: #fff; font-weight: 600; opacity: .95; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--color-accent)"><span class="onfill">Aa</span></div><div class="meta"><div class="name">accent</div><div class="hex">#2F8DBA</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-accent-hover)"><span class="onfill">Aa</span></div><div class="meta"><div class="name">accent-hover</div><div class="hex">#25749B</div></div></div>
+    <div class="sw"><div class="chip gradient-accent"><span class="onfill">Aa</span></div><div class="meta"><div class="name">gradient-accent</div><div class="hex">135° accent→hover</div></div></div>
+    <div class="sw"><div class="chip" style="background:var(--color-accent-subtle)"><span style="color:var(--color-accent);font-weight:600;font-size:11px">Aa</span></div><div class="meta"><div class="name">accent-subtle</div><div class="hex">14% tint</div></div></div>
+  </div>
+</body>
+</html>
