@@ -321,8 +321,14 @@ class MLReturnPredictorStrategy(Strategy):
                     persisted_features = meta.get("features")
                     if isinstance(persisted_features, list) and persisted_features:
                         self.features = list(persisted_features)
-                except Exception:
-                    pass
+                        log.info("%s: explicitly set features to %d items from persisted model", self.name, len(self.features))
+                except Exception as exc:
+                    log.warning("%s: failed to load persisted features: %s", self.name, exc)
+                    
+                # Always trust the model itself if available
+                if hasattr(self._model, "feature_names_in_"):
+                    self.features = list(self._model.feature_names_in_)
+                    log.info("%s: explicitly set features to %d items from model.feature_names_in_", self.name, len(self.features))
             else:
                 # Training mode: keep the full intended feature set.
                 # If the persisted model was trained on a different set, discard
@@ -830,12 +836,14 @@ class MLReturnPredictorStrategy(Strategy):
 
             missing = [f for f in self.features if f not in df.columns]
             if missing:
+                log.warning("%s: %s missing features: %s", self.name, symbol, missing)
                 continue
 
             # Use the most recent complete bar
             feat_row = df[self.features].iloc[-1]
             if feat_row.isna().any():
-                log.debug("%s: %s has NaN features at latest bar", self.name, symbol)
+                nan_cols = feat_row.index[feat_row.isna()].tolist()
+                log.warning("%s: %s has NaN features at latest bar: %s", self.name, symbol, nan_cols)
                 continue
 
             current_features[symbol] = feat_row

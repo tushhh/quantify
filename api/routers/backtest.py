@@ -395,6 +395,10 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
     benchmark_series: Optional[pd.Series] = None
     if req.benchmark in data:
         bdf = data[req.benchmark]
+        try:
+            bdf.index = bdf.index.tz_convert(result.equity_curve.index.tz) if result.equity_curve.index.tz else bdf.index.tz_localize(None)
+        except Exception:
+            pass
         bdf = bdf.reindex(result.equity_curve.index, method="ffill")
         bval = bdf["close"] / float(bdf["close"].iloc[0]) * req.initial_capital
         benchmark_series = bval
