@@ -4,13 +4,10 @@ import os
 import time
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional, Literal
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from api.schemas import PredictionResponse, PredictionItem
-from api.database import get_db, SessionLocal
-from api.models import PredictionCache
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 log = logging.getLogger("quantify.api.predict")
@@ -180,71 +177,10 @@ def _resolve_prediction_window(mode: PredictionMode, now_utc: datetime) -> tuple
     return session_date, start_dt, end_dt
 
 
-def _cache_payload(mode: PredictionMode, result: PredictionResponse) -> str:
-    return json.dumps({"mode": mode, "result": result.model_dump()})
-
-
-def _persist_prediction_cache(mode: PredictionMode, result: PredictionResponse) -> None:
-    db = SessionLocal()
-    try:
-        existing_rows = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).all()
-        for row in existing_rows:
-            try:
-                payload = json.loads(row.result_json)
-            except Exception:
-                continue
-
-            cached_mode = payload.get("mode", "previous_close")
-            if cached_mode == mode:
-                db.delete(row)
-
-        db.add(PredictionCache(result_json=_cache_payload(mode, result)))
-        db.commit()
-        log.info("Screener: %s predictions saved to DB successfully.", mode)
-    except Exception as e:
-        log.error("Failed to save %s prediction cache to DB: %s", mode, e)
-        db.rollback()
-    finally:
-        db.close()
-
-
-def _load_prediction_cache(db: Session, mode: PredictionMode) -> tuple[Optional[PredictionResponse], Optional[float]]:
-    db_rows = db.query(PredictionCache).order_by(PredictionCache.created_at.desc()).all()
-    for db_cache in db_rows:
-        try:
-            payload = json.loads(db_cache.result_json)
-        except Exception:
-            continue
-
-        cached_mode = payload.get("mode", "previous_close")
-        if cached_mode != mode:
-            continue
-
-        result_dict = payload.get("result", payload)
-        try:
-            cached_result = PredictionResponse(**result_dict)
-        except Exception:
-            continue
-
-        cached_ts = db_cache.created_at.replace(tzinfo=timezone.utc).timestamp() if db_cache.created_at.tzinfo is None else db_cache.created_at.timestamp()
-        return cached_result, cached_ts
-
-    return None, None
-
-
-def _cache_is_valid(mode: PredictionMode, cached_result: Optional[PredictionResponse], cached_ts: Optional[float], now: float, now_utc: datetime) -> bool:
-    if cached_result is None or cached_ts is None:
-        return False
-
-    if mode == "live":
-        if now - cached_ts >= _cache_ttl_seconds(mode):
-            return False
-        return cached_result.date == now_utc.astimezone(timezone.utc).date().isoformat()
-
-    session_date = _latest_completed_session_date(now_utc)
-    if now - cached_ts >= _cache_ttl_seconds(mode):
-        return False
-    return cached_result.date == session_date.isoformat()
+def update_memory_cache(mode: PredictionMode, result: PredictionResponse) -> None:
+    cache_slot = _cache_bucket(mode)
+    cache_slot["result"] = result
+    cache_slot["timestamp"] = time.time()
 
 
 def _download_latest_model() -> bool:
@@ -280,200 +216,107 @@ def _download_latest_model() -> bool:
         return False
 
 
-def _run_prediction_sync(mode: PredictionMode = "previous_close") -> PredictionResponse:
-    """Blocking prediction logic — computes for the full universe."""
-    from quantify.data.universe import Universe, get_russell1000
-    from quantify.screener import run_screener
-
-    now_utc = datetime.now(timezone.utc)
-    session_date, _start_dt, end_dt = _resolve_prediction_window(mode, now_utc)
-
-    # Ensure we have the latest model downloaded from GitHub before starting
-    _download_latest_model()
-
-    try:
-        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
-    except Exception as e:
-        log.warning("Screener: Failed to fetch from Wikipedia, falling back to Russell 1000: %s", e)
-        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
+def _fetch_screener_results_from_github() -> Optional[PredictionResponse]:
+    import urllib.request
+    repo = os.getenv("GITHUB_REPOSITORY")
+    token = os.getenv("GITHUB_TOKEN")
+    if not repo:
+        log.warning("Screener: GITHUB_REPOSITORY not set. Cannot fetch cache.")
+        return None
         
-    cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
-
-    result = run_screener(universe, end_dt=end_dt, cache_dir=cache_dir)
-
-    items = [
-        PredictionItem(
-            symbol=sig["symbol"],
-            strength=sig["strength"],
-            side=sig["side"],
-            sector=sig["sector"],
-            name=_get_ticker_name(sig["symbol"]),
-            predicted_return_pct=sig["predicted_return_pct"],
-            explanations=sig["explanations"],
-        )
-        for sig in result["signals"]
-    ]
-
-    return PredictionResponse(
-        status="ok",
-        mode=mode,
-        date=session_date.strftime("%Y-%m-%d"),
-        signals=items,
-        cached=False,
-        cache_age_minutes=0.0,
-        universe_size=result["universe_size"],
-        model_metrics=result["model_metrics"],
-    )
-
-
-def _run_and_cache_predictions(source: str = "scheduler", mode: PredictionMode = "previous_close"):
-    global _is_computing, _cache
-    if _is_computing and source != "api":
-        log.info("Screener: prediction already running, skipping.")
-        return
-    _is_computing = True
-    log.info("Screener: starting background prediction task for mode=%s...", mode)
-    try:
-        result = _run_prediction_sync(mode=mode)
-
-        _persist_prediction_cache(mode, result)
-
-        # Update in-memory
-        cache_slot = _cache_bucket(mode)
-        cache_slot["result"] = result
-        cache_slot["timestamp"] = time.time()
+    base_url = f"https://raw.githubusercontent.com/{repo}/screener-cache"
+    req = urllib.request.Request(f"{base_url}/screener_results.json")
+    if token:
+        req.add_header("Authorization", f"token {token}")
         
-        # Broadcast to subscribed chats and notify any chats waiting on a cold-cache request
-        try:
-            import asyncio
-            from api.prediction_bot import broadcast_predictions, _send_results_to_pending_chats
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(broadcast_predictions(result))
-                loop.create_task(_send_results_to_pending_chats(result))
-            except RuntimeError:
-                asyncio.run(broadcast_predictions(result))
-                asyncio.run(_send_results_to_pending_chats(result))
-        except Exception as e:
-            log.error("Failed to broadcast predictions to Telegram: %s", e)
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read())
             
-    except Exception:
-        log.exception("Screener prediction failed in background task")
-    finally:
-        _is_computing = False
+        items = [
+            PredictionItem(
+                symbol=sig["symbol"],
+                strength=sig["strength"],
+                side=sig["side"],
+                sector=sig["sector"],
+                name=_get_ticker_name(sig["symbol"]),
+                predicted_return_pct=sig.get("predicted_return_pct", 0.0),
+                explanations=sig.get("explanations", []),
+            )
+            for sig in data["signals"]
+        ]
+        
+        now_utc = datetime.now(timezone.utc)
+        session_date = _latest_completed_session_date(now_utc)
+        
+        return PredictionResponse(
+            status="ok",
+            mode="previous_close",
+            date=session_date.strftime("%Y-%m-%d"),
+            signals=items,
+            cached=True,
+            cache_age_minutes=0.0,
+            universe_size=data.get("universe_size", len(items)),
+            model_metrics=data.get("model_metrics", {}),
+        )
+    except Exception as e:
+        log.warning("Screener: Failed to fetch results from GitHub: %s", e)
+        return None
 
 
 @router.get("/best")
 async def get_best_predictions(
-    background_tasks: BackgroundTasks,
     top_n: int = Query(10, ge=1, le=100, description="Number of top predictions to return"),
     sector: Optional[str] = Query(None, description="Filter by GICS sector"),
     mode: PredictionMode = Query("previous_close", description="Prediction data mode: live or previous_close"),
     force: bool = Query(False, description="Force re-run, ignoring the daily cache"),
-    db: Session = Depends(get_db)
 ):
     """
-    Run the ensemble ML model and return the top bullish (and bearish) predictions.
-    Uses a 24-hour database cache. If missing, runs as a background task and returns 202.
+    Return the top bullish (and bearish) predictions by downloading from GitHub Actions cache.
+    Uses a 5-minute memory cache to prevent spamming GitHub.
     """
-    global _is_computing, _cache
-    
-    if _is_computing:
-        return JSONResponse(
-            status_code=202,
-            content={"status": "computing", "message": "Models are training in the background. Please check back in a few minutes."}
-        )
-
+    global _cache
     now = time.time()
     
     cache_slot = _cache_bucket(mode)
-    cached_result: Optional[PredictionResponse] = cache_slot.get("result")  # type: ignore[assignment]
-    cached_ts: Optional[float] = cache_slot.get("timestamp")  # type: ignore[assignment]
+    cached_result: Optional[PredictionResponse] = cache_slot.get("result")
+    cached_ts: Optional[float] = cache_slot.get("timestamp")
 
-    cache_valid = _cache_is_valid(mode, cached_result, cached_ts, now, datetime.now(timezone.utc)) and not force
-
-    if not cache_valid and not force:
-        db_cache_result, db_cache_ts = _load_prediction_cache(db, mode)
-        if db_cache_result is not None and _cache_is_valid(mode, db_cache_result, db_cache_ts, now, datetime.now(timezone.utc)):
-            cached_result = db_cache_result
-            cached_ts = db_cache_ts
-            cache_slot["result"] = cached_result
-            cache_slot["timestamp"] = cached_ts
+    cache_valid = False
+    if cached_result and cached_ts:
+        # Cache is valid for 5 minutes
+        if now - cached_ts < 300:
             cache_valid = True
-            cache_age = (now - cached_ts) / 60 if cached_ts else 0.0
-            log.info("Screener: loaded %s cache from database (age=%.1f min)", mode, cache_age)
 
-    if force:
-        # Check if 3 minutes have passed since the last computation
-        if cached_ts is not None and (now - cached_ts) < 180:
-            raise HTTPException(status_code=429, detail="Please wait at least 3 minutes between manual re-runs.")
+    if force or not cache_valid:
+        new_result = _fetch_screener_results_from_github()
+        if new_result:
+            update_memory_cache(mode, new_result)
+            cached_result = new_result
+            cached_ts = now
+            cache_valid = True
 
-    # If the caller requested a forced re-run, run synchronously on local/dev workers,
-    # but queue work on Heroku web dynos to avoid request timeouts.
-    if force and not _is_computing and _should_force_run_synchronously():
-        log.info("Screener: performing forced synchronous recompute (api request, mode=%s)...", mode)
-        try:
-            result = _run_prediction_sync(mode=mode)
-
-            _persist_prediction_cache(mode, result)
-
-            # Update in-memory cache
-            cache_slot["result"] = result
-            cache_slot["timestamp"] = time.time()
-
-            # Apply sector filter and top_n
-            filtered = result.signals
-            if sector:
-                filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
-            filtered = filtered[:top_n]
-
-            return PredictionResponse(
-                status="ok",
-                mode=mode,
-                date=result.date,
-                signals=filtered,
-                cached=False,
-                cache_age_minutes=0.0,
-                universe_size=result.universe_size,
-                model_metrics=result.model_metrics,
-            )
-        except Exception:
-            log.exception("Forced synchronous prediction failed")
-            raise HTTPException(status_code=500, detail="Forced prediction failed")
-    if force and not _is_computing:
-        log.info("Screener: forcing async recompute on web dyno to avoid timeout... mode=%s", mode)
-        _is_computing = True
-        background_tasks.add_task(_run_and_cache_predictions, source="api", mode=mode)
-
+    if not cached_result:
         return JSONResponse(
-            status_code=202,
-            content={"status": "computing", "message": "Model training started. Please check back in a few minutes."}
-        )
-    if cache_valid and cached_result is not None:
-        age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
-        log.info("Screener: serving from cache (age=%.1f min)", age_minutes)
-        filtered = cached_result.signals
-        if sector:
-            filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
-        filtered = filtered[:top_n]
-        return PredictionResponse(
-            status="ok",
-            mode=mode,
-            date=cached_result.date,
-            signals=filtered,
-            cached=True,
-            cache_age_minutes=age_minutes,
-            universe_size=cached_result.universe_size,
-            model_metrics=cached_result.model_metrics,
+            status_code=503,
+            content={"status": "error", "message": "Prediction cache is currently unavailable. The background cron job may still be initializing."}
         )
 
-    log.info("Screener: cache miss or force. Queuing background prediction task… mode=%s", mode)
-    _is_computing = True
-    background_tasks.add_task(_run_and_cache_predictions, source="api", mode=mode)
+    age_minutes = round((now - cached_ts) / 60, 1) if cached_ts else 0.0
+    filtered = cached_result.signals
+    if sector:
+        filtered = [s for s in filtered if s.sector.lower() == sector.lower()]
+    filtered = filtered[:top_n]
     
-    return JSONResponse(
-        status_code=202,
-        content={"status": "computing", "message": "Model training started. Please check back in a few minutes."}
+    return PredictionResponse(
+        status="ok",
+        mode=mode,
+        date=cached_result.date,
+        signals=filtered,
+        cached=True,
+        cache_age_minutes=age_minutes,
+        universe_size=cached_result.universe_size,
+        model_metrics=cached_result.model_metrics,
     )
 
 
@@ -493,11 +336,9 @@ async def get_prediction_sectors():
 
 
 @router.delete("/cache")
-async def clear_prediction_cache(db: Session = Depends(get_db)):
-    """Clear the prediction cache (admin use). Next request will recompute."""
+async def clear_prediction_cache():
+    """Clear the prediction memory cache (admin use). Next request will fetch from GitHub."""
     global _cache
     _cache["live"] = {"result": None, "timestamp": None}
     _cache["previous_close"] = {"result": None, "timestamp": None}
-    db.query(PredictionCache).delete()
-    db.commit()
     return {"status": "cleared"}

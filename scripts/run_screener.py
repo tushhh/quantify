@@ -51,6 +51,16 @@ def main():
     n_longs = sum(1 for s in result["signals"] if s["side"] == "long")
     n_shorts = sum(1 for s in result["signals"] if s["side"] == "short")
     log.info("Screener complete: %d longs, %d shorts", n_longs, n_shorts)
+
+    output_json = os.getenv("OUTPUT_JSON_PATH")
+    if output_json:
+        try:
+            with open(output_json, "w") as f:
+                json.dump(result, f)
+            log.info("Results saved to %s", output_json)
+        except Exception as e:
+            log.error("Failed to save results to %s: %s", output_json, e)
+
     _send_callback(callback_url, chat_id, internal_secret, status="complete", result=result)
 
 

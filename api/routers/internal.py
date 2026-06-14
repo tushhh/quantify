@@ -123,9 +123,9 @@ async def job_complete(
         if body.status == "complete" and body.result_json:
             try:
                 from api.schemas import PredictionResponse
-                from api.routers.predict import _persist_prediction_cache
+                from api.routers.predict import update_memory_cache
                 result = PredictionResponse(**json.loads(body.result_json))
-                _persist_prediction_cache("previous_close", result)
+                update_memory_cache("previous_close", result)
             except Exception as e:
                 log.warning("Could not persist screener results to main cache: %s", e)
 
