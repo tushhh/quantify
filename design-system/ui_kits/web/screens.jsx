@@ -91,7 +91,7 @@ function DashboardScreen({ onPrefill }) {
         <Card style={{ overflow: "hidden" }}>
           <CardHeader title="Today's ML Picks" subtitle="5-day horizon · ensemble committee"
             actions={<Badge variant="accent">LightGBM · XGB · CatBoost</Badge>} />
-          <div style={{ display: "grid", gridTemplateColumns: "40px 1fr auto auto", gap: 16, padding: "9px 18px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-raised)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "var(--space-10) 1fr auto auto", gap: 16, padding: "9px 18px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-raised)" }}>
             <span>Rank</span><span>Symbol</span><span>Signal</span><span style={{ textAlign: "right" }}>Strength</span>
           </div>
           {Q.predictions.map((p) => <PredictionRow key={p.symbol} {...p} onClick={() => onPrefill(p.symbol)} />)}
@@ -118,9 +118,10 @@ function DashboardScreen({ onPrefill }) {
   );
 }
 
-function LogTradeCard() {
+function LogTradeCard({ prefill }) {
   const [symbol, setSymbol] = useState("");
   const [done, setDone] = useState(false);
+  React.useEffect(() => { if (prefill) { setSymbol(prefill); setDone(false); } }, [prefill]);
   return (
     <Card variant="compact">
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: "var(--color-accent)" }}>
@@ -191,7 +192,7 @@ function BacktestScreen() {
   const [strategy, setStrategy] = useState("ML Return Predictor");
   const [ran, setRan] = useState(true);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 20, alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "20rem 1fr", gap: 20, alignItems: "start" }}>
       <Card variant="compact" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div>
           <p style={{ ...overline, margin: 0 }}>Configure</p>

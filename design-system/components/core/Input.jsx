@@ -2,7 +2,8 @@ import React from "react";
 
 /** Quantify text Input with optional label, hint and error. */
 export function Input({ label, hint, error, prefix, id, style = {}, ...rest }) {
-  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const uid = React.useId();
+  const inputId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${uid}` : uid);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
       {label ? (

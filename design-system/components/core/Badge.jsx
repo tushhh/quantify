@@ -20,7 +20,7 @@ export function Badge({ children, variant = "default", style = {}, ...rest }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        padding: "3px 9px",
+        paddingTop: 3, paddingBottom: 3, paddingLeft: 9, paddingRight: 9,
         fontFamily: "var(--font-sans)",
         fontSize: 11,
         fontWeight: 600,

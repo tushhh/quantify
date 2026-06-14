@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quantify — Web App</title>
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="../../styles.css">
 <style>
   html, body { height: 100%; }
   body { margin: 0; background: var(--color-bg); font-family: var(--font-sans); }
@@ -47,7 +47,7 @@ window.QKIT = {
 </script>
 
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useId } = React;
 const Q = window.QKIT;
 
 const money = (v) => "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,13 +57,13 @@ const OL    = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", lette
 // ── DS Components ────────────────────────────────────────────────────────
 
 function Button({ children, variant = "primary", size = "md", disabled = false, icon = null, type = "button", onClick, style = {}, ...rest }) {
-  const sz = { xs:{height:28,padding:"0 10px",fontSize:12,gap:6}, sm:{height:32,padding:"0 12px",fontSize:13,gap:6}, md:{height:36,padding:"0 16px",fontSize:14,gap:8}, lg:{height:44,padding:"0 24px",fontSize:16,gap:8} }[size];
+  const sz = { xs:{height:28,paddingLeft:10,paddingRight:10,fontSize:12,gap:6}, sm:{height:32,paddingLeft:12,paddingRight:12,fontSize:13,gap:6}, md:{height:36,paddingLeft:16,paddingRight:16,fontSize:14,gap:8}, lg:{height:44,paddingLeft:24,paddingRight:24,fontSize:16,gap:8} }[size];
   const base = { display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"var(--font-sans)", fontWeight:600, borderRadius:"var(--radius-md)", border:"1px solid transparent", cursor: disabled?"not-allowed":"pointer", opacity: disabled?0.5:1, transition:"background var(--duration-fast) var(--ease-standard)", whiteSpace:"nowrap", userSelect:"none", ...sz };
   const variants = {
     primary:   { background:"var(--color-accent)",        color:"var(--color-accent-foreground)", boxShadow:"var(--shadow-xs)" },
     secondary: { background:"var(--color-surface-raised)",color:"var(--color-text-primary)",      borderColor:"var(--color-border)" },
     ghost:     { background:"transparent",                color:"var(--color-text-secondary)" },
-    danger:    { background:"var(--color-danger)",        color:"#1a0608" },
+    danger:    { background:"var(--color-danger)",        color:"var(--color-bg)" },
     link:      { background:"transparent",                color:"var(--color-accent)", height:"auto", padding:0 },
   };
   return (
@@ -88,7 +88,7 @@ function Badge({ children, variant = "default", style = {}, ...rest }) {
     info:    { background:"var(--color-info-subtle)",    color:"var(--color-info)",    borderColor:"color-mix(in srgb, var(--color-info) 30%, transparent)" },
     accent:  { background:"var(--color-accent-subtle)",  color:"var(--color-accent)",  borderColor:"color-mix(in srgb, var(--color-accent) 30%, transparent)" },
   }[variant];
-  return <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 9px", fontFamily:"var(--font-sans)", fontSize:11, fontWeight:600, letterSpacing:"0.04em", borderRadius:"var(--radius-full)", border:"1px solid transparent", ...v, ...style }} {...rest}>{children}</span>;
+  return <span style={{ display:"inline-flex", alignItems:"center", gap:5, paddingTop:3, paddingBottom:3, paddingLeft:9, paddingRight:9, fontFamily:"var(--font-sans)", fontSize:11, fontWeight:600, letterSpacing:"0.04em", borderRadius:"var(--radius-full)", border:"1px solid transparent", ...v, ...style }} {...rest}>{children}</span>;
 }
 
 function Card({ children, variant = "default", interactive = false, style = {}, ...rest }) {
@@ -125,7 +125,8 @@ function CardFooter({ children, style = {}, ...rest }) {
 }
 
 function Input({ label, hint, error, prefix, id, style = {}, ...rest }) {
-  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const uid = useId();
+  const inputId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${uid}` : uid);
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
       {label && <label htmlFor={inputId} style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>{label}</label>}
@@ -246,7 +247,7 @@ function LogoMark({ size = 34 }) {
   return (
     <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ position:"absolute", width: size*1.65, height: size*1.65, borderRadius:"50%", background:"radial-gradient(circle, rgba(47,141,186,0.38), rgba(47,141,186,0) 70%)" }} />
-      <img src="./assets/logo-emblem.png" height={size} alt="Quantify" style={{ display:"block", position:"relative" }}
+      <img src="../../assets/logo-emblem.png" height={size} alt="Quantify" style={{ display:"block", position:"relative" }}
         onError={(e) => { e.target.style.display="none"; e.target.nextSibling.style.display="flex"; }} />
       <div style={{ display:"none", width:size, height:size, borderRadius: size*0.22, background:"var(--color-accent)", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize: size*0.46, position:"relative" }}>Q</div>
     </div>
@@ -371,9 +372,10 @@ function PositionCard({ t }) {
   );
 }
 
-function LogTradeCard() {
+function LogTradeCard({ prefill }) {
   const [symbol, setSymbol] = useState("");
   const [done, setDone]     = useState(false);
+  useEffect(() => { if (prefill) { setSymbol(prefill); setDone(false); } }, [prefill]);
   return (
     <Card variant="compact">
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, color:"var(--color-accent)" }}>
@@ -407,7 +409,7 @@ function DashboardScreen({ onPrefill }) {
       <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1fr", gap:20, alignItems:"start" }}>
         <Card style={{ overflow:"hidden" }}>
           <CardHeader title="Today's ML Picks" subtitle="5-day horizon · ensemble committee" actions={<Badge variant="accent">LightGBM · XGB · CatBoost</Badge>} />
-          <div style={{ display:"grid", gridTemplateColumns:"40px 1fr auto auto", gap:16, padding:"9px 18px", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--color-text-muted)", borderBottom:"1px solid var(--color-border)", background:"var(--color-surface-raised)" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"var(--space-10) 1fr auto auto", gap:16, padding:"9px 18px", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--color-text-muted)", borderBottom:"1px solid var(--color-border)", background:"var(--color-surface-raised)" }}>
             <span>Rank</span><span>Symbol</span><span>Signal</span><span style={{ textAlign:"right" }}>Strength</span>
           </div>
           {Q.predictions.map((p) => <PredictionRow key={p.symbol} {...p} onClick={() => onPrefill(p.symbol)} />)}
@@ -482,7 +484,7 @@ function BacktestScreen() {
   const [strategy, setStrategy] = useState("ML Return Predictor");
   const [ran, setRan]           = useState(true);
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"320px 1fr", gap:20, alignItems:"start" }}>
+    <div style={{ display:"grid", gridTemplateColumns:"20rem 1fr", gap:20, alignItems:"start" }}>
       <Card variant="compact" style={{ display:"flex", flexDirection:"column", gap:16 }}>
         <div>
           <p style={{ ...OL, margin:0 }}>Configure</p>
