@@ -1,0 +1,65 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Core — buttons, badges, inputs" subtitle="Button · Badge · Input · StatCard · Card" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 22px; background: var(--color-bg); font-family: var(--font-sans); }
+  .grp { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .lab { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-muted); width: 100%; margin-bottom: 2px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Button, Badge, Input, StatCard, Card, CardHeader, CardContent } = window.QuantifyDesignSystem_90f900;
+  function Demo() {
+    return (
+      <div>
+        <div className="grp"><span className="lab">Button — variants</span>
+          <Button variant="primary">Run Backtest</Button>
+          <Button variant="secondary">Log Trade</Button>
+          <Button variant="ghost">Cancel</Button>
+          <Button variant="danger">Close</Button>
+          <Button variant="link">View all</Button>
+        </div>
+        <div className="grp"><span className="lab">Button — sizes & states</span>
+          <Button size="xs">xs</Button>
+          <Button size="sm">sm</Button>
+          <Button size="md">md</Button>
+          <Button size="lg">lg</Button>
+          <Button loading>Validating…</Button>
+          <Button disabled>Disabled</Button>
+        </div>
+        <div className="grp"><span className="lab">Badge</span>
+          <Badge variant="success">LONG</Badge>
+          <Badge variant="danger">SHORT</Badge>
+          <Badge variant="accent">ML Ensemble</Badge>
+          <Badge variant="info">Paper</Badge>
+          <Badge variant="warning">Drawdown</Badge>
+          <Badge>Neutral</Badge>
+        </div>
+        <div className="cols">
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <span className="lab">Input</span>
+            <Input label="Symbol" placeholder="AAPL" />
+            <Input label="Buy price" prefix="$" placeholder="150.00" />
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <span className="lab">StatCard</span>
+            <StatCard label="Sharpe Ratio" value="1.84" change={6.2} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body>
+</html>

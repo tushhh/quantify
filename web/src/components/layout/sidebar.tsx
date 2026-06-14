@@ -84,8 +84,9 @@ export default function Sidebar() {
         <div className="flex flex-col flex-1 min-h-0">
           <div className="px-4 py-4 md:px-5 shrink-0">
             <Link href="/" className="flex items-center gap-3">
-              <div className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-foreground)] font-bold">
-                Q
+              <div className="relative h-9 w-9 shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-[var(--color-accent)] opacity-20 blur-sm" />
+                <img src="/logo-emblem.png" alt="Quantify" className="h-8 w-8 object-contain relative" />
               </div>
               {sidebarOpen && (
                 <div>

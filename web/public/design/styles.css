@@ -1,0 +1,11 @@
+/* ============================================================
+   Quantify Design System — global entry point.
+   Consumers link THIS file. It only @imports the token + base
+   layers; everything reachable here ships to consumers.
+   ============================================================ */
+
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/base.css";

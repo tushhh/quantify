@@ -1,0 +1,6 @@
+/* Quantify webfonts — Geist (UI) + Geist Mono (numerics/code)
+   The product loads these via next/font (Google). We ship them from the
+   Google Fonts CSS API so consumers get the exact same families.
+   NOTE: substitution flag — these are the genuine Geist families, served
+   from Google Fonts rather than self-hosted .woff2 binaries. */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap");

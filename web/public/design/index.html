@@ -1,0 +1,586 @@
+<!-- @dsCard group="Web App" viewport="1320x800" name="Quantify web app" subtitle="Login → dashboard, predict, backtest, strategies" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantify — Web App</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--color-bg); font-family: var(--font-sans); }
+  #root { height: 100vh; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+window.QKIT = {
+  predictions: [
+    { rank: 1, symbol: "NVDA", side: "long",  predictedReturnPct: 2.41,  strength: 0.182, drivers: [ {feature:"mom_12_1",zscore:2.07,direction:"higher"}, {feature:"rsi_14",zscore:1.21,direction:"higher"}, {feature:"vol_regime",zscore:0.84,direction:"higher"} ] },
+    { rank: 2, symbol: "AVGO", side: "long",  predictedReturnPct: 1.88,  strength: 0.147, drivers: [ {feature:"ev_ebitda",zscore:1.6,direction:"higher"}, {feature:"mom_6_1",zscore:1.3,direction:"higher"} ] },
+    { rank: 3, symbol: "AAPL", side: "long",  predictedReturnPct: 1.06,  strength: 0.094, drivers: [ {feature:"vol_20",zscore:-1.4,direction:"lower"}, {feature:"roe",zscore:1.1,direction:"higher"} ] },
+    { rank: 4, symbol: "JPM",  side: "long",  predictedReturnPct: 0.72,  strength: 0.061, drivers: [ {feature:"value_pb",zscore:1.2,direction:"higher"}, {feature:"quality",zscore:0.8,direction:"higher"} ] },
+    { rank: 5, symbol: "INTC", side: "short", predictedReturnPct: -1.73, strength: -0.121, drivers: [ {feature:"trend_adx",zscore:-1.9,direction:"lower"}, {feature:"roe",zscore:-1.1,direction:"lower"} ] },
+    { rank: 6, symbol: "PYPL", side: "short", predictedReturnPct: -2.14, strength: -0.158, drivers: [ {feature:"mom_12_1",zscore:-2.2,direction:"lower"}, {feature:"margin",zscore:-1.3,direction:"lower"} ] },
+  ],
+  trades: [
+    { id: 1, symbol: "MSFT", shares: 12, buy_price: 402.10, current: 421.55, hold_days: 21, dip: 0.10, in: "Jun 2", out: "Jun 23" },
+    { id: 2, symbol: "AMD",  shares: 40, buy_price: 168.30, current: 159.04, hold_days: 14, dip: 0.08, in: "Jun 6", out: "Jun 20", alert: "PRICE DROP — 5.5% vs entry (threshold 8.0%)" },
+  ],
+  strategies: [
+    { name: "Trend Following",          alloc: 15, sharpe: 1.21, idea: "EMA 50/200 crossover, ADX-filtered, ATR stops" },
+    { name: "Cross-Sectional Momentum", alloc: 20, sharpe: 1.64, idea: "Long top-quintile / short bottom by 12-1m returns" },
+    { name: "Pairs Mean Reversion",     alloc: 20, sharpe: 0.98, idea: "Engle-Granger cointegration, z-score entry/exit" },
+    { name: "Quality Value",            alloc: 20, sharpe: 1.07, idea: "Composite rank on value + quality metrics" },
+    { name: "ML Return Predictor",      alloc: 15, sharpe: 1.84, idea: "LightGBM + XGBoost + CatBoost ensemble" },
+    { name: "Volatility Regime",        alloc: 10, sharpe: 0.76, idea: "VIX regime detection re-weights the book" },
+  ],
+  equityCurve: [100,101.2,100.6,102.4,103.9,103.1,105.6,107.2,106.4,108.9,110.3,109.1,111.8,113.4,112.6,115.2,117.9,116.4,119.1,121.8,120.4,123.2,124.8,126.1],
+  benchCurve:  [100,100.4,100.9,101.2,101.0,101.8,102.3,102.0,102.9,103.6,103.2,104.1,104.8,104.5,105.4,106.1,105.7,106.8,107.5,107.1,108.0,108.6,108.2,109.0],
+};
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useId } = React;
+const Q = window.QKIT;
+
+const money = (v) => "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct   = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
+const OL    = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.22em", color: "var(--color-accent)" };
+
+// ── DS Components ────────────────────────────────────────────────────────
+
+function Button({ children, variant = "primary", size = "md", disabled = false, icon = null, type = "button", onClick, style = {}, ...rest }) {
+  const sz = { xs:{height:28,paddingLeft:10,paddingRight:10,fontSize:12,gap:6}, sm:{height:32,paddingLeft:12,paddingRight:12,fontSize:13,gap:6}, md:{height:36,paddingLeft:16,paddingRight:16,fontSize:14,gap:8}, lg:{height:44,paddingLeft:24,paddingRight:24,fontSize:16,gap:8} }[size];
+  const base = { display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"var(--font-sans)", fontWeight:600, borderRadius:"var(--radius-md)", border:"1px solid transparent", cursor: disabled?"not-allowed":"pointer", opacity: disabled?0.5:1, transition:"background var(--duration-fast) var(--ease-standard)", whiteSpace:"nowrap", userSelect:"none", ...sz };
+  const variants = {
+    primary:   { background:"var(--color-accent)",        color:"var(--color-accent-foreground)", boxShadow:"var(--shadow-xs)" },
+    secondary: { background:"var(--color-surface-raised)",color:"var(--color-text-primary)",      borderColor:"var(--color-border)" },
+    ghost:     { background:"transparent",                color:"var(--color-text-secondary)" },
+    danger:    { background:"var(--color-danger)",        color:"var(--color-bg)" },
+    link:      { background:"transparent",                color:"var(--color-accent)", height:"auto", padding:0 },
+  };
+  return (
+    <button type={type} disabled={disabled} onClick={onClick}
+      style={{ ...base, ...variants[variant], ...style }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}
+      onMouseUp={(e)   => { e.currentTarget.style.transform = "scale(1)"; }}
+      onMouseLeave={(e)=> { e.currentTarget.style.transform = "scale(1)"; }}
+      {...rest}>
+      {icon && <span style={{ display:"inline-flex", marginRight: children ? 8 : 0 }}>{icon}</span>}
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, variant = "default", style = {}, ...rest }) {
+  const v = {
+    default: { background:"var(--color-surface-raised)", color:"var(--color-text-secondary)", borderColor:"var(--color-border)" },
+    success: { background:"var(--color-success-subtle)", color:"var(--color-success)", borderColor:"color-mix(in srgb, var(--color-success) 30%, transparent)" },
+    danger:  { background:"var(--color-danger-subtle)",  color:"var(--color-danger)",  borderColor:"color-mix(in srgb, var(--color-danger) 30%, transparent)" },
+    warning: { background:"var(--color-warning-subtle)", color:"var(--color-warning)", borderColor:"color-mix(in srgb, var(--color-warning) 30%, transparent)" },
+    info:    { background:"var(--color-info-subtle)",    color:"var(--color-info)",    borderColor:"color-mix(in srgb, var(--color-info) 30%, transparent)" },
+    accent:  { background:"var(--color-accent-subtle)",  color:"var(--color-accent)",  borderColor:"color-mix(in srgb, var(--color-accent) 30%, transparent)" },
+  }[variant];
+  return <span style={{ display:"inline-flex", alignItems:"center", gap:5, paddingTop:3, paddingBottom:3, paddingLeft:9, paddingRight:9, fontFamily:"var(--font-sans)", fontSize:11, fontWeight:600, letterSpacing:"0.04em", borderRadius:"var(--radius-full)", border:"1px solid transparent", ...v, ...style }} {...rest}>{children}</span>;
+}
+
+function Card({ children, variant = "default", interactive = false, style = {}, ...rest }) {
+  return (
+    <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-lg)", boxShadow:"var(--shadow-sm)", padding: variant==="compact" ? 16 : 0, transition:"border-color var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard)", ...style }}
+      onMouseEnter={interactive ? (e) => { e.currentTarget.style.borderColor="var(--color-border-bright)"; e.currentTarget.style.boxShadow="var(--shadow-md)"; } : undefined}
+      onMouseLeave={interactive ? (e) => { e.currentTarget.style.borderColor="var(--color-border)"; e.currentTarget.style.boxShadow="var(--shadow-sm)"; } : undefined}
+      {...rest}>
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ title, subtitle, actions, children, style = {}, ...rest }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"18px 20px 14px", borderBottom:"1px solid var(--color-border)", ...style }} {...rest}>
+      {(title || subtitle) ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:3, minWidth:0 }}>
+          {title    && <h3 style={{ margin:0, fontFamily:"var(--font-sans)", fontSize:16, fontWeight:600, letterSpacing:"-0.01em", color:"var(--color-text-primary)" }}>{title}</h3>}
+          {subtitle && <p  style={{ margin:0, fontSize:13, color:"var(--color-text-muted)" }}>{subtitle}</p>}
+        </div>
+      ) : children}
+      {actions && <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>{actions}</div>}
+    </div>
+  );
+}
+
+function CardContent({ children, style = {}, ...rest }) {
+  return <div style={{ padding:"18px 20px", ...style }} {...rest}>{children}</div>;
+}
+
+function CardFooter({ children, style = {}, ...rest }) {
+  return <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 20px", borderTop:"1px solid var(--color-border)", ...style }} {...rest}>{children}</div>;
+}
+
+function Input({ label, hint, error, prefix, id, style = {}, ...rest }) {
+  const uid = useId();
+  const inputId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${uid}` : uid);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:6, width:"100%" }}>
+      {label && <label htmlFor={inputId} style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>{label}</label>}
+      <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+        {prefix && <span style={{ position:"absolute", left:12, color:"var(--color-text-muted)", fontFamily:"var(--font-mono)", fontSize:13, pointerEvents:"none" }}>{prefix}</span>}
+        <input id={inputId} style={{ height:36, width:"100%", background:"var(--color-surface-raised)", border:`1px solid ${error?"var(--color-danger)":"var(--color-border)"}`, borderRadius:"var(--radius-md)", color:"var(--color-text-primary)", fontFamily:"var(--font-sans)", fontSize:14, padding: prefix?"0 12px 0 26px":"0 12px", outline:"none", transition:"border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard)", ...style }}
+          onFocus={(e) => { e.currentTarget.style.borderColor="var(--color-accent)"; e.currentTarget.style.boxShadow="0 0 0 3px var(--color-accent-subtle)"; }}
+          onBlur={(e)  => { e.currentTarget.style.borderColor=error?"var(--color-danger)":"var(--color-border)"; e.currentTarget.style.boxShadow="none"; }}
+          {...rest} />
+      </div>
+      {error ? <p style={{ margin:0, fontSize:12, color:"var(--color-danger)" }}>{error}</p>
+             : hint ? <p style={{ margin:0, fontSize:12, color:"var(--color-text-muted)" }}>{hint}</p> : null}
+    </div>
+  );
+}
+
+function StatCard({ label, value, change, changeLabel = "vs last period", icon = null, style = {}, ...rest }) {
+  const hasChange = change !== undefined && change !== null;
+  const positive  = hasChange && change >= 0;
+  return (
+    <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-lg)", boxShadow:"var(--shadow-sm)", padding:"18px 20px", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, ...style }} {...rest}>
+      <div style={{ display:"flex", flexDirection:"column", gap:4, minWidth:0 }}>
+        <span style={{ fontSize:13, fontWeight:500, color:"var(--color-text-muted)" }}>{label}</span>
+        <span style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.02em", color:"var(--color-text-primary)", fontVariantNumeric:"tabular-nums" }}>{value}</span>
+        {hasChange && <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:12, fontWeight:600, color: positive?"var(--color-success)":"var(--color-danger)" }}>
+          <span>{positive?"▲":"▼"}</span>{positive?"+":""}{change}%{" "}
+          <span style={{ color:"var(--color-text-muted)", fontWeight:500 }}>{changeLabel}</span>
+        </span>}
+      </div>
+      {icon && <div style={{ display:"inline-flex", padding:10, borderRadius:"var(--radius-md)", background:"var(--color-accent-subtle)", color:"var(--color-accent)" }}>{icon}</div>}
+    </div>
+  );
+}
+
+function Alert({ children, variant = "info", title, icon = null, style = {}, ...rest }) {
+  const m = { info:{fg:"var(--color-info)",bg:"var(--color-info-subtle)",g:"ⓘ"}, success:{fg:"var(--color-success)",bg:"var(--color-success-subtle)",g:"✓"}, danger:{fg:"var(--color-danger)",bg:"var(--color-danger-subtle)",g:"!"}, warning:{fg:"var(--color-warning)",bg:"var(--color-warning-subtle)",g:"△"} }[variant];
+  return (
+    <div role="status" style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"12px 14px", borderRadius:"var(--radius-md)", border:`1px solid color-mix(in srgb, ${m.fg} 28%, transparent)`, background:m.bg, fontFamily:"var(--font-sans)", fontSize:13, lineHeight:1.5, color:"var(--color-text-secondary)", ...style }} {...rest}>
+      <span style={{ flexShrink:0, width:20, height:20, borderRadius:"var(--radius-full)", display:"inline-flex", alignItems:"center", justifyContent:"center", background:`color-mix(in srgb, ${m.fg} 18%, transparent)`, color:m.fg, fontSize:12, fontWeight:700 }}>{icon || m.g}</span>
+      <div style={{ minWidth:0 }}>
+        {title && <div style={{ fontWeight:600, color:m.fg, marginBottom:2 }}>{title}</div>}
+        <div>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function DriverPill({ feature, zscore, direction = "higher", style = {}, ...rest }) {
+  const up = direction === "higher";
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 9px", borderRadius:"var(--radius-full)", border:"1px solid var(--color-border)", background:"var(--color-surface-raised)", fontSize:11, color:"var(--color-text-muted)", ...style }} {...rest}>
+      <span style={{ color: up?"var(--color-success)":"var(--color-danger)", fontSize:9 }}>{up?"▲":"▼"}</span>
+      <span style={{ fontFamily:"var(--font-mono)", color:"var(--color-text-secondary)" }}>{feature}</span>
+      {zscore != null && <span style={{ fontFamily:"var(--font-mono)" }}>z={Number(zscore).toFixed(2)}</span>}
+    </span>
+  );
+}
+
+function PredictionRow({ rank, symbol, side = "long", predictedReturnPct = 0, strength = 0, drivers = [], onClick, style = {}, ...rest }) {
+  const posR = predictedReturnPct >= 0, posS = strength >= 0;
+  return (
+    <button type="button" onClick={onClick} style={{ display:"grid", gridTemplateColumns:"40px 1fr auto auto", alignItems:"center", gap:16, width:"100%", textAlign:"left", padding:"14px 18px", background:"transparent", border:"none", borderBottom:"1px solid var(--color-border)", cursor: onClick?"pointer":"default", fontFamily:"var(--font-sans)", transition:"background var(--duration-fast) var(--ease-standard)", ...style }}
+      onMouseEnter={(e) => { e.currentTarget.style.background="var(--color-surface-raised)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background="transparent"; }}
+      {...rest}>
+      <span style={{ fontFamily:"var(--font-mono)", fontSize:12, color:"var(--color-text-muted)" }}>#{String(rank).padStart(2,"0")}</span>
+      <span style={{ display:"flex", flexDirection:"column", gap:6, minWidth:0 }}>
+        <span style={{ display:"flex", alignItems:"baseline", gap:10 }}>
+          <span style={{ fontSize:16, fontWeight:700, color:"var(--color-text-primary)", letterSpacing:"-0.01em" }}>{symbol}</span>
+          <span style={{ fontFamily:"var(--font-mono)", fontSize:11, color: posR?"var(--color-success)":"var(--color-danger)" }}>{posR?"+":""}{Number(predictedReturnPct).toFixed(2)}% 1d</span>
+        </span>
+        {drivers.length > 0 && <span style={{ display:"flex", flexWrap:"wrap", gap:6 }}>{drivers.slice(0,3).map((d,i) => <DriverPill key={i} {...d} />)}</span>}
+      </span>
+      <Badge variant={side==="long"?"success":"danger"}>{side.toUpperCase()}</Badge>
+      <span style={{ fontFamily:"var(--font-mono)", fontWeight:700, fontSize:14, fontVariantNumeric:"tabular-nums", color: posS?"var(--color-success)":"var(--color-danger)", textAlign:"right", minWidth:64 }}>{posS?"+":""}{Number(strength).toFixed(3)}</span>
+    </button>
+  );
+}
+
+// ── Kit chrome ───────────────────────────────────────────────────────────
+
+function Icon({ name, size = 18, color = "currentColor", strokeWidth = 2, style = {} }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && window.lucide) {
+      ref.current.innerHTML = "";
+      const el = document.createElement("i");
+      el.setAttribute("data-lucide", name);
+      ref.current.appendChild(el);
+      try { window.lucide.createIcons({ attrs:{ width:size, height:size, "stroke-width":strokeWidth }, nameAttr:"data-lucide" }); } catch(e) {}
+    }
+  }, [name, size, strokeWidth]);
+  return <span ref={ref} style={{ display:"inline-flex", color, width:size, height:size, ...style }} />;
+}
+
+function Sparkline({ data, bench, width = 520, height = 120 }) {
+  const all = bench ? data.concat(bench) : data;
+  const min = Math.min(...all), max = Math.max(...all);
+  const x = (i, arr) => (i / (arr.length - 1)) * width;
+  const y = (v) => height - ((v - min) / (max - min || 1)) * (height - 8) - 4;
+  const path = (arr) => arr.map((v,i) => `${i?"L":"M"}${x(i,arr).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ display:"block" }}>
+      <defs>
+        <linearGradient id="qkfill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="var(--color-accent)" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${path(data)} L${width},${height} L0,${height} Z`} fill="url(#qkfill)" />
+      {bench && <path d={path(bench)} fill="none" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.6" />}
+      <path d={path(data)} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LogoMark({ size = 34 }) {
+  return (
+    <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ position:"absolute", width: size*1.65, height: size*1.65, borderRadius:"50%", background:"radial-gradient(circle, rgba(47,141,186,0.38), rgba(47,141,186,0) 70%)" }} />
+      <img src="../../assets/logo-emblem.png" height={size} alt="Quantify" style={{ display:"block", position:"relative" }}
+        onError={(e) => { e.target.style.display="none"; e.target.nextSibling.style.display="flex"; }} />
+      <div style={{ display:"none", width:size, height:size, borderRadius: size*0.22, background:"var(--color-accent)", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize: size*0.46, position:"relative" }}>Q</div>
+    </div>
+  );
+}
+
+function Sidebar({ active, onNav }) {
+  const groups = [
+    { label:"Main",     items:[{id:"dashboard",label:"Dashboard",icon:"layout-dashboard"},{id:"predict",label:"Predict",icon:"activity"}] },
+    { label:"Research", items:[{id:"backtest",label:"Backtest",icon:"bar-chart-2"},{id:"strategies",label:"Strategies",icon:"layers"}] },
+  ];
+  const Item = ({ it }) => {
+    const on = active === it.id;
+    return (
+      <button onClick={() => onNav(it.id)} style={{ display:"flex", alignItems:"center", gap:12, padding:"9px 12px", width:"100%", borderRadius:"var(--radius-md)", border:"none", cursor:"pointer", fontSize:14, fontFamily:"var(--font-sans)", background: on?"var(--color-accent-subtle)":"transparent", color: on?"var(--color-accent)":"var(--color-text-secondary)", fontWeight: on?600:500, transition:"background var(--duration-fast) var(--ease-standard)" }}
+        onMouseEnter={(e) => { if(!on) e.currentTarget.style.background="var(--color-surface-raised)"; }}
+        onMouseLeave={(e) => { if(!on) e.currentTarget.style.background="transparent"; }}>
+        <Icon name={it.icon} size={17} /> {it.label}
+      </button>
+    );
+  };
+  return (
+    <aside style={{ width:240, flexShrink:0, background:"var(--color-surface)", borderRight:"1px solid var(--color-border)", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+      <div>
+        <div style={{ padding:"16px 18px", display:"flex", alignItems:"center", gap:12 }}>
+          <LogoMark size={34} />
+          <div>
+            <div style={{ fontSize:14, fontWeight:600, color:"var(--color-text-primary)" }}>Quantify</div>
+            <div style={{ fontSize:12, color:"var(--color-text-muted)" }}>ML Trading</div>
+          </div>
+        </div>
+        <nav style={{ padding:"8px 12px", display:"flex", flexDirection:"column", gap:16 }}>
+          {groups.map((g) => (
+            <div key={g.label}>
+              <p style={{ margin:"0 0 4px", padding:"0 12px", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.16em", color:"var(--color-text-muted)" }}>{g.label}</p>
+              <div style={{ display:"flex", flexDirection:"column", gap:2 }}>{g.items.map((it) => <Item key={it.id} it={it} />)}</div>
+            </div>
+          ))}
+        </nav>
+      </div>
+      <div style={{ padding:12, borderTop:"1px solid var(--color-border)" }}>
+        <Item it={{ id:"account", label:"Account", icon:"user-circle" }} />
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ title, onLogout }) {
+  return (
+    <header style={{ height:56, flexShrink:0, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", background:"color-mix(in srgb, var(--color-surface) 80%, transparent)", backdropFilter:"blur(8px)", borderBottom:"1px solid var(--color-border)", position:"sticky", top:0, zIndex:10 }}>
+      <h2 style={{ margin:0, fontSize:15, fontWeight:600, color:"var(--color-text-primary)" }}>{title}</h2>
+      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+        <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, color:"var(--color-success)", fontWeight:600 }}>
+          <span style={{ width:7, height:7, borderRadius:"50%", background:"var(--color-success)" }} /> Live + Paper
+        </span>
+        <button style={{ background:"transparent", border:"none", cursor:"pointer", color:"var(--color-text-secondary)", display:"inline-flex", padding:6, borderRadius:"var(--radius-md)" }}><Icon name="bell" size={18} /></button>
+        <button onClick={onLogout} style={{ width:34, height:34, borderRadius:"50%", background:"var(--color-surface-raised)", border:"1px solid var(--color-border)", cursor:"pointer", color:"var(--color-text-secondary)", fontWeight:600, fontSize:13 }}>U</button>
+      </div>
+    </header>
+  );
+}
+
+// ── Screens ──────────────────────────────────────────────────────────────
+
+function LoginScreen({ onLogin }) {
+  return (
+    <div style={{ minHeight:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:24, position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", top:40, left:"50%", transform:"translateX(-50%)", width:560, height:360, background:"var(--color-accent)", opacity:0.14, filter:"blur(120px)", borderRadius:"50%", pointerEvents:"none" }} />
+      <div style={{ position:"relative", width:"100%", maxWidth:400 }}>
+        <Card style={{ padding:32 }}>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:22 }}>
+            <LogoMark size={76} />
+          </div>
+          <h1 style={{ margin:0, textAlign:"center", fontSize:24, fontWeight:800, color:"var(--color-text-primary)", letterSpacing:"-0.02em" }}>Welcome back</h1>
+          <p style={{ margin:"6px 0 26px", textAlign:"center", fontSize:14, color:"var(--color-text-muted)" }}>Log in to your trading home</p>
+          <form onSubmit={(e) => { e.preventDefault(); onLogin(); }} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <Input label="Username" placeholder="Enter your username" defaultValue="tushar" />
+            <Input label="Password" type="password" placeholder="Enter your password" defaultValue="••••••••" hint="Click Log In to continue" />
+            <Button type="submit" size="lg" style={{ width:"100%", marginTop:4 }}>Log In</Button>
+          </form>
+          <p style={{ margin:"18px 0 0", textAlign:"center", fontSize:13, color:"var(--color-text-muted)" }}>
+            No account? <span style={{ color:"var(--color-accent)", fontWeight:500, cursor:"pointer" }}>Sign up free</span>
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function PositionCard({ t }) {
+  const pnlAbs = (t.current - t.buy_price) * t.shares;
+  const pnlPct = (t.current - t.buy_price) / t.buy_price;
+  const gain   = pnlAbs >= 0;
+  const col    = gain ? "var(--color-success)" : "var(--color-danger)";
+  return (
+    <Card variant="compact" style={{ position:"relative", overflow:"hidden", padding:0 }}>
+      <div style={{ height:2, background: t.alert?"var(--color-danger)":col }} />
+      <div style={{ padding:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div>
+            <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+              <span style={{ fontSize:17, fontWeight:800, color:"var(--color-text-primary)" }}>{t.symbol}</span>
+              <span style={{ fontFamily:"var(--font-mono)", fontSize:13, color:"var(--color-text-secondary)" }}>{money(t.current)}</span>
+              <span style={{ fontFamily:"var(--font-mono)", fontSize:12, fontWeight:700, color:col }}>{pct(pnlPct * 100)}</span>
+            </div>
+            <div style={{ fontSize:12, color:"var(--color-text-muted)", marginTop:2 }}>{t.shares} shares @ {money(t.buy_price)}</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
+            <span style={{ fontFamily:"var(--font-mono)", fontSize:14, fontWeight:700, color:col }}>{gain?"+":"−"}{money(pnlAbs)}</span>
+            <Button variant="ghost" size="xs">Close</Button>
+          </div>
+        </div>
+        {t.alert && <div style={{ marginTop:12 }}><Alert variant="danger">{t.alert}</Alert></div>}
+        <div style={{ marginTop:12, paddingTop:12, borderTop:"1px solid var(--color-border)", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", color:"var(--color-text-muted)" }}>
+          <span>In {t.in}</span>
+          <span style={{ textAlign:"center" }}>Hold {t.hold_days}d</span>
+          <span style={{ textAlign:"center" }}>Dip {(t.dip*100).toFixed(0)}%</span>
+          <span style={{ textAlign:"right", color:"var(--color-success)" }}>Out {t.out}</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function LogTradeCard({ prefill }) {
+  const [symbol, setSymbol] = useState("");
+  const [done, setDone]     = useState(false);
+  useEffect(() => { if (prefill) { setSymbol(prefill); setDone(false); } }, [prefill]);
+  return (
+    <Card variant="compact">
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, color:"var(--color-accent)" }}>
+        <Icon name="plus" size={15} />
+        <span style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em" }}>Log a new trade</span>
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); setDone(true); }} style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1fr 1fr", gap:8 }}>
+          <Input label="Symbol"  placeholder="AAPL" value={symbol} onChange={(e) => { setSymbol(e.target.value.toUpperCase()); setDone(false); }} />
+          <Input label="Shares"  placeholder="10" />
+          <Input label="Buy"     prefix="$" placeholder="150" />
+        </div>
+        {done
+          ? <Alert variant="success" title="Trade logged">Telegram alert activated if connected.</Alert>
+          : <Button type="submit" style={{ width:"100%" }}>Log Trade &amp; Activate Alerts</Button>}
+      </form>
+    </Card>
+  );
+}
+
+function DashboardScreen({ onPrefill }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+        <StatCard label="Portfolio Value"  value="$128,406" change={3.1} />
+        <StatCard label="Open P&L"         value="+$1,842"  change={1.4} changeLabel="today" />
+        <StatCard label="Sharpe (ML)"      value="1.84"     change={6.2} changeLabel="vs benchmark" />
+        <StatCard label="Open Positions"   value="2" />
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1fr", gap:20, alignItems:"start" }}>
+        <Card style={{ overflow:"hidden" }}>
+          <CardHeader title="Today's ML Picks" subtitle="5-day horizon · ensemble committee" actions={<Badge variant="accent">LightGBM · XGB · CatBoost</Badge>} />
+          <div style={{ display:"grid", gridTemplateColumns:"var(--space-10) 1fr auto auto", gap:16, padding:"9px 18px", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--color-text-muted)", borderBottom:"1px solid var(--color-border)", background:"var(--color-surface-raised)" }}>
+            <span>Rank</span><span>Symbol</span><span>Signal</span><span style={{ textAlign:"right" }}>Strength</span>
+          </div>
+          {Q.predictions.map((p) => <PredictionRow key={p.symbol} {...p} onClick={() => onPrefill(p.symbol)} />)}
+          <CardFooter style={{ justifyContent:"flex-start" }}>
+            <Icon name="info" size={13} color="var(--color-text-muted)" />
+            <span style={{ fontSize:12, color:"var(--color-text-muted)" }}>Click any row to pre-fill the trade form · predictions, not advice.</span>
+          </CardFooter>
+        </Card>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <Icon name="shield" size={18} color="var(--color-accent)" />
+              <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:"var(--color-text-primary)" }}>Active Portfolio</h3>
+            </div>
+            <Button variant="ghost" size="sm" icon={<Icon name="refresh-cw" size={13} />}>Refresh</Button>
+          </div>
+          {Q.trades.map((t) => <PositionCard key={t.id} t={t} />)}
+          <LogTradeCard />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PredictScreen() {
+  const [query, setQuery] = useState("");
+  const top = Q.predictions.filter((p) => p.side === "long").slice(0,3);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      <Card variant="compact" style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <div>
+          <p style={{ ...OL, margin:0 }}>Ad-hoc prediction</p>
+          <h3 style={{ margin:"6px 0 0", fontSize:18, fontWeight:700, color:"var(--color-text-primary)" }}>Run the ML ensemble on any ticker</h3>
+        </div>
+        <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
+          <div style={{ flex:1 }}><Input label="Symbol" placeholder="e.g. GME" value={query} onChange={(e) => setQuery(e.target.value.toUpperCase())} /></div>
+          <Button icon={<Icon name="sparkles" size={15} />}>Predict</Button>
+        </div>
+        <Alert variant="info">Fetches 3y of daily prices, computes features, runs the pre-trained ensemble. Cached 4h.</Alert>
+      </Card>
+
+      <div>
+        <p style={{ ...OL, marginBottom:10 }}>Top conviction · long</p>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14 }}>
+          {top.map((p, i) => (
+            <Card key={p.symbol} variant="compact" interactive style={{ position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:-40, right:-30, width:110, height:110, borderRadius:"50%", background:"var(--color-accent)", opacity:0.1, filter:"blur(30px)" }} />
+              <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.1em", color:"var(--color-text-muted)" }}>Rank {String(i+1).padStart(2,"0")}</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                <span style={{ fontSize:20, fontWeight:800, color:"var(--color-text-primary)" }}>{p.symbol}</span>
+                <Badge variant="success">LONG</Badge>
+              </div>
+              <div style={{ fontFamily:"var(--font-mono)", fontSize:12, color:"var(--color-success)", marginTop:8 }}>{pct(p.predictedReturnPct)} 1d</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:12 }}>
+                {p.drivers.slice(0,2).map((d,j) => <DriverPill key={j} {...d} />)}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <Card style={{ overflow:"hidden" }}>
+        <CardHeader title="All signals" subtitle="Ranked by model strength" actions={<Badge variant="info">S&amp;P 500 cache</Badge>} />
+        {Q.predictions.map((p) => <PredictionRow key={p.symbol} {...p} onClick={() => {}} />)}
+      </Card>
+    </div>
+  );
+}
+
+function BacktestScreen() {
+  const [strategy, setStrategy] = useState("ML Return Predictor");
+  const [ran, setRan]           = useState(true);
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"20rem 1fr", gap:20, alignItems:"start" }}>
+      <Card variant="compact" style={{ display:"flex", flexDirection:"column", gap:16 }}>
+        <div>
+          <p style={{ ...OL, margin:0 }}>Configure</p>
+          <h3 style={{ margin:"6px 0 0", fontSize:17, fontWeight:700, color:"var(--color-text-primary)" }}>Backtest Lab</h3>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <span style={{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" }}>Strategy</span>
+          {Q.strategies.map((s) => (
+            <button key={s.name} onClick={() => { setStrategy(s.name); setRan(false); }} style={{ textAlign:"left", padding:"9px 12px", borderRadius:"var(--radius-md)", cursor:"pointer", fontSize:13, border:`1px solid ${strategy===s.name?"var(--color-accent)":"var(--color-border)"}`, background: strategy===s.name?"var(--color-accent-subtle)":"var(--color-surface-raised)", color: strategy===s.name?"var(--color-accent)":"var(--color-text-secondary)", fontWeight: strategy===s.name?600:500 }}>{s.name}</button>
+          ))}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <Input label="Start" defaultValue="2022-01-01" />
+          <Input label="End"   defaultValue="2024-01-01" />
+        </div>
+        <Input label="Capital" prefix="$" defaultValue="100,000" />
+        <Button onClick={() => setRan(true)} icon={<Icon name="play" size={14} />}>Run Backtest</Button>
+      </Card>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+          <StatCard label="Total Return" value="+26.1%" change={26.1} />
+          <StatCard label="Sharpe"       value="1.84" />
+          <StatCard label="Max Drawdown" value="−8.4%" />
+          <StatCard label="Win Rate"     value="58%" />
+        </div>
+        <Card>
+          <CardHeader title={`Equity curve — ${strategy}`} subtitle="Strategy vs SPY benchmark" actions={ran ? <Badge variant="success">Complete</Badge> : <Badge variant="warning">Stale</Badge>} />
+          <CardContent>
+            <Sparkline data={Q.equityCurve} bench={Q.benchCurve} />
+            <div style={{ display:"flex", gap:18, marginTop:12, fontSize:12 }}>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:6, color:"var(--color-text-secondary)" }}><span style={{ width:14, height:2, background:"var(--color-accent)", borderRadius:2, display:"inline-block" }} /> {strategy}</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:6, color:"var(--color-text-muted)" }}><span style={{ width:14, height:0, borderTop:"2px dashed var(--color-text-muted)", display:"inline-block" }} /> SPY</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function StrategiesScreen() {
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:14 }}>
+      {Q.strategies.map((s) => (
+        <Card key={s.name} variant="compact" interactive>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+            <div>
+              <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:"var(--color-text-primary)" }}>{s.name}</h3>
+              <p style={{ margin:"6px 0 0", fontSize:13, color:"var(--color-text-muted)", maxWidth:320 }}>{s.idea}</p>
+            </div>
+            <Badge variant="accent">{s.alloc}%</Badge>
+          </div>
+          <div style={{ marginTop:14, display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ flex:1, height:6, borderRadius:999, background:"var(--color-surface-raised)", overflow:"hidden" }}>
+              <div style={{ width:`${s.alloc * 4}%`, maxWidth:"100%", height:"100%", background:"var(--color-accent)", borderRadius:999 }} />
+            </div>
+            <span style={{ fontFamily:"var(--font-mono)", fontSize:12, color:"var(--color-success)" }}>Sharpe {s.sharpe}</span>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ── App shell ─────────────────────────────────────────────────────────────
+
+function App() {
+  const [authed, setAuthed] = useState(false);
+  const [route,  setRoute]  = useState("dashboard");
+  const [prefill, setPrefill] = useState("");
+  const titles = { dashboard:"Dashboard", predict:"Predict", backtest:"Backtest", strategies:"Strategies", account:"Account" };
+
+  if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
+
+  const prefillFn = (s) => { setPrefill(s); setRoute("dashboard"); };
+  prefillFn.value = prefill;
+
+  return (
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
+      <Sidebar active={route} onNav={setRoute} />
+      <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, overflow:"hidden" }}>
+        <Topbar title={titles[route]} onLogout={() => setAuthed(false)} />
+        <main style={{ flex:1, overflow:"auto", padding:24 }}>
+          {route === "dashboard"  && <DashboardScreen  onPrefill={prefillFn} />}
+          {route === "predict"    && <PredictScreen />}
+          {route === "backtest"   && <BacktestScreen />}
+          {route === "strategies" && <StrategiesScreen />}
+          {route === "account"    && <div style={{ color:"var(--color-text-muted)", fontSize:14 }}>Account settings — Telegram username linking, risk presets, theme.</div>}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
