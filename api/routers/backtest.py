@@ -353,7 +353,7 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
         _progress(f"Fetching fundamental data for {len(data)} tickers…")
         fundamentals = fetch_fundamentals(list(data.keys()))
         data = add_fundamental_features(data, fundamentals)
-        _progress(f"Successfully appended fundamental features")
+        _progress("Successfully appended fundamental features")
     except Exception as exc:
         log.warning(f"Failed to fetch and append fundamental features: {exc}")
 
