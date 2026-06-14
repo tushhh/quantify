@@ -18,10 +18,10 @@ export function Button({
   ...rest
 }) {
   const sizes = {
-    xs: { height: 28, padding: "0 10px", fontSize: 12, gap: 6 },
-    sm: { height: 32, padding: "0 12px", fontSize: 13, gap: 6 },
-    md: { height: 36, padding: "0 16px", fontSize: 14, gap: 8 },
-    lg: { height: 44, padding: "0 24px", fontSize: 16, gap: 8 },
+    xs: { height: 28, paddingLeft: 10, paddingRight: 10, fontSize: 12, gap: 6 },
+    sm: { height: 32, paddingLeft: 12, paddingRight: 12, fontSize: 13, gap: 6 },
+    md: { height: 36, paddingLeft: 16, paddingRight: 16, fontSize: 14, gap: 8 },
+    lg: { height: 44, paddingLeft: 24, paddingRight: 24, fontSize: 16, gap: 8 },
   };
 
   const base = {
@@ -44,7 +44,7 @@ export function Button({
     primary: { background: "var(--color-accent)", color: "var(--color-accent-foreground)", boxShadow: "var(--shadow-xs)" },
     secondary: { background: "var(--color-surface-raised)", color: "var(--color-text-primary)", borderColor: "var(--color-border)" },
     ghost: { background: "transparent", color: "var(--color-text-secondary)" },
-    danger: { background: "var(--color-danger)", color: "#1a0608" },
+    danger: { background: "var(--color-danger)", color: "var(--color-bg)" },
     link: { background: "transparent", color: "var(--color-accent)", height: "auto", padding: 0, textDecoration: "none" },
   };
 
@@ -60,7 +60,7 @@ export function Button({
       {...rest}
     >
       {loading && (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ marginRight: 8, animation: "qf-spin 0.7s linear infinite" }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ marginRight: children ? 8 : 0, animation: "qf-spin 0.7s linear infinite" }}>
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
           <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         </svg>
