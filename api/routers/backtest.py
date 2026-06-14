@@ -147,6 +147,34 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         extra_params.pop("allocation", None)
         extra_params.pop("enabled", None)
 
+        # For the ML strategy, prefer the pre-trained model from the model-cache
+        # branch instead of retraining the LightGBM+XGBoost+CatBoost ensemble on
+        # every walk-forward window. In-process retraining is the single biggest
+        # memory consumer in a backtest and OOMs small dynos; cached inference
+        # keeps the run within a ~512 MB budget and is much faster. Advanced
+        # users can force walk-forward retraining via train_enabled=true.
+        #
+        # Only disable retraining when a cached model is actually available —
+        # otherwise fall back to walk-forward so the strategy still contributes
+        # signals. Trade-off: a single forward-trained model scored over
+        # historical dates introduces lookahead bias — flagged in the metadata.
+        if name == "ml_return_predictor" and "train_enabled" not in extra_params:
+            import os as _os
+            cached_available = False
+            try:
+                from api.routers.predict import _download_latest_model
+                _download_latest_model()
+                cached_available = _os.path.exists("./models/ml_return_predictor.joblib")
+            except Exception as exc:
+                log.warning("Could not pre-download cached ML model: %s", exc)
+            if cached_available:
+                extra_params["train_enabled"] = False
+            else:
+                log.warning(
+                    "No cached ML model available — backtest will retrain "
+                    "(higher memory; consider running the ml_train workflow)."
+                )
+
         # Defensively drop any params the constructor does not accept. The UI
         # advertises a curated param set per strategy, but this guarantees a
         # stray or renamed key can never crash the whole backtest with a 400.
@@ -378,6 +406,20 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
         except Exception as exc:
             log.debug("Skipping trade record: %s", exc)
 
+    # Flag how the ML strategy sourced its model so the lookahead trade-off of
+    # cached inference is transparent in the response.
+    ml_strategy = next((s for s in strategies if s.name == "ml_return_predictor"), None)
+    ml_metadata: dict[str, Any] = {}
+    if ml_strategy is not None:
+        used_cached = not getattr(ml_strategy, "train_enabled", True)
+        ml_metadata["ml_model_mode"] = "cached_pretrained" if used_cached else "walk_forward"
+        if used_cached:
+            ml_metadata["ml_lookahead_warning"] = (
+                "ML signals use the latest pre-trained model for every date "
+                "(low memory, fast) rather than walk-forward retraining, so ML "
+                "contribution is optimistic. Set train_enabled=true to retrain."
+            )
+
     response = BacktestResponse(
         status="ok",
         metrics=metrics,
@@ -391,6 +433,7 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
             "start_date": str(req.start_date),
             "end_date": str(req.end_date),
             "initial_capital": req.initial_capital,
+            **ml_metadata,
         },
     )
 
