@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, Square, AlertCircle, Info, ChevronDown, ChevronUp, Zap, TrendingUp } from "lucide-react";
+import { Play, Square, AlertCircle, Info, ChevronDown, ChevronUp, Zap, TrendingUp, Cloud } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { api, BASE } from "@/lib/api";
 import { RiskProfileSelector } from "@/components/RiskProfileSelector";
@@ -38,6 +38,7 @@ export default function BacktestPage() {
   const [serverWarning, setServerWarning] = useState(false);
   const [showAdvanced, setShowAdvanced]   = useState(false);
   const [progressMsg, setProgressMsg]     = useState<string | null>(null);
+  const [isCloudRun, setIsCloudRun]       = useState(false);
 
   const dateError = startDate && endDate && startDate >= endDate
     ? "End date must be after start date"
@@ -61,6 +62,7 @@ export default function BacktestPage() {
       abortRef.current?.abort();
       esRef.current?.close();
       setIsRunning(false);
+      setIsCloudRun(false);
       setServerWarning(false);
       setProgressMsg(null);
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -70,6 +72,7 @@ export default function BacktestPage() {
     setError(null);
     setBacktestResult(null);
     setIsRunning(true);
+    setIsCloudRun(false);
     setServerWarning(false);
     setProgressMsg("Connecting to engine...");
     timerRef.current = setTimeout(() => setServerWarning(true), 8_000);
@@ -78,29 +81,46 @@ export default function BacktestPage() {
     abortRef.current = ctrl;
 
     const jobId = `job_${Math.random().toString(36).substring(2, 15)}`;
+
+    // Open SSE for in-process runs; cloud runs will close it immediately
     const es = new EventSource(`${BASE}/api/backtest/stream?job_id=${jobId}`);
     esRef.current = es;
     es.onmessage = (e) => {
-      if (e.data === "done") {
-        es.close();
-      } else {
-        setProgressMsg(e.data);
-      }
+      if (e.data === "done") { es.close(); }
+      else { setProgressMsg(e.data); }
     };
-    es.onerror = () => {
-      es.close();
-    };
+    es.onerror = () => { es.close(); };
 
     try {
       const req = buildRequest();
-      const res = await api.backtest.run(req, jobId, ctrl.signal);
+      const submitRes = await api.backtest.submit(req, jobId, ctrl.signal);
+      const cloudRun = submitRes.is_cloud_run === true;
 
-      setBacktestResult(res);
+      if (cloudRun) {
+        es.close();
+        setIsCloudRun(true);
+        setProgressMsg(null);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setServerWarning(false);
+      }
+
+      // Poll for result
+      const pollInterval = cloudRun ? 5_000 : 1_000;
+      while (true) {
+        if (ctrl.signal.aborted) return;
+        await new Promise((r) => setTimeout(r, pollInterval));
+        if (ctrl.signal.aborted) return;
+        const pollRes = await api.backtest.pollResult(jobId, ctrl.signal);
+        if (pollRes.status === "running") continue;
+        setBacktestResult(pollRes);
+        break;
+      }
     } catch (e: unknown) {
-      if (e instanceof Error && e.name === "AbortError") return;
+      if (e instanceof Error && (e.name === "AbortError" || e.message === "Aborted")) return;
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setIsRunning(false);
+      setIsCloudRun(false);
       setServerWarning(false);
       setProgressMsg(null);
       es.close();
@@ -297,9 +317,15 @@ export default function BacktestPage() {
                   <><Play size={15} fill="currentColor" /> Run Backtest</>
                 )}
               </button>
-              {isRunning && progressMsg && (
+              {isRunning && !isCloudRun && progressMsg && (
                 <div className="text-center text-xs font-mono text-[var(--color-cta)] animate-pulse">
                   {progressMsg}
+                </div>
+              )}
+              {isRunning && isCloudRun && (
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                  <Cloud size={11} className="text-[var(--color-cta)]/60" />
+                  <span>Polling cloud runner every 5s…</span>
                 </div>
               )}
             </div>
@@ -326,10 +352,25 @@ export default function BacktestPage() {
             {/* Running skeleton */}
             {isRunning && (
               <div className="flex flex-col gap-4 animate-fade-in-up">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20">
-                  <div className="w-3.5 h-3.5 border-2 border-[var(--color-cta)]/40 border-t-[var(--color-cta)] rounded-full animate-spin shrink-0" />
-                  <span className="text-xs text-[var(--color-cta)] font-medium">Running simulation…</span>
-                </div>
+                {isCloudRun ? (
+                  /* Cloud run — no SSE progress, just a status card */
+                  <div className="flex flex-col gap-2 px-4 py-4 rounded-xl bg-[var(--color-cta)]/8 border border-[var(--color-cta)]/25">
+                    <div className="flex items-center gap-3">
+                      <Cloud size={16} className="text-[var(--color-cta)] shrink-0 animate-pulse" />
+                      <span className="text-xs text-[var(--color-cta)] font-semibold">Running on cloud runner</span>
+                    </div>
+                    <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed pl-7">
+                      This run was sent to a GitHub Actions runner for extra memory and speed.
+                      Results will appear here automatically — no live step progress is available for cloud runs.
+                      Typically finishes in <span className="text-[var(--color-text-secondary)]">2–3 minutes</span>.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20">
+                    <div className="w-3.5 h-3.5 border-2 border-[var(--color-cta)]/40 border-t-[var(--color-cta)] rounded-full animate-spin shrink-0" />
+                    <span className="text-xs text-[var(--color-cta)] font-medium">Running simulation…</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <Skeleton key={i} className="h-20 w-full" />

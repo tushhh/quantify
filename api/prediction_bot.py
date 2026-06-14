@@ -18,6 +18,19 @@ log = logging.getLogger("prediction_bot")
 
 BOT_TOKEN = os.getenv("TELEGRAM_PREDICTION_BOT_TOKEN")
 
+
+class PredictionUnavailable(Exception):
+    """Raised when a single-ticker prediction cannot be produced.
+
+    ``user_message`` is HTML-safe and intended to be shown directly to the
+    Telegram user, so the failure reason is accurate rather than always
+    blaming the ticker.
+    """
+
+    def __init__(self, user_message: str):
+        super().__init__(user_message)
+        self.user_message = user_message
+
 # Rate limiter settings
 _user_request_timestamps = {}
 _RATE_LIMIT_WINDOW_SECONDS = 60
@@ -81,12 +94,19 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
 
         if not data or symbol not in data or data[symbol].empty:
             log.warning("No market data returned for ad-hoc ticker %s", symbol)
-            return None
+            raise PredictionUnavailable(
+                f"❓ Couldn't find market data for <b>{symbol}</b>.\n\n"
+                f"Double-check the symbol — use the exchange ticker (e.g. <code>AAPL</code>, "
+                f"<code>BRK-B</code>). Indices and most non-US listings aren't supported."
+            )
 
         df = data[symbol]
         if len(df) < 50:
             log.warning("Insufficient history for ad-hoc ticker %s: %d rows", symbol, len(df))
-            return None
+            raise PredictionUnavailable(
+                f"🐣 <b>{symbol}</b> has only {len(df)} trading days of history.\n\n"
+                f"The model needs at least 50 days, so very recent listings can't be scored yet."
+            )
 
         # Compute technical indicator features
         required = strat.get_required_features()
@@ -114,31 +134,71 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
             _download_latest_model()
             try:
                 model = joblib.load(strat._model_path)
+                strat._model = model
+                # Re-align the feature list with the freshly downloaded model's
+                # metadata (the __init__ alignment ran before the download), so
+                # inference matches the exact trained feature set.
+                try:
+                    with open(strat._model_meta_path) as fh:
+                        persisted = json.load(fh).get("features")
+                    if isinstance(persisted, list) and persisted:
+                        strat.features = list(persisted)
+                except Exception:
+                    pass
                 log.info("Loaded ML model from disk after download for %s", symbol)
             except Exception as load_err:
                 log.warning("Could not load ML model for %s: %s", symbol, load_err)
 
         if model is None:
             log.warning("No trained model available — cannot predict for %s", symbol)
-            return None
+            raise PredictionUnavailable(
+                f"⚠️ The prediction model is temporarily unavailable.\n\n"
+                f"Please try <b>/predict {symbol}</b> again in a few minutes."
+            )
 
         # --- Direct model inference (bypass cross-sectional ranking) ---
         # MLReturnPredictorStrategy.generate_signals ranks across the full universe.
         # With only one symbol, the percentile rank is always 0.5 → direction="close"
         # → strength=0. We bypass that and score the raw model output directly.
-        feat_cols = [f for f in strat.features if f in enriched_df.columns]
-        if not feat_cols:
-            log.warning("No feature columns found for %s", symbol)
-            return None
+        # Build the feature vector from the model's EXACT expected feature list,
+        # in the trained order. When train_enabled=False, strat.features is
+        # aligned to the persisted model's metadata, so this matches training.
+        #
+        # Any feature missing for this single ad-hoc ticker — e.g. sector
+        # relative-strength columns that are only computed cross-sectionally, or
+        # fundamentals that failed to load — is filled with 0.0 (the standardized
+        # mean) rather than dropped. Dropping columns shifts/shrinks the vector
+        # so model.predict raises, which previously surfaced to users as a
+        # misleading "ticker doesn't exist / lacks 50 days of history" error.
+        expected_features = list(strat.features)
+        if not expected_features:
+            log.warning("Model exposes no feature list for %s", symbol)
+            raise PredictionUnavailable(
+                f"⚠️ The prediction model is temporarily unavailable.\n\n"
+                f"Please try <b>/predict {symbol}</b> again in a few minutes."
+            )
 
-        feat_row = enriched_df[feat_cols].iloc[-1].fillna(0.0)
-        X = feat_row.values.reshape(1, -1)
+        last_row = enriched_df.iloc[-1]
+        feat_values = {
+            f: (float(last_row[f]) if f in enriched_df.columns and pd.notna(last_row[f]) else 0.0)
+            for f in expected_features
+        }
+        # Pass a single-row DataFrame so the model sees the feature names it was
+        # trained with (correct column alignment; no sklearn feature-name warning).
+        X = pd.DataFrame([feat_values], columns=expected_features)
 
         try:
             raw_score = float(model.predict(X)[0])
-        except Exception as pred_err:
-            log.warning("Model prediction failed for %s: %s", symbol, pred_err)
-            return None
+        except Exception:
+            # Fallback: some persisted estimators expect a bare numpy array.
+            try:
+                raw_score = float(model.predict(X.values)[0])
+            except Exception as pred_err:
+                log.warning("Model prediction failed for %s: %s", symbol, pred_err)
+                raise PredictionUnavailable(
+                    f"⚠️ The prediction model couldn't score <b>{symbol}</b> right now.\n\n"
+                    f"This is on our side. Please try again in a few minutes."
+                )
 
         # raw_score is a cross-sectional rank value in [-1, 1]:
         #   > 0 → bullish (long), < 0 → bearish (short)
@@ -147,11 +207,15 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
         strength = float(min(abs(raw_score), 1.0))
         predicted_return_pct = round(raw_score * 100, 2)
 
-        # Best-effort feature explanations (z-score the row against its own values)
-        strat._last_feature_values = {
-            symbol: {f: float(enriched_df[f].iloc[-1]) for f in feat_cols if not pd.isna(enriched_df[f].iloc[-1])}
+        # Best-effort feature explanations (raw values; only features that were
+        # actually present for this ticker, so we don't surface 0.0-filled gaps).
+        present = {
+            f: float(last_row[f])
+            for f in expected_features
+            if f in enriched_df.columns and pd.notna(last_row[f])
         }
-        strat._last_feature_zscores = {symbol: feat_row.to_dict()}
+        strat._last_feature_values = {symbol: present}
+        strat._last_feature_zscores = {symbol: present}
         explanations = strat._build_explanations(symbol)
 
         sector_map = get_sector_map()
@@ -167,9 +231,15 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
             predicted_return_pct=predicted_return_pct,
             explanations=explanations,
         )
+    except PredictionUnavailable:
+        # Already carries an accurate, user-facing message — let it propagate.
+        raise
     except Exception as e:
         log.exception("Failed to run dynamic prediction for %s: %s", symbol, e)
-        return None
+        raise PredictionUnavailable(
+            f"⚠️ Something went wrong generating a prediction for <b>{symbol}</b>.\n\n"
+            f"This is on our side, not your ticker. Please try again shortly."
+        )
 
 def _signal_one_liner(signal: PredictionItem) -> str:
     """Plain-English 'why' line for a single predicted stock (no leading bullet)."""
@@ -295,14 +365,20 @@ async def predict_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         # Concurrency safety: limit parallel executions to avoid memory/CPU spikes
-        async with prediction_semaphore:
-            # Run the synchronous prediction logic in a background thread to prevent blocking
-            signal = await asyncio.to_thread(predict_single_ticker, symbol)
-            
+        try:
+            async with prediction_semaphore:
+                # Run the synchronous prediction logic in a background thread to prevent blocking
+                signal = await asyncio.to_thread(predict_single_ticker, symbol)
+        except PredictionUnavailable as exc:
+            # Accurate, reason-specific message (invalid ticker, too new, or a
+            # transient model/internal issue) — never the old catch-all.
+            await status_msg.edit_text(exc.user_message, parse_mode="HTML")
+            return
+
         if not signal:
             await status_msg.edit_text(
-                f"❌ Failed to generate prediction for <b>{symbol}</b>.\n\n"
-                f"Please verify it is a valid ticker symbol and has at least 50 days of daily history.",
+                f"❌ Couldn't generate a prediction for <b>{symbol}</b> right now. "
+                f"Please try again shortly.",
                 parse_mode="HTML"
             )
             return
