@@ -5,7 +5,7 @@
   --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 
-  /* Color Palette — neutral base + violet accent */
+  /* Color Palette — neutral base + steel-teal accent (from logo) */
   --color-bg: #F8F9FB;
   --color-surface: #FFFFFF;
   --color-surface-raised: #F1F3F7;
@@ -19,10 +19,17 @@
   --color-text-muted: #9CA3AF;
   --color-text-inverse: #FFFFFF;
 
-  --color-accent: #6366F1;
-  --color-accent-hover: #4F46E5;
-  --color-accent-subtle: #EEF2FF;
+  /* Steel-teal accent — pulled from the Quantify logo emblem */
+  --color-accent: #2474A0;
+  --color-accent-hover: #1C5C80;
+  --color-accent-subtle: #E7F2F8;
   --color-accent-foreground: #FFFFFF;
+
+  /* Gold — used sparingly: small highlights, premium/live accents */
+  --color-gold: #C2942F;
+  --color-gold-hover: #A87D24;
+  --color-gold-subtle: #FBF3DE;
+  --color-highlight: var(--color-gold);
 
   --color-success: #10B981;
   --color-success-subtle: #ECFDF5;
@@ -30,8 +37,10 @@
   --color-warning-subtle: #FFFBEB;
   --color-danger: #EF4444;
   --color-danger-subtle: #FEF2F2;
+  --color-info: #3B82F6;
+  --color-info-subtle: #EFF6FF;
 
-  /* Legacy alias variables used by shared components */
+  /* Legacy aliases */
   --surface: var(--color-surface);
   --surface-raised: var(--color-surface-raised);
   --border: var(--color-border);
@@ -81,7 +90,6 @@ body {
 /* Utility helpers */
 .sr-only { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
 
-/* Small form helpers used across the app */
 .field-label { font-size: 0.875rem; color: var(--color-text-primary); }
 
 .input-field {
@@ -96,25 +104,22 @@ body {
   line-height: 1.3;
   transition: all .4s;
 }
-
 .input-field:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
-
 .input-field option {
   color: var(--text);
   background: var(--surface);
 }
 
-/* Simple card defaults for legacy components */
 .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
-/* Dark theme overrides — toggle by setting `data-theme="dark"` on <html> or <body> */
+/* Dark theme — toggle via data-theme="dark" on <html> */
 [data-theme="dark"] {
   --color-bg: #0B1220;
   --color-surface: #0F1724;
@@ -125,19 +130,28 @@ body {
   --color-text-primary: #E6EEF8;
   --color-text-secondary: #9AA6B2;
   --color-text-muted: #7B8791;
-  --color-text-inverse: #0B1220;
+  --color-text-inverse: #FFFFFF;
 
-  --color-accent: #7C5CFF;
-  --color-accent-hover: #635BFF;
-  --color-accent-subtle: rgba(124,92,255,0.08);
+  /* Steel-teal accent — dark variant */
+  --color-accent: #2F8DBA;
+  --color-accent-hover: #25749B;
+  --color-accent-subtle: rgba(47,141,186,0.14);
   --color-accent-foreground: #FFFFFF;
 
+  /* Gold — dark variant */
+  --color-gold: #D9A93E;
+  --color-gold-hover: #C2942F;
+  --color-gold-subtle: rgba(217,169,62,0.14);
+  --color-highlight: var(--color-gold);
+
   --color-success: #34D399;
-  --color-success-subtle: rgba(52,211,153,0.06);
+  --color-success-subtle: rgba(52,211,153,0.10);
   --color-warning: #FBBF24;
-  --color-warning-subtle: rgba(251,191,36,0.06);
+  --color-warning-subtle: rgba(251,191,36,0.10);
   --color-danger: #FB7185;
-  --color-danger-subtle: rgba(251,113,133,0.06);
+  --color-danger-subtle: rgba(251,113,133,0.10);
+  --color-info: #60A5FA;
+  --color-info-subtle: rgba(96,165,250,0.10);
 
   --surface: var(--color-surface);
   --surface-raised: var(--color-surface-raised);
@@ -149,13 +163,13 @@ body {
   --color-on-text: #0B1220;
   --bg: var(--color-bg);
 
-  /* shadows for dark */
   --shadow-xs: 0 1px 2px rgba(2,6,23,0.6);
-  --shadow-sm: 0 4px 10px rgba(2,6,23,0.6);
-  --color-text-inverse: #FFFFFF;
+  --shadow-sm: 0 4px 10px rgba(2,6,23,0.55);
+  --shadow-md: 0 8px 24px rgba(2,6,23,0.5), 0 2px 6px rgba(2,6,23,0.4);
+  --shadow-lg: 0 16px 40px rgba(2,6,23,0.55), 0 4px 12px rgba(2,6,23,0.4);
+  --shadow-accent: 0 8px 24px rgba(47,141,186,0.30);
 }
 
-/* Convenience helper: prefer data-theme on html (set by client state) */
 html[data-theme="dark"] body { background-color: var(--color-bg); color: var(--color-text-primary); }
 
 /* Animations */
@@ -163,31 +177,17 @@ html[data-theme="dark"] body { background-color: var(--color-bg); color: var(--c
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.35s ease both;
-}
+.animate-fade-in    { animation: fade-in 0.35s ease both; }
+.animate-fade-in-up { animation: fade-in-up 0.4s ease both; }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.4s ease both;
-}
+.hover-lift { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
-.hover-lift {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.gradient-accent {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-}
+.gradient-accent { background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover)); }
 
 .stat-value { font-variant-numeric: tabular-nums; }
-.stat-label { }
