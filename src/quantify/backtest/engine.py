@@ -638,14 +638,10 @@ class BacktestEngine:
             # Drop zero-price rows
             df = df[(df["close"] > 0) & (df["open"] > 0)]
 
-            # Apply date range filter using Timestamps that match the index's
-            # tz-awareness. This avoids "Cannot compare dtypes" errors between
-            # tz-aware (e.g. UTC from YFinance) and tz-naive indices.
-            if self.start_date is not None:
-                start_ts = pd.Timestamp(self.start_date)
-                if df.index.tz is not None:
-                    start_ts = start_ts.tz_localize(df.index.tz)
-                df = df[df.index >= start_ts]
+            # Apply date range filter. Note: we no longer filter out data before
+            # self.start_date here, because we need that historical lookback data
+            # to compute features (e.g. 252-day momentum, 200-day moving averages).
+            # The engine loop will natively skip to self.start_date via _get_trading_dates.
             if self.end_date is not None:
                 # Include the entire end_date day (up to 23:59:59.999…)
                 end_ts = pd.Timestamp(self.end_date) + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)

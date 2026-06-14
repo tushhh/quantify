@@ -65,9 +65,13 @@ def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.Data
     """Download OHLCV data from yfinance via YFinanceProvider (which uses ParquetCache and handles retries)."""
     from quantify.data.providers.yfinance_provider import YFinanceProvider
     from quantify.data.cache import ParquetCache
-    from datetime import datetime
+    from datetime import datetime, timedelta
     
-    start_dt = datetime.combine(start, datetime.min.time())
+    # Pad the start date to fetch historical lookback data for indicators
+    # (e.g. 252-day momentum requires roughly 365 calendar days of history)
+    padded_start = start - timedelta(days=400)
+    
+    start_dt = datetime.combine(padded_start, datetime.min.time())
     end_dt = datetime.combine(end, datetime.min.time())
     
     provider = YFinanceProvider(cache=ParquetCache())
