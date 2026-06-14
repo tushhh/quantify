@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-
+import json
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("JWT_SECRET", "test-secret")
@@ -10,49 +10,49 @@ from api.main import app
 from api.routers import predict as predict_router
 
 
-def test_force_prediction_on_web_dyno_queues_background_task(monkeypatch) -> None:
-    monkeypatch.setenv("DYNO", "web.1")
-    monkeypatch.delenv("PREDICTION_FORCE_SYNC", raising=False)
+def test_predict_best_success(monkeypatch) -> None:
+    mock_data = {
+        "status": "ok",
+        "mode": "previous_close",
+        "date": "2026-06-12",
+        "cached": True,
+        "cache_age_minutes": 5,
+        "universe_size": 500,
+        "signals": [],
+    }
 
-    queued: list[tuple[str, str]] = []
+    class MockResponse:
+        def read(self):
+            return json.dumps(mock_data).encode("utf-8")
+            
+        def __enter__(self):
+            return self
+            
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
 
-    def _fake_background_task(source: str = "scheduler", mode: str = "previous_close") -> None:
-        queued.append((source, mode))
+    def mock_urlopen(req, timeout=10):
+        return MockResponse()
 
-    monkeypatch.setattr(predict_router, "_run_and_cache_predictions", _fake_background_task)
+    monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
 
     client = TestClient(app)
     response = client.get("/api/predict/best?top_n=5&force=true")
 
-    assert response.status_code == 202
-    assert response.json()["status"] == "computing"
-    assert queued == [("api", "previous_close")]
+    assert response.status_code == 200
+    assert response.json()["date"] == "2026-06-12"
 
 
-def test_force_prediction_live_mode_runs_synchronously(monkeypatch) -> None:
-    monkeypatch.setenv("DYNO", "web.1")
-    monkeypatch.setenv("PREDICTION_FORCE_SYNC", "1")
-    monkeypatch.setattr(predict_router, "_is_computing", False)
+def test_predict_best_not_found(monkeypatch) -> None:
+    from urllib.error import HTTPError
 
-    seen_modes: list[str] = []
+    def mock_urlopen(req, timeout=10):
+        raise HTTPError(url=req.full_url, code=404, msg="Not Found", hdrs=None, fp=None)
 
-    def _fake_run_prediction_sync(mode: str = "previous_close"):
-        seen_modes.append(mode)
-        return predict_router.PredictionResponse(
-            status="ok",
-            mode=mode,
-            date="2026-05-30",
-            cached=False,
-            cache_age_minutes=0.0,
-            universe_size=1,
-            signals=[],
-        )
-
-    monkeypatch.setattr(predict_router, "_run_prediction_sync", _fake_run_prediction_sync)
+    monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
+    monkeypatch.setattr(predict_router, "_cache", {"live": {}, "previous_close": {}})
 
     client = TestClient(app)
-    response = client.get("/api/predict/best?top_n=5&force=true&mode=live")
+    response = client.get("/api/predict/best?top_n=5&force=true")
 
-    assert response.status_code == 200
-    assert response.json()["mode"] == "live"
-    assert seen_modes == ["live"]
+    assert response.status_code == 503
