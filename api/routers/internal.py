@@ -160,6 +160,9 @@ async def backtest_complete(
 
     from api.routers.backtest import store_offloaded_result
 
+    # Persist to DB for durability (survives future dyno restarts)
+    _update_backtest_job_db(body.job_id, body.status, body.result_json, body.error)
+
     if body.status == "complete" and body.result_json:
         try:
             from api.schemas import BacktestResponse
@@ -173,3 +176,22 @@ async def backtest_complete(
         store_offloaded_result(body.job_id, RuntimeError(body.error or "Backtest failed on runner"))
 
     return {"status": "received"}
+
+
+def _update_backtest_job_db(job_id: str, status: str, result_json: Optional[str], error: Optional[str]) -> None:
+    try:
+        from api.models import BacktestJob
+        db = SessionLocal()
+        try:
+            job = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
+            if job:
+                job.status = status
+                job.completed_at = datetime.now(timezone.utc)
+                job.result_json = result_json
+                job.error = error
+                db.commit()
+                log.info("Updated backtest job %s in DB (status=%s)", job_id, status)
+        finally:
+            db.close()
+    except Exception as exc:
+        log.warning("Failed to update backtest job %s in DB: %s", job_id, exc)

@@ -116,6 +116,12 @@ export type BacktestResponse = {
   metadata: Record<string, unknown>;
 };
 
+export type BacktestSubmitResponse = {
+  status: string;
+  job_id: string;
+  is_cloud_run: boolean;
+};
+
 export type ParamSpec = {
   key: string;
   label: string;
@@ -243,30 +249,15 @@ export const api = {
     validateSymbol: (symbol: string) => apiFetch<{ valid: boolean; reason?: string; exchange?: string }>(`/api/utils/validate_symbol?symbol=${encodeURIComponent(symbol)}`),
   },
   backtest: {
-    run: async (req: BacktestRequest, jobId: string, signal?: AbortSignal): Promise<BacktestResponse> => {
-      // 1. Submit the backtest job
-      await apiFetch<{ job_id: string; status: string }>(`/api/backtest?job_id=${jobId}`, {
+    submit: (req: BacktestRequest, jobId: string, signal?: AbortSignal) =>
+      apiFetch<BacktestSubmitResponse>(`/api/backtest?job_id=${jobId}`, {
         method: "POST",
         body: req,
         signal,
-      });
+      }),
 
-      // 2. Poll for the result
-      while (true) {
-        if (signal?.aborted) {
-          throw new Error("Aborted");
-        }
-
-        // Wait 1 second before polling
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const pollRes = await apiFetch<any>(`/api/backtest/result/${jobId}`, { signal });
-        if (pollRes.status === "running") {
-          continue;
-        }
-        return pollRes as BacktestResponse;
-      }
-    },
+    pollResult: (jobId: string, signal?: AbortSignal) =>
+      apiFetch<any>(`/api/backtest/result/${jobId}`, { signal }),
   },
 
   predict: {
