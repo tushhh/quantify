@@ -37,6 +37,13 @@ class JobCompletePayload(BaseModel):
     error: Optional[str] = None
 
 
+class BacktestCompletePayload(BaseModel):
+    job_id: str
+    status: str  # "complete" or "failed"
+    result_json: Optional[str] = None  # serialized BacktestResponse JSON
+    error: Optional[str] = None
+
+
 @router.post("/trigger-screener")
 async def trigger_screener(
     body: TriggerScreenerRequest,
@@ -140,3 +147,51 @@ async def job_complete(
             log.error("Failed to send Telegram notification: %s", e)
 
     return {"status": "received"}
+
+
+@router.post("/backtest-complete")
+async def backtest_complete(
+    body: BacktestCompletePayload,
+    x_internal_secret: Optional[str] = Header(None),
+):
+    """Receive a backtest result from the GitHub Actions runner and store it so
+    the frontend's /api/backtest/result/{job_id} polling can serve it."""
+    _verify_secret(x_internal_secret)
+
+    from api.routers.backtest import store_offloaded_result
+
+    # Persist to DB for durability (survives future dyno restarts)
+    _update_backtest_job_db(body.job_id, body.status, body.result_json, body.error)
+
+    if body.status == "complete" and body.result_json:
+        try:
+            from api.schemas import BacktestResponse
+            result = BacktestResponse(**json.loads(body.result_json))
+            store_offloaded_result(body.job_id, result)
+            log.info("Stored offloaded backtest result for job_id=%s", body.job_id)
+        except Exception as e:
+            log.exception("Failed to parse offloaded backtest result: %s", e)
+            store_offloaded_result(body.job_id, RuntimeError(f"Result parse error: {e}"))
+    else:
+        store_offloaded_result(body.job_id, RuntimeError(body.error or "Backtest failed on runner"))
+
+    return {"status": "received"}
+
+
+def _update_backtest_job_db(job_id: str, status: str, result_json: Optional[str], error: Optional[str]) -> None:
+    try:
+        from api.models import BacktestJob
+        db = SessionLocal()
+        try:
+            job = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
+            if job:
+                job.status = status
+                job.completed_at = datetime.now(timezone.utc)
+                job.result_json = result_json
+                job.error = error
+                db.commit()
+                log.info("Updated backtest job %s in DB (status=%s)", job_id, status)
+        finally:
+            db.close()
+    except Exception as exc:
+        log.warning("Failed to update backtest job %s in DB: %s", job_id, exc)
