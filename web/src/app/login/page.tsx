@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TrendingUp, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
@@ -43,8 +43,9 @@ export default function LoginPage() {
 
         <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-2xl shadow-black/40">
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/30">
-              <TrendingUp size={28} className="text-[var(--color-text-inverse)]" />
+            <div className="relative flex items-center justify-center">
+              <div className="absolute w-32 h-32 rounded-full bg-[var(--color-accent)] opacity-20 blur-2xl" />
+              <img src="/logo-emblem.png" alt="Quantify" className="h-20 w-20 object-contain relative" />
             </div>
           </div>
 

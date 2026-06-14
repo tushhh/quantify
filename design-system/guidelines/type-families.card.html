@@ -1,0 +1,31 @@
+<!-- @dsCard group="Type" viewport="700x180" name="Families" subtitle="Geist (UI) + Geist Mono (numerics)" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); color: var(--color-text-primary); }
+  .row { display: flex; gap: 14px; }
+  .panel { flex: 1; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .lab { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .08em; }
+  .big { font-size: 30px; font-weight: 700; margin-top: 8px; letter-spacing: -0.02em; }
+  .glyphs { font-size: 13px; color: var(--color-text-secondary); margin-top: 6px; }
+  .mono { font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="panel">
+      <div class="lab">font-sans — Geist</div>
+      <div class="big">Aa Bb Cc 0123</div>
+      <div class="glyphs">The quick brown fox · 1234567890</div>
+    </div>
+    <div class="panel">
+      <div class="lab">font-mono — Geist Mono</div>
+      <div class="big mono">AAPL +1.84</div>
+      <div class="glyphs mono">z=−2.07 · $182.40 · 0123456789</div>
+    </div>
+  </div>
+</body>
+</html>

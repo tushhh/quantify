@@ -1,0 +1,35 @@
+<!-- @dsCard group="Brand" viewport="700x220" name="Logo" subtitle="Emblem mark + full lockup" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .row { display: flex; gap: 16px; align-items: stretch; }
+  .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .light { background: #F4F5F7; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--color-text-muted); text-align: center; margin-top: 8px; }
+  img { display: block; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div style="flex:0 0 150px;display:flex;flex-direction:column">
+      <div class="panel" style="flex:1;position:relative;overflow:hidden">
+        <div style="position:absolute;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle, rgba(47,141,186,0.28), rgba(47,141,186,0) 70%)"></div>
+        <img src="../assets/logo-emblem.png" height="96" alt="emblem on dark" style="position:relative">
+      </div>
+      <div class="cap">emblem · on dark</div>
+    </div>
+    <div style="flex:0 0 150px;display:flex;flex-direction:column">
+      <div class="panel light" style="flex:1"><img src="../assets/logo-emblem.png" height="96" alt="emblem on light"></div>
+      <div class="cap">emblem · on light</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column">
+      <div class="panel light" style="flex:1"><img src="../assets/logo-full.png" height="132" alt="full lockup"></div>
+      <div class="cap">full lockup · on light</div>
+    </div>
+  </div>
+</body>
+</html>
