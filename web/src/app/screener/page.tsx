@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles, RefreshCw, TrendingUp, TrendingDown, Clock, Database,
   AlertTriangle, Info, ArrowUpRight,
@@ -9,7 +9,7 @@ import { api, PredictionExplanation, PredictionResponse } from "@/lib/api";
 import { Card, CardHeader, Alert } from "@/components/ui";
 import Link from "next/link";
 
-const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 1d", "Drivers"];
+const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 21d", "Drivers"];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -125,18 +125,28 @@ export default function ScreenerPage() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [predictionMode, setPredictionMode] = useState<"live" | "previous_close">("previous_close");
 
+  // Use a ref for the polling timer so it doesn't destabilise useCallback identity
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isComputingRef = useRef(false);
+
   const fetchPredictions = useCallback(async function fetchPredictions(force = false, mode: "live" | "previous_close" = predictionMode) {
     setError(null);
     if (force) setForcing(true);
-    else if (!isComputing) setLoading(true);
+    else if (!isComputingRef.current) setLoading(true);
 
     try {
       const data = await api.predict.best(50, sectorFilter || undefined, force, mode);
       if (data.status === "computing") {
         setIsComputing(true);
-        setTimeout(() => fetchPredictions(false), 10000);
+        isComputingRef.current = true;
+        // Don't overwrite result with the computing response (it has no signals)
+        // Schedule a poll — clear any prior timer first
+        if (pollingRef.current) clearTimeout(pollingRef.current);
+        pollingRef.current = setTimeout(() => fetchPredictions(false, mode), 10000);
       } else {
         setIsComputing(false);
+        isComputingRef.current = false;
+        if (pollingRef.current) { clearTimeout(pollingRef.current); pollingRef.current = null; }
         setResult(data);
         setHasLoaded(true);
         setLoading(false);
@@ -145,10 +155,13 @@ export default function ScreenerPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load predictions. Please try again.");
       setIsComputing(false);
+      isComputingRef.current = false;
       setLoading(false);
       setForcing(false);
     }
-  }, [predictionMode, sectorFilter, isComputing]);
+  // NOTE: isComputing intentionally excluded to prevent re-render loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predictionMode, sectorFilter]);
 
   const handleModeChange = useCallback((nextMode: "live" | "previous_close") => {
     if (nextMode === predictionMode) return;
@@ -158,7 +171,10 @@ export default function ScreenerPage() {
 
   useEffect(() => {
     fetchPredictions(false);
-  }, [fetchPredictions]);
+    return () => { if (pollingRef.current) clearTimeout(pollingRef.current); };
+  // Run once on mount + when predictionMode/sectorFilter change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predictionMode, sectorFilter]);
 
   useEffect(() => {
     api.predict.sectors().then(setSectors).catch(() => {});
@@ -200,7 +216,7 @@ export default function ScreenerPage() {
               Ranked S&P 500 signals for the next trading day, with drivers pulled from the top ML features.
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
-              {["3Y history", "Top/Bottom decile", "1D horizon", "S&P 500 only"].map((chip) => (
+              {["3Y history", "Top/Bottom decile", "21D horizon", "S&P 500 only"].map((chip) => (
                 <span key={chip} className="text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--color-surface)]/80 text-[var(--color-text-secondary)]">
                   {chip}
                 </span>
@@ -412,7 +428,7 @@ export default function ScreenerPage() {
             <Card variant="compact">
               <CardHeader title="How it works" density="compact" />
               <div className="flex flex-col gap-3 text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500, then predicts each stock&apos;s 1-day forward return.</p>
+                <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500, then predicts each stock&apos;s 21-day forward return.</p>
                 <p>Stocks are ranked by predicted return, and the <strong className="text-[var(--color-text-primary)]">top decile → Long</strong>, <strong className="text-[var(--color-text-primary)]">bottom decile → Short</strong>.</p>
                 <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
                 <p>Results are <strong className="text-[var(--color-text-primary)]">cached daily</strong>. Use Re-run to get fresh signals.</p>
@@ -453,7 +469,7 @@ export default function ScreenerPage() {
                       <span className={`font-mono font-semibold ${
                         s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
                       }`}>
-                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 1d
+                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 21d
                       </span>
                       <span className="text-[var(--color-text-secondary)]">Strength {Math.abs(s.strength).toFixed(2)}</span>
                     </div>
@@ -488,7 +504,7 @@ export default function ScreenerPage() {
                       {TABLE_HEADERS.map((h) => (
                         <div
                           key={h}
-                          className={`whitespace-nowrap ${h === "Return 1d" ? "text-center justify-self-center" : ""}`}
+                          className={`whitespace-nowrap ${h === "Return 21d" ? "text-center justify-self-center" : ""}`}
                         >
                           {h}
                         </div>
