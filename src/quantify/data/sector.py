@@ -167,7 +167,7 @@ def add_sector_rs_features(
             stock_close = df["close"]
             for n in horizons:
                 stock_ret = stock_close.pct_change(n)
-                etf_ret = etf_returns[etf][n].reindex(df.index)
+                etf_ret = etf_returns[etf][n].reindex(df.index, method="ffill")
                 df[f"sector_rs_{n}d"] = stock_ret - etf_ret
 
         result[sym] = df
