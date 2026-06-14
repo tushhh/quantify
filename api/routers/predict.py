@@ -4,7 +4,7 @@ import os
 import time
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional, Literal
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from api.schemas import PredictionResponse, PredictionItem
