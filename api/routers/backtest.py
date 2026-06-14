@@ -541,15 +541,10 @@ def _should_offload(req: BacktestRequest, offload: Optional[bool]) -> bool:
         return False
     if offload is not None:
         return offload
-    if os.getenv("BACKTEST_OFFLOAD_AUTO", "").strip().lower() not in {"1", "true", "yes", "on"}:
-        return False
-    # Heuristic for "heavy": a large custom universe, or a long window with the
-    # ML strategy enabled (its per-window work dominates memory/CPU).
-    ml_cfg = req.strategies.get("ml_return_predictor")
-    ml_on = ml_cfg.enabled if ml_cfg else True
-    span_days = (req.end_date - req.start_date).days
-    big_universe = bool(req.universe) and len(req.universe) > 60
-    return big_universe or (ml_on and span_days > 365 * 2)
+    if os.getenv("BACKTEST_OFFLOAD_AUTO", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return True
+        
+    return False
 
 
 def _dispatch_backtest_workflow(req: BacktestRequest, job_id: str) -> bool:
