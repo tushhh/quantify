@@ -29,24 +29,23 @@ export default function Topbar({ title }: { title?: string }) {
         >
           <Menu className="h-5 w-5 text-[var(--color-text-secondary)]" />
         </button>
-        <h2 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)] truncate">{inferredTitle}</h2>
+        <h2 className="hidden md:block text-sm sm:text-base font-semibold text-[var(--color-text-primary)] truncate">{inferredTitle}</h2>
       </div>
 
       {/* Centered brand logo — absolutely positioned so it stays optically
-          centered regardless of the left/right content widths. */}
+          centered regardless of the left/right content widths. The navy
+          wordmark sits on a subtle light chip so it stays legible on the dark
+          theme. */}
       <Link
         href="/"
         aria-label="Quantify home"
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 transition-opacity hover:opacity-80"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center rounded-lg bg-white px-2.5 py-1 shadow-sm ring-1 ring-black/5 transition-opacity hover:opacity-90 max-w-[44%] md:max-w-none"
       >
         <img
-          src="/logo-emblem.png"
+          src="/logo-header.png"
           alt="Quantify"
-          className="h-7 w-7 sm:h-8 sm:w-8 object-contain"
+          className="h-5 sm:h-6 w-auto max-w-full object-contain"
         />
-        <span className="hidden sm:inline text-sm font-semibold tracking-wide text-[var(--color-text-primary)]">
-          Quantify
-        </span>
       </Link>
 
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
