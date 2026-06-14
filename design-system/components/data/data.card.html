@@ -1,0 +1,48 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Data — ML signals" subtitle="PredictionRow · DriverPill" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body { margin: 0; padding: 22px; background: var(--color-bg); font-family: var(--font-sans); }
+  .lab { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-muted); margin: 0 0 8px; }
+  .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .head { display:grid; grid-template-columns: 40px 1fr auto auto; gap:16px; padding: 9px 18px; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); background: var(--color-surface-raised); }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; margin-top: 16px; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { PredictionRow, DriverPill } = window.QuantifyDesignSystem_90f900;
+  const rows = [
+    { rank:1, symbol:"NVDA", side:"long", predictedReturnPct:2.41, strength:0.182, drivers:[{feature:"mom_12_1",zscore:2.07,direction:"higher"},{feature:"rsi_14",zscore:1.2,direction:"higher"}] },
+    { rank:2, symbol:"AAPL", side:"long", predictedReturnPct:1.06, strength:0.094, drivers:[{feature:"vol_20",zscore:-1.4,direction:"lower"},{feature:"ev_ebitda",zscore:0.9,direction:"higher"}] },
+    { rank:3, symbol:"INTC", side:"short", predictedReturnPct:-1.73, strength:-0.121, drivers:[{feature:"trend_adx",zscore:-1.9,direction:"lower"},{feature:"roe",zscore:-1.1,direction:"lower"}] },
+  ];
+  function Demo() {
+    return (
+      <div>
+        <p className="lab">PredictionRow — today's picks</p>
+        <div className="panel">
+          <div className="head"><span>Rank</span><span>Symbol</span><span>Signal</span><span style={{textAlign:'right'}}>Strength</span></div>
+          {rows.map(r => <PredictionRow key={r.symbol} {...r} onClick={()=>{}} />)}
+        </div>
+        <p className="lab" style={{marginTop:18}}>DriverPill</p>
+        <div className="pills">
+          <DriverPill feature="mom_12_1" zscore={2.07} direction="higher" />
+          <DriverPill feature="rsi_14" zscore={-1.84} direction="lower" />
+          <DriverPill feature="ev_ebitda" zscore={0.92} direction="higher" />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script>
+</body>
+</html>

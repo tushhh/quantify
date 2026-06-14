@@ -1,0 +1,40 @@
+<!-- @dsCard group="Colors" viewport="700x200" name="Semantic / status" subtitle="Gains, losses, caution, info — with subtle tints" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--color-bg); font-family: var(--font-sans); }
+  .row { display: flex; gap: 14px; }
+  .sw { flex: 1; }
+  .chip { height: 54px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+  .pill { margin-top: 10px; border-radius: var(--radius-full); padding: 6px 10px; font-size: 11px; font-weight: 600; text-align: center; border: 1px solid transparent; }
+  .name { font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono); margin-top: 8px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw">
+      <div class="chip" style="background:var(--color-success);color:#04140d">+2.41%</div>
+      <div class="pill" style="background:var(--color-success-subtle);color:var(--color-success);border-color:var(--color-success)">LONG</div>
+      <div class="name">success</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:var(--color-danger);color:#1a0608">−1.07%</div>
+      <div class="pill" style="background:var(--color-danger-subtle);color:var(--color-danger);border-color:var(--color-danger)">SHORT</div>
+      <div class="name">danger</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:var(--color-warning);color:#1a1304">RISK</div>
+      <div class="pill" style="background:var(--color-warning-subtle);color:var(--color-warning);border-color:var(--color-warning)">DRAWDOWN</div>
+      <div class="name">warning</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:var(--color-info);color:#04101f">INFO</div>
+      <div class="pill" style="background:var(--color-info-subtle);color:var(--color-info);border-color:var(--color-info)">PAPER</div>
+      <div class="name">info</div>
+    </div>
+  </div>
+</body>
+</html>
