@@ -168,7 +168,7 @@ def run_screener(
     for s in longs + shorts:
         meta = s.metadata or {}
         pred_return = meta.get(
-            "predicted_return_1d", meta.get("predicted_return_5d", 0.0)
+            "predicted_return_21d", meta.get("predicted_return_5d", 0.0)
         )
         items.append({
             "symbol": s.symbol,

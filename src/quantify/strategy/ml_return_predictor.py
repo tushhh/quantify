@@ -1015,8 +1015,8 @@ class MLReturnPredictorStrategy(Strategy):
                 strength = 0.0
 
             meta: dict[str, Any] = {
-                "predicted_return_1d": round(pred_ret, 6),
-                "predicted_return_1d_centered": round(float(pred_for_rank[symbol]), 6),
+                "predicted_return_21d": round(pred_ret, 6),
+                "predicted_return_21d_centered": round(float(pred_for_rank[symbol]), 6),
                 "percentile_rank": round(float(pct_rank), 4),
                 "last_train_date": (
                     self._last_train_date.isoformat(timespec="seconds")

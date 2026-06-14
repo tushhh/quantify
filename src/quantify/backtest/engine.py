@@ -638,11 +638,16 @@ class BacktestEngine:
             # Drop zero-price rows
             df = df[(df["close"] > 0) & (df["open"] > 0)]
 
-            # Apply date range filter
+            # Apply date range filter using tz-aware Timestamps to avoid
+            # "Cannot compare dtypes datetime64[s, UTC] and datetime64[s]"
+            # when the index is UTC-localised (as YFinanceProvider produces).
             if self.start_date is not None:
-                df = df[df.index.date >= self.start_date]
+                start_ts = pd.Timestamp(self.start_date, tz="UTC")
+                df = df[df.index >= start_ts]
             if self.end_date is not None:
-                df = df[df.index.date <= self.end_date]
+                # Include the entire end_date day (up to 23:59:59.999…)
+                end_ts = pd.Timestamp(self.end_date, tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+                df = df[df.index <= end_ts]
 
             if df.empty:
                 log.warning("Symbol %s has no data after filtering — skipping", symbol)

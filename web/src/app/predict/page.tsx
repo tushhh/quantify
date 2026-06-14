@@ -9,7 +9,7 @@ import { api, PredictionExplanation, PredictionResponse } from "@/lib/api";
 import { Card, CardHeader, Alert } from "@/components/ui";
 import Link from "next/link";
 
-const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 1d", "Drivers"];
+const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 21d", "Drivers"];
 
 function StrengthBar({ value, side }: { value: number; side: string }) {
   const pct = Math.abs(value) * 100;
@@ -216,7 +216,7 @@ export default function PredictPage() {
               Ranked S&P 500 signals for the next trading day, with drivers pulled from the top ML features.
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
-              {["3Y history", "Top/Bottom decile", "1D horizon", "S&P 500 only"].map((chip) => (
+              {["3Y history", "Top/Bottom decile", "21D horizon", "S&P 500 only"].map((chip) => (
                 <span key={chip} className="text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
                   {chip}
                 </span>
@@ -420,7 +420,7 @@ export default function PredictPage() {
             <Card variant="compact">
               <CardHeader title="How it works" density="compact" />
               <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
-                <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500, then predicts each stock&apos;s 1-day forward return.</p>
+                <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500, then predicts each stock&apos;s 21-day forward return.</p>
                 <p>Stocks are ranked by predicted return, and the <strong className="text-[var(--color-text-secondary)]">top decile → Long</strong>, <strong className="text-[var(--color-text-secondary)]">bottom decile → Short</strong>.</p>
                 <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
                 <p>Results are <strong className="text-[var(--color-text-secondary)]">cached daily</strong>. Use Re-run to get fresh signals.</p>
@@ -460,7 +460,7 @@ export default function PredictPage() {
                       <span className={`font-mono font-semibold ${
                         s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
                       }`}>
-                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 1d
+                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 21d
                       </span>
                       <span className="text-[var(--color-text-muted)]">Strength {Math.abs(s.strength).toFixed(2)}</span>
                     </div>
@@ -493,7 +493,7 @@ export default function PredictPage() {
                       {TABLE_HEADERS.map((h) => (
                         <div
                           key={h}
-                          className={`whitespace-nowrap ${h === "Return 1d" ? "text-center justify-self-center" : ""}`}
+                          className={`whitespace-nowrap ${h === "Return 21d" ? "text-center justify-self-center" : ""}`}
                         >
                           {h}
                         </div>

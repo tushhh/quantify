@@ -122,7 +122,7 @@ strategies:
     enabled: true
     allocation: 0.15
     model: stacking_ensemble        # stacking (lgbm+xgb+catboost+ridge) | lightgbm | random_forest
-    target_horizon_days: 5          # forward return prediction horizon
+    target_horizon_days: 21          # forward return prediction horizon
     train_years: 3                  # rolling training window
     retrain_frequency: monthly      # daily | weekly | monthly
     use_rank_target: true           # cross-sectional rank target (removes market beta noise)

@@ -257,7 +257,7 @@ def format_prediction_msg(signal: PredictionItem) -> str:
         f"📊 <b>ML Prediction for {signal.symbol} ({signal.name})</b>\n\n"
         f"• <b>Signal:</b> {side_word}\n"
         f"• <b>Strength:</b> {signal.strength:.2%}\n"
-        f"• <b>Predicted 1d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
+        f"• <b>Predicted 21d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
         f"• <b>Sector:</b> {signal.sector}\n"
     )
 
@@ -562,14 +562,14 @@ async def broadcast_predictions(result=None):
             "🟢 <b>Top Long Predictions (Buy)</b>\n"
         )
         for i, s in enumerate(longs[:5], 1):
-            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
+            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 21d | Strength: {s.strength:.2%}\n"
             summary = build_plain_summary(s.side, s.explanations)
             if summary:
                 msg += f"   <i>{summary}</i>\n"
 
         msg += "\n🔴 <b>Top Short Predictions (Sell)</b>\n"
         for i, s in enumerate(shorts[:5], 1):
-            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 1d | Strength: {s.strength:.2%}\n"
+            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 21d | Strength: {s.strength:.2%}\n"
             summary = build_plain_summary(s.side, s.explanations)
             if summary:
                 msg += f"   <i>{summary}</i>\n"

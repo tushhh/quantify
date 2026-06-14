@@ -416,8 +416,8 @@ def test_ml_predictor_signal_strength_matches_direction():
     assert short_signal.strength < 0.0
     assert long_signal.direction == "long"
     assert long_signal.strength > 0.0
-    assert short_signal.metadata["predicted_return_1d"] == 0.1
-    assert long_signal.metadata["predicted_return_1d"] == 0.4
+    assert short_signal.metadata["predicted_return_21d"] == 0.1
+    assert long_signal.metadata["predicted_return_21d"] == 0.4
 
 
 def test_ml_predictor_defaults_to_sp500_only():
