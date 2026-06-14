@@ -128,9 +128,11 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         "volatility_regime": 0.10,
     }
 
+    import inspect
+
     instances = []
     failed_strategies = []
-    
+
     for name, cls in STRATEGY_MAP.items():
         cfg = req.strategies.get(name)
         enabled = cfg.enabled if cfg else DEFAULT_ENABLED[name]
@@ -138,11 +140,30 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
             log.debug(f"Strategy {name} is disabled")
             continue
         allocation = cfg.allocation if cfg else DEFAULT_ALLOCATION[name]
-        extra_params = cfg.params if cfg else {}
+        # Copy so we never mutate the request object's params dict.
+        extra_params = dict(cfg.params) if cfg and cfg.params else {}
 
         # Ensure allocation and enabled are not in extra_params
         extra_params.pop("allocation", None)
         extra_params.pop("enabled", None)
+
+        # Defensively drop any params the constructor does not accept. The UI
+        # advertises a curated param set per strategy, but this guarantees a
+        # stray or renamed key can never crash the whole backtest with a 400.
+        try:
+            sig = inspect.signature(cls.__init__)
+            accepts_kwargs = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+            )
+            if not accepts_kwargs:
+                accepted = set(sig.parameters) - {"self"}
+                unknown = [k for k in extra_params if k not in accepted]
+                if unknown:
+                    log.warning("%s: ignoring unsupported params %s", name, unknown)
+                    for k in unknown:
+                        extra_params.pop(k, None)
+        except (TypeError, ValueError):
+            pass
 
         try:
             log.info(f"Instantiating {name} with allocation {allocation*100:.0f}% and params: {extra_params}")
