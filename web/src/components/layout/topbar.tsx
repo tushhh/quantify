@@ -33,19 +33,22 @@ export default function Topbar({ title }: { title?: string }) {
       </div>
 
       {/* Centered brand logo — absolutely positioned so it stays optically
-          centered regardless of the left/right content widths. The navy
-          wordmark sits on a subtle light chip so it stays legible on the dark
-          theme. */}
+          centered regardless of the left/right content widths. The emblem is a
+          transparent mark; the wordmark is live text in a single uniform weight
+          and theme-aware colour, so it stays crisp and legible on any theme. */}
       <Link
         href="/"
         aria-label="Quantify home"
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center rounded-lg bg-white px-2.5 py-1 shadow-sm ring-1 ring-black/5 transition-opacity hover:opacity-90 max-w-[44%] md:max-w-none"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 transition-opacity hover:opacity-80"
       >
         <img
-          src="/logo-header.png"
-          alt="Quantify"
-          className="h-5 sm:h-6 w-auto max-w-full object-contain"
+          src="/logo-emblem.png"
+          alt=""
+          className="h-6 w-6 sm:h-7 sm:w-7 object-contain"
         />
+        <span className="text-base sm:text-lg font-semibold tracking-tight text-[var(--color-text-primary)]">
+          Quantify
+        </span>
       </Link>
 
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">

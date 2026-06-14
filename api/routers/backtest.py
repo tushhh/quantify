@@ -8,9 +8,13 @@ GET  /api/backtest/stream  – SSE endpoint that streams log lines while running
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
+import os
 import queue
+import urllib.error
+import urllib.request
 from datetime import date
 from typing import Any, AsyncGenerator, Dict, Optional
 
@@ -266,6 +270,17 @@ def _calmar(annualized_return: float, max_drawdown: float) -> float:
     return annualized_return / max_drawdown
 
 
+def _finite(value: float, default: float = 0.0) -> float:
+    """Coerce NaN/inf metric values to a finite default. Degenerate runs (e.g.
+    no downside returns → NaN Sortino) must not emit non-finite floats, which
+    break strict JSON parsing in the browser and the offload round-trip."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    return v if math.isfinite(v) else default
+
+
 def _avg_holding(trades: list[dict]) -> float:
     import numpy as np
     days = [t.get("holding_days", 0) for t in trades if t.get("holding_days") is not None]
@@ -374,16 +389,16 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
     # ── Metrics ───────────────────────────────────────────────────────────
     log.info("Step 5/5: Computing metrics and serializing results…")
     metrics = BacktestMetrics(
-        total_return=round(result.total_return, 6),
-        annualized_return=round(result.annualized_return, 6),
-        sharpe_ratio=round(result.sharpe_ratio, 4),
-        sortino_ratio=round(_sortino(result.daily_returns), 4),
-        calmar_ratio=round(_calmar(result.annualized_return, result.max_drawdown), 4),
-        max_drawdown=round(result.max_drawdown, 6),
-        win_rate=round(result.win_rate, 4),
-        profit_factor=round(min(result.profit_factor, 999.0), 4),
+        total_return=round(_finite(result.total_return), 6),
+        annualized_return=round(_finite(result.annualized_return), 6),
+        sharpe_ratio=round(_finite(result.sharpe_ratio), 4),
+        sortino_ratio=round(_finite(_sortino(result.daily_returns)), 4),
+        calmar_ratio=round(_finite(_calmar(result.annualized_return, result.max_drawdown)), 4),
+        max_drawdown=round(_finite(result.max_drawdown), 6),
+        win_rate=round(_finite(result.win_rate), 4),
+        profit_factor=round(_finite(min(result.profit_factor, 999.0)), 4),
         total_trades=len(result.trades),
-        avg_holding_days=round(_avg_holding(result.trades), 1),
+        avg_holding_days=round(_finite(_avg_holding(result.trades)), 1),
     )
 
     # ── Trades ────────────────────────────────────────────────────────────
@@ -462,12 +477,89 @@ def _run_backtest_bg(req: BacktestRequest, job_id: str):
         _active_jobs.discard(job_id)
 
 
+# ---------------------------------------------------------------------------
+# Cloud offload — run heavy backtests on a GitHub Actions runner (far more
+# memory than a small dyno) and receive the result via an authenticated
+# callback. The result lands in _backtest_results so the existing
+# /result/{job_id} polling endpoint serves it with no client change.
+# ---------------------------------------------------------------------------
+
+def store_offloaded_result(job_id: str, result: Any) -> None:
+    """Persist a result produced by an offloaded (GitHub Actions) backtest so the
+    /result/{job_id} polling endpoint can serve it. `result` is a
+    BacktestResponse on success or an Exception on failure."""
+    _save_result(job_id, result)
+    _active_jobs.discard(job_id)
+
+
+def _offload_is_configured() -> bool:
+    repo = os.getenv("GITHUB_REPOSITORY")
+    token = os.getenv("GH_WORKFLOW_TOKEN") or os.getenv("GITHUB_TOKEN")
+    heroku_url = os.getenv("HEROKU_APP_URL", "").strip()
+    return bool(repo and token and heroku_url)
+
+
+def _should_offload(req: BacktestRequest, offload: Optional[bool]) -> bool:
+    """Decide whether to ship this run to GitHub Actions. An explicit `offload`
+    flag wins; otherwise auto-offload heavy runs when BACKTEST_OFFLOAD_AUTO is on.
+    Returns False unless offload is actually configured."""
+    if not _offload_is_configured():
+        return False
+    if offload is not None:
+        return offload
+    if os.getenv("BACKTEST_OFFLOAD_AUTO", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return False
+    # Heuristic for "heavy": a large custom universe, or a long window with the
+    # ML strategy enabled (its per-window work dominates memory/CPU).
+    ml_cfg = req.strategies.get("ml_return_predictor")
+    ml_on = ml_cfg.enabled if ml_cfg else True
+    span_days = (req.end_date - req.start_date).days
+    big_universe = bool(req.universe) and len(req.universe) > 60
+    return big_universe or (ml_on and span_days > 365 * 2)
+
+
+def _dispatch_backtest_workflow(req: BacktestRequest, job_id: str) -> bool:
+    """Trigger the backtest GitHub Actions workflow via workflow_dispatch.
+    Returns True on success; False if not configured or the dispatch failed
+    (caller falls back to in-process execution)."""
+    repo = os.getenv("GITHUB_REPOSITORY")
+    token = os.getenv("GH_WORKFLOW_TOKEN") or os.getenv("GITHUB_TOKEN")
+    heroku_url = os.getenv("HEROKU_APP_URL", "").rstrip("/")
+    secret = os.getenv("INTERNAL_API_SECRET", "")
+    if not (repo and token and heroku_url):
+        return False
+
+    inputs = {
+        "job_id": job_id,
+        "request_json": req.model_dump_json(),
+        "heroku_callback_url": f"{heroku_url}/api/internal/backtest-complete",
+        "internal_secret": secret,
+    }
+    payload = json.dumps({"ref": os.getenv("GH_WORKFLOW_REF", "main"), "inputs": inputs}).encode()
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/backtest.yml/dispatches"
+    gh_req = urllib.request.Request(url, data=payload, method="POST")
+    gh_req.add_header("Authorization", f"token {token}")
+    gh_req.add_header("Accept", "application/vnd.github.v3+json")
+    gh_req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(gh_req, timeout=10) as resp:
+            log.info("Dispatched backtest workflow for job_id=%s (HTTP %d)", job_id, resp.status)
+        return True
+    except urllib.error.HTTPError as e:
+        log.error("Failed to dispatch backtest workflow: HTTP %d — %s", e.code, e.read().decode()[:300])
+        return False
+    except Exception as e:
+        log.error("Failed to dispatch backtest workflow: %s", e)
+        return False
+
+
 @router.post("", response_model=Union[BacktestResponse, BacktestSubmitResponse])
 async def run_backtest(
     req: BacktestRequest,
     background_tasks: BackgroundTasks,
     job_id: str = "default",
     run_sync: bool = False,
+    offload: Optional[bool] = None,
 ) -> Union[BacktestResponse, BacktestSubmitResponse]:
     """
     Run a full backtest.
@@ -475,6 +567,11 @@ async def run_backtest(
     Accepts strategy configs, date range, capital, risk profile, and cost model.
     If run_sync is False (default), it runs in the background and returns a job_id.
     Clients poll /api/backtest/result/{job_id} to get the final results.
+
+    Heavy runs can be offloaded to a GitHub Actions runner (more memory than a
+    small dyno). Pass offload=true to force it, or set BACKTEST_OFFLOAD_AUTO=true
+    on the server to auto-offload heavy runs. Either way the client keeps polling
+    /result/{job_id}; the workflow POSTs the result back to the web process.
     """
     if run_sync:
         loop = asyncio.get_running_loop()
@@ -487,7 +584,18 @@ async def run_backtest(
             raise HTTPException(status_code=500, detail="An unhandled internal server error occurred.") from exc
         return response
 
-    # Async background task
+    # Offload heavy runs to GitHub Actions when requested/configured. Mark the
+    # job active first so /result/{job_id} returns "running" until the callback
+    # lands. Fall back to in-process execution if the dispatch fails.
+    if _should_offload(req, offload):
+        _active_jobs.add(job_id)
+        loop = asyncio.get_running_loop()
+        dispatched = await loop.run_in_executor(None, _dispatch_backtest_workflow, req, job_id)
+        if dispatched:
+            return BacktestSubmitResponse(status="running", job_id=job_id)
+        log.info("Backtest offload unavailable; running in-process for job_id=%s", job_id)
+
+    # Async background task (in-process)
     _active_jobs.add(job_id)
     background_tasks.add_task(_run_backtest_bg, req, job_id)
     return BacktestSubmitResponse(status="running", job_id=job_id)
