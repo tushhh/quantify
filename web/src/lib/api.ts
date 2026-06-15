@@ -238,6 +238,16 @@ export type TrackedTrade = TradeCreate & {
   aggregated?: boolean;
   prev_shares?: number;
   prev_buy_price?: number;
+  realized_pnl?: number | null;
+};
+
+export type PortfolioSummary = {
+  total_value: number;
+  total_invested: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  realized_pnl: number;
+  positions_count: number;
 };
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -293,7 +303,12 @@ export const api = {
     create: (req: TradeCreate) => apiFetch<TrackedTrade>("/api/trades", { method: "POST", body: req }),
     list: () => apiFetch<TrackedTrade[]>("/api/trades"),
     prices: () => apiFetch<Record<string, number | null>>("/api/trades/prices"),
-    close: (id: number) => apiFetch<{status: string}>(`/api/trades/${id}`, { method: "DELETE" }),
+    summary: () => apiFetch<PortfolioSummary>("/api/trades/portfolio-summary"),
+    close: (id: number, sellPrice?: number | null) =>
+      apiFetch<{ status: string }>(`/api/trades/${id}/close`, {
+        method: "POST",
+        body: { sell_price: sellPrice ?? null },
+      }),
     update: (id: number, req: TradeUpdate) =>
       apiFetch<TrackedTrade>(`/api/trades/${id}`, { method: "PATCH", body: req }),
     updateDipThreshold: (id: number, dip_threshold_pct: number | null) =>

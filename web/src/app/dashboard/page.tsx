@@ -8,7 +8,7 @@ import {
   AlertCircle, RotateCcw, Clock, DollarSign, Pencil, X, Check,
 } from "lucide-react";
 import Link from "next/link";
-import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TradeUpdate, type TickerInfo } from "@/lib/api";
+import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TradeUpdate, type TickerInfo, type PortfolioSummary } from "@/lib/api";
 import { Card, Badge, Alert } from "@/components/ui";
 
 function pct(v: number) {
@@ -69,6 +69,55 @@ function DriverPills({ items }: { items?: PredictionItem["explanations"] }) {
             <span className="text-[var(--color-text-muted)]">z={item.zscore.toFixed(2)}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+// ── Portfolio summary card ────────────────────────────────────────────────────
+function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
+  const unreal = summary.unrealized_pnl;
+  const real = summary.realized_pnl;
+  const unrealPct = summary.unrealized_pnl_pct * 100;
+  const isUnrealGain = unreal >= 0;
+  const isRealGain = real >= 0;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Portfolio value</p>
+        <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
+          {fmt$(summary.total_value)}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">
+          {summary.positions_count} position{summary.positions_count !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Total invested</p>
+        <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
+          {fmt$(summary.total_invested)}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">cost basis</p>
+      </div>
+
+      <div className={`rounded-2xl border p-3 ${isUnrealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Unrealized P&L</p>
+        <p className={`mt-1 text-base font-black tabular-nums ${isUnrealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {isUnrealGain ? "+" : "−"}{fmt$(Math.abs(unreal))}
+        </p>
+        <p className={`text-[10px] mt-0.5 tabular-nums ${isUnrealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {unrealPct >= 0 ? "+" : ""}{unrealPct.toFixed(2)}%
+        </p>
+      </div>
+
+      <div className={`rounded-2xl border p-3 ${isRealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : real === 0 ? "border-[var(--border)] bg-[var(--color-surface-raised)]" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Realized P&L</p>
+        <p className={`mt-1 text-base font-black tabular-nums ${real === 0 ? "text-[var(--color-text-secondary)]" : isRealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {real === 0 ? "$0.00" : `${isRealGain ? "+" : "−"}${fmt$(Math.abs(real))}`}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">closed trades</p>
+      </div>
     </div>
   );
 }
@@ -421,14 +470,20 @@ export default function DashboardPage() {
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [symbolIndex, setSymbolIndex] = useState(0);
 
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+
   const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
   const topPredictions = predictions.slice(0, 3);
 
   const loadPrices = useCallback(async () => {
     setLoadingPrices(true);
     try {
-      const p = await api.trades.prices();
+      const [p, s] = await Promise.all([
+        api.trades.prices(),
+        api.trades.summary().catch(() => null),
+      ]);
       setPrices(p);
+      if (s) setSummary(s);
       setLastPriceUpdate(new Date());
     } catch {
       // prices are supplemental; silently skip
@@ -593,7 +648,9 @@ export default function DashboardPage() {
 
   const handleCloseTrade = async (id: number) => {
     try {
-      await api.trades.close(id);
+      const trade = trades.find((t) => t.id === id);
+      const sellPrice = trade ? (prices[trade.symbol] ?? null) : null;
+      await api.trades.close(id, sellPrice);
       loadTrades();
     } catch (e) {
       console.error(e);
@@ -1039,6 +1096,11 @@ export default function DashboardPage() {
               </button>
             </form>
           </Card>
+
+          {/* Portfolio summary */}
+          {summary && summary.positions_count > 0 && (
+            <PortfolioSummaryCard summary={summary} />
+          )}
 
           {/* Active positions */}
           <div className="flex flex-col gap-3">
