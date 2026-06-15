@@ -380,7 +380,11 @@ async def portfolio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ).all()
 
         symbols = list({t.symbol for t in active})
-        prices = fetch_latest_prices(symbols) if symbols else {}
+        if symbols:
+            loop = asyncio.get_running_loop()
+            prices = await loop.run_in_executor(None, fetch_latest_prices, symbols)
+        else:
+            prices = {}
 
         from api.trade_service import get_portfolio_summary
         summary = get_portfolio_summary(db, user.id, prices)
@@ -448,8 +452,14 @@ async def check_alerts_loop():
             else:
                 horizon_days[trade.symbol] = trade.hold_days
 
-        health_results = evaluate_hold_health(symbols, horizon_days, now=now)
-        prices = fetch_latest_prices(list({s.upper() for s in symbols}))
+        # Both calls below make blocking network requests; run them off the event
+        # loop so bot polling stays responsive while the 3-hourly check runs.
+        loop = asyncio.get_running_loop()
+        health_results = await loop.run_in_executor(
+            None, lambda: evaluate_hold_health(symbols, horizon_days, now=now)
+        )
+        unique_symbols = list({s.upper() for s in symbols})
+        prices = await loop.run_in_executor(None, fetch_latest_prices, unique_symbols)
 
         for trade in active_trades:
             user = db.query(User).filter(User.id == trade.user_id).first()

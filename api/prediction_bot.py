@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import logging
 import asyncio
 import urllib.request
@@ -640,7 +641,10 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
         line = f"   {emoji} <b>{s.news.label}</b>"
         if s.news.headlines:
-            line += f" · <i>{s.news.headlines[0][:80]}</i>"
+            # Headlines come from yfinance and routinely contain &, <, > — escape
+            # them or Telegram's HTML parser rejects the whole message.
+            escaped = html.escape(s.news.headlines[0][:80])
+            line += f" · <i>{escaped}</i>"
         return line + "\n"
 
     msg = (
