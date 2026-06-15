@@ -152,6 +152,10 @@ def fetch_news_sentiment(
     if not symbols:
         return {}
 
+    # De-duplicate (preserving order) so the same ticker isn't fetched twice and
+    # two worker threads can't race writing the same cache file.
+    symbols = list(dict.fromkeys(symbols))
+
     # Initialise VADER once (the lexicon download is not concurrency-safe) and
     # share the analyzer across worker threads — polarity_scores is read-only.
     try:

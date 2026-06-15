@@ -299,16 +299,19 @@ async def update_trade(
             raise HTTPException(status_code=400, detail="buy_price must be > 0")
         trade.buy_price = req.buy_price
 
-    if req.hold_value is not None and req.hold_unit is not None:
-        hu = req.hold_unit.strip().lower()
+    if req.hold_value is not None or req.hold_unit is not None:
+        # Fall back to the trade's current values when only one field is sent,
+        # so a partial update doesn't silently no-op.
+        hu = (req.hold_unit or trade.hold_unit or "days").strip().lower()
+        hv = req.hold_value if req.hold_value is not None else (trade.hold_value or trade.hold_days or 30)
         if hu not in {"days", "months", "years"}:
             raise HTTPException(status_code=400, detail="hold_unit must be days, months, or years")
-        if req.hold_value <= 0:
+        if hv <= 0:
             raise HTTPException(status_code=400, detail="hold_value must be > 0")
-        hd = hold_days_from_unit(req.hold_value, hu)
+        hd = hold_days_from_unit(hv, hu)
         trade.hold_days = hd
         trade.hold_unit = hu
-        trade.hold_value = req.hold_value
+        trade.hold_value = hv
         trade.sell_date = _ensure_utc(trade.created_at) + timedelta(days=hd)
     elif req.hold_days is not None:
         if req.hold_days <= 0:
@@ -318,7 +321,9 @@ async def update_trade(
         trade.hold_value = req.hold_days
         trade.sell_date = _ensure_utc(trade.created_at) + timedelta(days=req.hold_days)
 
-    if req.dip_threshold_pct is not None:
+    if "dip_threshold_pct" in req.model_fields_set:
+        # Only touch the threshold when the client explicitly sends the field, so
+        # passing null can disable it (rather than being indistinguishable from omission).
         dip = _validate_dip_threshold(req.dip_threshold_pct)
         if dip is not None and dip <= 0:
             dip = None

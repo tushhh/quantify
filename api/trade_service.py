@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.models import Trade as DBTrade
@@ -125,9 +126,12 @@ def get_portfolio_summary(
         DBTrade.status == "active",
     ).all()
 
-    realized_pnl = sum(
-        (t.realized_pnl or 0.0)
-        for t in db.query(DBTrade).filter(DBTrade.user_id == user_id).all()
+    # Aggregate realized P&L in the database rather than loading every trade row.
+    realized_pnl = (
+        db.query(func.sum(DBTrade.realized_pnl))
+        .filter(DBTrade.user_id == user_id)
+        .scalar()
+        or 0.0
     )
 
     total_invested = 0.0
