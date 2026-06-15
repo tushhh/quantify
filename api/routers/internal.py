@@ -123,8 +123,15 @@ async def job_complete(
         if body.status == "complete" and body.result_json:
             try:
                 from api.schemas import PredictionResponse
-                from api.routers.predict import update_memory_cache
+                from api.routers.predict import update_memory_cache, _get_ticker_name
                 result = PredictionResponse(**json.loads(body.result_json))
+                # Screener stores ticker symbol as the name field; enrich it here
+                # so /top and /bottom show company names rather than echoing the ticker.
+                enriched = [
+                    sig.model_copy(update={"name": _get_ticker_name(sig.symbol)})
+                    for sig in result.signals
+                ]
+                result = result.model_copy(update={"signals": enriched})
                 update_memory_cache("previous_close", result)
             except Exception as e:
                 log.warning("Could not persist screener results to main cache: %s", e)
