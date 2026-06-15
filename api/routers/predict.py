@@ -282,11 +282,12 @@ def _fetch_screener_results_from_github() -> Optional[PredictionResponse]:
         
         now_utc = datetime.now(timezone.utc)
         session_date = _latest_completed_session_date(now_utc)
-        
+        result_date = data.get("date") or session_date.strftime("%Y-%m-%d")
+
         return PredictionResponse(
             status="ok",
             mode="previous_close",
-            date=session_date.strftime("%Y-%m-%d"),
+            date=result_date,
             signals=items,
             cached=True,
             cache_age_minutes=0.0,
