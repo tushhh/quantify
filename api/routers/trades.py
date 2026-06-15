@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from api.schemas import TrackedTrade, TradeCreate, TradeDipUpdate
+from api.schemas import TrackedTrade, TradeCreate, TradeDipUpdate, TradeUpdate
 from api.database import get_db
 from api.models import Trade as DBTrade, User as DBUser
 from api.routers.auth import get_current_user
@@ -69,6 +69,57 @@ async def create_trade(
         raise HTTPException(status_code=500, detail="Symbol validation failed")
     if not valid:
         raise HTTPException(status_code=400, detail=f"Invalid symbol or not US-listed: {sym} ({meta})")
+
+    # Aggregate into existing active position for the same symbol
+    existing = db.query(DBTrade).filter(
+        DBTrade.user_id == current_user.id,
+        DBTrade.symbol == sym,
+        DBTrade.status == "active",
+    ).first()
+
+    if existing:
+        prev_shares = existing.shares
+        prev_buy_price = existing.buy_price
+        new_total_shares = existing.shares + req.shares
+        new_avg_price = (existing.shares * existing.buy_price + req.shares * req.buy_price) / new_total_shares
+        existing.shares = new_total_shares
+        existing.buy_price = round(new_avg_price, 6)
+        existing.hold_days = hold_days
+        existing.hold_unit = hold_unit
+        existing.hold_value = hold_value
+        existing.sell_date = _ensure_utc(existing.created_at) + timedelta(days=hold_days)
+        if dip_threshold_pct is not None:
+            existing.dip_threshold_pct = dip_threshold_pct
+        db.commit()
+        db.refresh(existing)
+
+        if current_user.telegram_username:
+            from api.telegram_bot import send_telegram_alert
+            msg = (
+                f"✅ POSITION UPDATED: Added {req.shares} shares of {sym} at ${req.buy_price:.2f}.\n\n"
+                f"New position: {existing.shares} shares @ ${existing.buy_price:.2f} avg.\n"
+                f"New hold target: {hold_value} {hold_unit}.\n"
+                f"Sell target: {existing.sell_date.strftime('%Y-%m-%d')}."
+            )
+            background_tasks.add_task(send_telegram_alert, current_user.telegram_username, msg)
+
+        sell_utc = _ensure_utc(existing.sell_date)
+        return TrackedTrade(
+            id=existing.id,
+            symbol=existing.symbol,
+            shares=existing.shares,
+            buy_price=existing.buy_price,
+            hold_days=existing.hold_days,
+            hold_unit=existing.hold_unit,
+            hold_value=existing.hold_value,
+            dip_threshold_pct=existing.dip_threshold_pct,
+            created_at=existing.created_at.isoformat(),
+            sell_date=sell_utc.isoformat(),
+            status=existing.status,
+            aggregated=True,
+            prev_shares=prev_shares,
+            prev_buy_price=round(prev_buy_price, 6),
+        )
 
     db_trade = DBTrade(
         user_id=current_user.id,
@@ -217,6 +268,80 @@ async def get_trade_prices(
     loop = asyncio.get_running_loop()
     prices = await loop.run_in_executor(None, fetch_latest_prices, symbols)
     return prices
+
+
+@router.patch("/{trade_id}", response_model=TrackedTrade)
+async def update_trade(
+    trade_id: int,
+    req: TradeUpdate,
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user),
+):
+    """Update shares, price, or hold duration for an existing trade."""
+    trade = db.query(DBTrade).filter(
+        DBTrade.id == trade_id,
+        DBTrade.user_id == current_user.id,
+    ).first()
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found")
+
+    if req.shares is not None:
+        if req.shares <= 0:
+            raise HTTPException(status_code=400, detail="shares must be > 0")
+        trade.shares = req.shares
+
+    if req.buy_price is not None:
+        if req.buy_price <= 0:
+            raise HTTPException(status_code=400, detail="buy_price must be > 0")
+        trade.buy_price = req.buy_price
+
+    if req.hold_value is not None and req.hold_unit is not None:
+        hu = req.hold_unit.strip().lower()
+        if hu not in {"days", "months", "years"}:
+            raise HTTPException(status_code=400, detail="hold_unit must be days, months, or years")
+        if req.hold_value <= 0:
+            raise HTTPException(status_code=400, detail="hold_value must be > 0")
+        hd = hold_days_from_unit(req.hold_value, hu)
+        trade.hold_days = hd
+        trade.hold_unit = hu
+        trade.hold_value = req.hold_value
+        trade.sell_date = _ensure_utc(trade.created_at) + timedelta(days=hd)
+    elif req.hold_days is not None:
+        if req.hold_days <= 0:
+            raise HTTPException(status_code=400, detail="hold_days must be > 0")
+        trade.hold_days = req.hold_days
+        trade.hold_unit = "days"
+        trade.hold_value = req.hold_days
+        trade.sell_date = _ensure_utc(trade.created_at) + timedelta(days=req.hold_days)
+
+    if req.dip_threshold_pct is not None:
+        dip = _validate_dip_threshold(req.dip_threshold_pct)
+        if dip is not None and dip <= 0:
+            dip = None
+        if trade.dip_threshold_pct != dip:
+            trade.last_dip_alert_at = None
+        trade.dip_threshold_pct = dip
+
+    db.commit()
+    db.refresh(trade)
+
+    sell_utc = _ensure_utc(trade.sell_date)
+    return TrackedTrade(
+        id=trade.id,
+        symbol=trade.symbol,
+        shares=trade.shares,
+        buy_price=trade.buy_price,
+        hold_days=trade.hold_days,
+        hold_unit=trade.hold_unit,
+        hold_value=trade.hold_value,
+        dip_threshold_pct=trade.dip_threshold_pct,
+        created_at=trade.created_at.isoformat(),
+        sell_date=sell_utc.isoformat(),
+        status=trade.status,
+        current_strength=trade.last_health_strength,
+        last_health_reason=trade.last_health_reason,
+        alert=None,
+    )
 
 
 @router.delete("/{trade_id}")

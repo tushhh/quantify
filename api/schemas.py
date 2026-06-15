@@ -242,6 +242,20 @@ class TradeDipUpdate(BaseModel):
         description="Updated percent drop threshold (0–0.9); null disables",
     )
 
+
+class TradeUpdate(BaseModel):
+    shares: Optional[float] = None
+    buy_price: Optional[float] = None
+    hold_days: Optional[int] = None
+    hold_unit: Optional[str] = None
+    hold_value: Optional[int] = None
+    dip_threshold_pct: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=0.9,
+    )
+
+
 class TrackedTrade(TradeCreate):
     id: int
     created_at: str
@@ -253,5 +267,8 @@ class TrackedTrade(TradeCreate):
     hold_value: Optional[int] = None
     last_health_reason: Optional[str] = None
     alert: Optional[str] = None
+    aggregated: bool = False
+    prev_shares: Optional[float] = None
+    prev_buy_price: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
