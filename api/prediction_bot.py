@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import logging
 import asyncio
 import urllib.request
@@ -634,6 +635,18 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
     longs = [s for s in result.signals if s.side == "long"]
     shorts = [s for s in result.signals if s.side == "short"]
 
+    def _news_line(s) -> str:
+        if not s.news:
+            return ""
+        emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
+        line = f"   {emoji} <b>{s.news.label}</b>"
+        if s.news.headlines:
+            # Headlines come from yfinance and routinely contain &, <, > — escape
+            # them or Telegram's HTML parser rejects the whole message.
+            escaped = html.escape(s.news.headlines[0][:80])
+            line += f" · <i>{escaped}</i>"
+        return line + "\n"
+
     msg = (
         f"✅ <b>Full 500-Stock Scan Complete</b>\n"
         f"📅 <b>Date:</b> {result.date}\n"
@@ -646,6 +659,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         summary = build_plain_summary(s.side, s.explanations)
         if summary:
             msg += f"   <i>{summary}</i>\n"
+        msg += _news_line(s)
 
     msg += "\n🔴 <b>Top Shorts</b>\n"
     for i, s in enumerate(shorts[:8], 1):
@@ -653,10 +667,33 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         summary = build_plain_summary(s.side, s.explanations)
         if summary:
             msg += f"   <i>{summary}</i>\n"
+        msg += _news_line(s)
 
     msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
 
-    await bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+    await _send_html_chunks(bot, chat_id, msg)
+
+
+# Telegram rejects messages over 4096 chars.  Adding news lines to the full
+# scan can push a 16-signal message past that, so split on line boundaries.
+_TELEGRAM_MAX_CHARS = 4000
+
+
+async def _send_html_chunks(bot: "Bot", chat_id: str, text: str):
+    """Send an HTML message, splitting on newlines if it exceeds Telegram's limit."""
+    if len(text) <= _TELEGRAM_MAX_CHARS:
+        await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+        return
+
+    chunk = ""
+    for line in text.split("\n"):
+        # +1 for the newline we re-add when joining.
+        if len(chunk) + len(line) + 1 > _TELEGRAM_MAX_CHARS and chunk:
+            await bot.send_message(chat_id=chat_id, text=chunk, parse_mode="HTML")
+            chunk = ""
+        chunk = f"{chunk}\n{line}" if chunk else line
+    if chunk:
+        await bot.send_message(chat_id=chat_id, text=chunk, parse_mode="HTML")
 
 
 async def fullscan_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):

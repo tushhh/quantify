@@ -199,6 +199,13 @@ class PredictionExplanation(BaseModel):
     direction: str = "higher"
     score: float = 0.0
 
+
+class NewsItem(BaseModel):
+    label: str  # "BULLISH" | "BEARISH" | "NEUTRAL"
+    score: float
+    headlines: List[str] = Field(default_factory=list)
+
+
 class PredictionItem(BaseModel):
     symbol: str
     strength: float
@@ -207,6 +214,7 @@ class PredictionItem(BaseModel):
     name: str = ""
     predicted_return_pct: float = 0.0
     explanations: List[PredictionExplanation] = Field(default_factory=list)
+    news: Optional[NewsItem] = None
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
@@ -242,6 +250,20 @@ class TradeDipUpdate(BaseModel):
         description="Updated percent drop threshold (0–0.9); null disables",
     )
 
+
+class TradeUpdate(BaseModel):
+    shares: Optional[float] = None
+    buy_price: Optional[float] = None
+    hold_days: Optional[int] = None
+    hold_unit: Optional[str] = None
+    hold_value: Optional[int] = None
+    dip_threshold_pct: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=0.9,
+    )
+
+
 class TrackedTrade(TradeCreate):
     id: int
     created_at: str
@@ -253,5 +275,27 @@ class TrackedTrade(TradeCreate):
     hold_value: Optional[int] = None
     last_health_reason: Optional[str] = None
     alert: Optional[str] = None
+    aggregated: bool = False
+    prev_shares: Optional[float] = None
+    prev_buy_price: Optional[float] = None
+    realized_pnl: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TradeCloseRequest(BaseModel):
+    sell_price: Optional[float] = Field(None, gt=0)
+
+
+class TradePartialSellRequest(BaseModel):
+    shares_to_sell: float = Field(..., gt=0)
+    sell_price: float = Field(..., gt=0)
+
+
+class PortfolioSummary(BaseModel):
+    total_value: float
+    total_invested: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float
+    realized_pnl: float
+    positions_count: int

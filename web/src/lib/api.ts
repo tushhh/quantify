@@ -169,6 +169,12 @@ export type AuthUpdateRequest = {
 export type TickerInfo = { symbol: string; sector: string; name: string };
 export type UniverseResponse = { tickers: TickerInfo[]; sectors: string[] };
 
+export type NewsItem = {
+  label: "BULLISH" | "BEARISH" | "NEUTRAL";
+  score: number;
+  headlines: string[];
+};
+
 export type PredictionItem = {
   symbol: string;
   strength: number;
@@ -177,6 +183,7 @@ export type PredictionItem = {
   name: string;
   predicted_return_pct: number;
   explanations?: PredictionExplanation[];
+  news?: NewsItem | null;
 };
 
 export type PredictionExplanation = {
@@ -210,6 +217,15 @@ export type TradeCreate = {
   dip_threshold_pct?: number | null;
 };
 
+export type TradeUpdate = {
+  shares?: number;
+  buy_price?: number;
+  hold_days?: number;
+  hold_unit?: "days" | "months" | "years";
+  hold_value?: number;
+  dip_threshold_pct?: number | null;
+};
+
 export type TrackedTrade = TradeCreate & {
   id: number;
   created_at: string;
@@ -219,6 +235,19 @@ export type TrackedTrade = TradeCreate & {
   current_price?: number;
   last_health_reason?: string;
   alert?: string;
+  aggregated?: boolean;
+  prev_shares?: number;
+  prev_buy_price?: number;
+  realized_pnl?: number | null;
+};
+
+export type PortfolioSummary = {
+  total_value: number;
+  total_invested: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  realized_pnl: number;
+  positions_count: number;
 };
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -274,7 +303,14 @@ export const api = {
     create: (req: TradeCreate) => apiFetch<TrackedTrade>("/api/trades", { method: "POST", body: req }),
     list: () => apiFetch<TrackedTrade[]>("/api/trades"),
     prices: () => apiFetch<Record<string, number | null>>("/api/trades/prices"),
-    close: (id: number) => apiFetch<{status: string}>(`/api/trades/${id}`, { method: "DELETE" }),
+    summary: () => apiFetch<PortfolioSummary>("/api/trades/portfolio-summary"),
+    close: (id: number, sellPrice?: number | null) =>
+      apiFetch<{ status: string }>(`/api/trades/${id}/close`, {
+        method: "POST",
+        body: { sell_price: sellPrice ?? null },
+      }),
+    update: (id: number, req: TradeUpdate) =>
+      apiFetch<TrackedTrade>(`/api/trades/${id}`, { method: "PATCH", body: req }),
     updateDipThreshold: (id: number, dip_threshold_pct: number | null) =>
       apiFetch<TrackedTrade>(`/api/trades/${id}/dip-threshold`, {
         method: "PATCH",
