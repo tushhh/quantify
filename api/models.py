@@ -29,6 +29,9 @@ class Trade(Base):
     last_health_reason = Column(String, nullable=True, default=None)
     last_health_alert_at = Column(DateTime, nullable=True, default=None)
     last_dip_alert_at = Column(DateTime, nullable=True, default=None)
+    sell_price = Column(Float, nullable=True, default=None)
+    realized_pnl = Column(Float, nullable=True, default=None)
+    closed_at = Column(DateTime, nullable=True, default=None)
 
 class PredictionCache(Base):
     __tablename__ = "prediction_cache"

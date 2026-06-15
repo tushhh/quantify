@@ -278,5 +278,24 @@ class TrackedTrade(TradeCreate):
     aggregated: bool = False
     prev_shares: Optional[float] = None
     prev_buy_price: Optional[float] = None
+    realized_pnl: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TradeCloseRequest(BaseModel):
+    sell_price: Optional[float] = Field(None, gt=0)
+
+
+class TradePartialSellRequest(BaseModel):
+    shares_to_sell: float = Field(..., gt=0)
+    sell_price: float = Field(..., gt=0)
+
+
+class PortfolioSummary(BaseModel):
+    total_value: float
+    total_invested: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float
+    realized_pnl: float
+    positions_count: int

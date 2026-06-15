@@ -5,13 +5,17 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from api.schemas import TrackedTrade, TradeCreate, TradeDipUpdate, TradeUpdate
+from api.schemas import (
+    TrackedTrade, TradeCreate, TradeDipUpdate, TradeUpdate,
+    TradeCloseRequest, TradePartialSellRequest, PortfolioSummary,
+)
 from api.database import get_db
 from api.models import Trade as DBTrade, User as DBUser
 from api.routers.auth import get_current_user
 from api.routers import utils as utils_router
 from api.hold_utils import hold_days_from_unit
 from api.market_data import fetch_latest_prices
+from api.trade_service import close_trade_full, reduce_trade_shares, get_portfolio_summary
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 log = logging.getLogger("quantify.api.trades")
@@ -344,19 +348,80 @@ async def update_trade(
     )
 
 
-@router.delete("/{trade_id}")
+@router.post("/{trade_id}/close")
 async def close_trade(
     trade_id: int,
+    req: TradeCloseRequest = TradeCloseRequest(),
     db: Session = Depends(get_db),
     current_user: DBUser = Depends(get_current_user),
 ):
-    """Mark a trade as closed."""
+    """Close a trade and optionally record the sell price for P&L tracking."""
     trade = db.query(DBTrade).filter(
         DBTrade.id == trade_id,
         DBTrade.user_id == current_user.id,
     ).first()
     if not trade:
         raise HTTPException(status_code=404, detail="Trade not found")
-    trade.status = "closed"
-    db.commit()
+    close_trade_full(db, trade, req.sell_price)
     return {"status": "ok"}
+
+
+@router.delete("/{trade_id}")
+async def close_trade_legacy(
+    trade_id: int,
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user),
+):
+    """Legacy close endpoint — use POST /{id}/close for P&L tracking."""
+    trade = db.query(DBTrade).filter(
+        DBTrade.id == trade_id,
+        DBTrade.user_id == current_user.id,
+    ).first()
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    close_trade_full(db, trade, None)
+    return {"status": "ok"}
+
+
+@router.patch("/{trade_id}/partial-sell")
+async def partial_sell_trade(
+    trade_id: int,
+    req: TradePartialSellRequest,
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user),
+):
+    """Reduce shares on an active position and record realized P&L."""
+    trade = db.query(DBTrade).filter(
+        DBTrade.id == trade_id,
+        DBTrade.user_id == current_user.id,
+        DBTrade.status == "active",
+    ).first()
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    if req.shares_to_sell >= trade.shares:
+        raise HTTPException(status_code=400, detail="Use close endpoint to sell all shares")
+    realized = reduce_trade_shares(db, trade, req.shares_to_sell, req.sell_price)
+    sell_utc = _ensure_utc(trade.sell_date)
+    return {
+        "status": "ok",
+        "realized_pnl": realized,
+        "remaining_shares": trade.shares,
+    }
+
+
+@router.get("/portfolio-summary", response_model=PortfolioSummary)
+async def portfolio_summary(
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user),
+):
+    """Return portfolio-level P&L metrics for the current user."""
+    active = db.query(DBTrade).filter(
+        DBTrade.user_id == current_user.id,
+        DBTrade.status == "active",
+    ).all()
+    symbols = list({t.symbol for t in active})
+    prices = {}
+    if symbols:
+        loop = asyncio.get_running_loop()
+        prices = await loop.run_in_executor(None, fetch_latest_prices, symbols)
+    return get_portfolio_summary(db, current_user.id, prices)
