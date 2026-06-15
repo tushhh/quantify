@@ -14,6 +14,7 @@ import urllib.error
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from quantify.data.universe import Universe, get_russell1000
+from quantify.data.news import fetch_news_sentiment
 from quantify.screener import run_screener
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s – %(message)s")
@@ -51,6 +52,22 @@ def main():
     n_longs = sum(1 for s in result["signals"] if s["side"] == "long")
     n_shorts = sum(1 for s in result["signals"] if s["side"] == "short")
     log.info("Screener complete: %d longs, %d shorts", n_longs, n_shorts)
+
+    # Enrich top signals with news sentiment (top 10 longs + top 10 shorts only)
+    top_symbols = [
+        s["symbol"] for s in result["signals"] if s["side"] == "long"
+    ][:10] + [
+        s["symbol"] for s in result["signals"] if s["side"] == "short"
+    ][:10]
+    if top_symbols:
+        log.info("Fetching news sentiment for %d top signals…", len(top_symbols))
+        try:
+            news_map = fetch_news_sentiment(top_symbols, cache_dir=cache_dir)
+            for sig in result["signals"]:
+                if sig["symbol"] in news_map:
+                    sig["news"] = news_map[sig["symbol"]]
+        except Exception as exc:
+            log.warning("News enrichment failed (non-fatal): %s", exc)
 
     output_json = os.getenv("OUTPUT_JSON_PATH")
     if output_json:

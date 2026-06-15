@@ -169,6 +169,12 @@ export type AuthUpdateRequest = {
 export type TickerInfo = { symbol: string; sector: string; name: string };
 export type UniverseResponse = { tickers: TickerInfo[]; sectors: string[] };
 
+export type NewsItem = {
+  label: "BULLISH" | "BEARISH" | "NEUTRAL";
+  score: number;
+  headlines: string[];
+};
+
 export type PredictionItem = {
   symbol: string;
   strength: number;
@@ -177,6 +183,7 @@ export type PredictionItem = {
   name: string;
   predicted_return_pct: number;
   explanations?: PredictionExplanation[];
+  news?: NewsItem | null;
 };
 
 export type PredictionExplanation = {

@@ -199,6 +199,13 @@ class PredictionExplanation(BaseModel):
     direction: str = "higher"
     score: float = 0.0
 
+
+class NewsItem(BaseModel):
+    label: str  # "BULLISH" | "BEARISH" | "NEUTRAL"
+    score: float
+    headlines: List[str] = Field(default_factory=list)
+
+
 class PredictionItem(BaseModel):
     symbol: str
     strength: float
@@ -207,6 +214,7 @@ class PredictionItem(BaseModel):
     name: str = ""
     predicted_return_pct: float = 0.0
     explanations: List[PredictionExplanation] = Field(default_factory=list)
+    news: Optional[NewsItem] = None
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
