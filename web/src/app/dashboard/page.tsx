@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   Zap, Shield, AlertTriangle, Plus, Crosshair, Send,
   LogOut, UserCircle, RefreshCw, TrendingUp, TrendingDown,
-  AlertCircle, RotateCcw, Clock, DollarSign,
+  AlertCircle, RotateCcw, Clock, DollarSign, Pencil, X, Check,
 } from "lucide-react";
 import Link from "next/link";
-import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TickerInfo } from "@/lib/api";
+import { api, type AuthUser, type PredictionItem, type TrackedTrade, type TradeUpdate, type TickerInfo } from "@/lib/api";
 import { Card, Badge, Alert } from "@/components/ui";
 
 function pct(v: number) {
@@ -91,35 +91,42 @@ function TradeCard({
   currentPrice,
   onClose,
   onUpdateDip,
+  onEdit,
 }: {
   t: TrackedTrade;
   currentPrice: number | null | undefined;
   onClose: (id: number) => void;
   onUpdateDip: (id: number, dipThreshold: number | null) => Promise<void>;
+  onEdit: (id: number, req: TradeUpdate) => Promise<void>;
 }) {
-  const pnlAbs = currentPrice != null ? (currentPrice - t.buy_price) * t.shares : null;
-  const pnlPct = currentPrice != null ? (currentPrice - t.buy_price) / t.buy_price : null;
-  const isGain  = pnlAbs != null && pnlAbs >= 0;
-  const hasPrice = currentPrice != null;
   const dipThreshold = t.dip_threshold_pct ?? null;
-  const dipDrawdown = hasPrice && dipThreshold != null && dipThreshold > 0
-    ? (currentPrice! - t.buy_price) / t.buy_price
-    : null;
-  const dipAlert = dipDrawdown != null && dipDrawdown <= -dipThreshold!
-    ? `PRICE DROP ALERT — ${Math.abs(dipDrawdown * 100).toFixed(2)}% vs entry (threshold ${(
-        dipThreshold! * 100
-      ).toFixed(1)}%)`
-    : null;
-  const alertText = dipAlert ? (t.alert ? `${dipAlert}\n${t.alert}` : dipAlert) : t.alert;
-  const [dipDraft, setDipDraft] = useState(dipThreshold ? (dipThreshold * 100).toFixed(1) : "");
+  const displayDip = dipThreshold ? (dipThreshold * 100).toFixed(1) : "";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editShares, setEditShares] = useState(t.shares.toString());
+  const [editPrice, setEditPrice] = useState(t.buy_price.toFixed(2));
+  const [editHoldUnit, setEditHoldUnit] = useState<"days" | "months" | "years">(
+    (t.hold_unit as "days" | "months" | "years") ?? "days"
+  );
+  const [editHoldValue, setEditHoldValue] = useState((t.hold_value ?? t.hold_days ?? 10).toString());
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [dipDraft, setDipDraft] = useState(displayDip);
   const [dipSaving, setDipSaving] = useState(false);
   const [dipError, setDipError] = useState<string | null>(null);
-  const displayDip = dipThreshold ? (dipThreshold * 100).toFixed(1) : "";
   const dipDirty = dipDraft.trim() !== displayDip;
 
   useEffect(() => {
     setDipDraft(displayDip);
   }, [displayDip]);
+
+  useEffect(() => {
+    setEditShares(t.shares.toString());
+    setEditPrice(t.buy_price.toFixed(2));
+    setEditHoldUnit((t.hold_unit as "days" | "months" | "years") ?? "days");
+    setEditHoldValue((t.hold_value ?? t.hold_days ?? 10).toString());
+  }, [t.shares, t.buy_price, t.hold_unit, t.hold_value, t.hold_days]);
 
   const handleSaveDip = async () => {
     const raw = dipDraft.trim();
@@ -143,6 +150,48 @@ function TradeCard({
     }
   };
 
+  const handleSaveEdit = async () => {
+    const shares = parseFloat(editShares);
+    const buy_price = parseFloat(editPrice);
+    const hold_value = parseInt(editHoldValue);
+    if (!Number.isFinite(shares) || shares <= 0) {
+      setEditError("Shares must be a positive number.");
+      return;
+    }
+    if (!Number.isFinite(buy_price) || buy_price <= 0) {
+      setEditError("Buy price must be a positive number.");
+      return;
+    }
+    if (!Number.isFinite(hold_value) || hold_value <= 0) {
+      setEditError("Hold duration must be a positive number.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await onEdit(t.id, { shares, buy_price, hold_unit: editHoldUnit, hold_value });
+      setIsEditing(false);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Failed to save changes.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const hasPrice = currentPrice != null;
+  const pnlAbs = hasPrice ? (currentPrice! - t.buy_price) * t.shares : null;
+  const pnlPct = hasPrice ? (currentPrice! - t.buy_price) / t.buy_price : null;
+  const isGain  = pnlAbs != null && pnlAbs >= 0;
+  const dipDrawdown = hasPrice && dipThreshold != null && dipThreshold > 0
+    ? (currentPrice! - t.buy_price) / t.buy_price
+    : null;
+  const dipAlert = dipDrawdown != null && dipDrawdown <= -dipThreshold!
+    ? `PRICE DROP ALERT — ${Math.abs(dipDrawdown * 100).toFixed(2)}% vs entry (threshold ${(
+        dipThreshold! * 100
+      ).toFixed(1)}%)`
+    : null;
+  const alertText = dipAlert ? (t.alert ? `${dipAlert}\n${t.alert}` : dipAlert) : t.alert;
+
   return (
     <Card variant="compact" className="shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {/* alert stripe */}
@@ -154,85 +203,193 @@ function TradeCard({
       )}
 
       <div className="p-5">
-        {/* Row 1: symbol + price + close */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-lg font-black text-[var(--color-text-inverse)] tracking-tight">{t.symbol}</span>
-              {hasPrice && (
-                <span className="text-sm font-sans text-[var(--color-text-secondary)]">{fmt$(currentPrice!)}</span>
-              )}
-              {pnlPct != null && (
-                <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
-                  {isGain ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  {pct(pnlPct)}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-sans">
-              {t.shares} shares @ {fmt$(t.buy_price)}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            {pnlAbs != null && (
-              <span className={`text-sm font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
-                {isGain ? "+" : "−"}{fmt$(pnlAbs)}
-              </span>
-            )}
-            <button
-              onClick={() => onClose(t.id)}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-
-        {/* Alert bar */}
-        {alertText && (
-          <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-2xl p-2.5 flex gap-2 items-start">
-            <AlertTriangle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={14} />
-            <p className="text-xs text-[var(--color-danger)]/80 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
-          </div>
-        )}
-
-        {/* Dip threshold editor */}
-          <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
+        {isEditing ? (
+          /* ── Inline edit form ─────────────────────────────── */
+          <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Dip Alert</p>
-              <span className="text-[10px] text-[var(--color-text-secondary)]">0 disables</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              max="90"
-              step="0.5"
-              className="input-field text-xs py-1.5 px-2.5 rounded-2xl max-w-[110px]"
-              value={dipDraft}
-              onChange={(e) => setDipDraft(e.target.value)}
-            />
-            <span className="text-[10px] text-[var(--color-text-muted)]">% from entry</span>
-            <button
-              type="button"
-              onClick={handleSaveDip}
-              disabled={!dipDirty || dipSaving}
-              className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {dipSaving ? "Saving" : "Save"}
-            </button>
-          </div>
-          {dipError && <p className="text-[10px] text-[var(--color-danger)] mt-1">{dipError}</p>}
-        </div>
+              <p className="text-xs font-bold text-[var(--color-text-inverse)]">Edit {t.symbol}</p>
+              <button
+                type="button"
+                onClick={() => { setIsEditing(false); setEditError(null); }}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
 
-        {/* Footer metadata */}
-        <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)] uppercase tracking-wider">
-          <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-          <span className="text-center">Hold: {t.hold_value ?? t.hold_days}d</span>
-          <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
-          <span className="text-right text-[var(--color-cta)]">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  value={editShares}
+                  onChange={(e) => setEditShares(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy price $</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5 flex flex-col gap-2">
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Hold duration</p>
+              <div className="flex gap-1.5">
+                {(["days", "months", "years"] as const).map((unit) => (
+                  <label
+                    key={unit}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-xl border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
+                      editHoldUnit === unit
+                        ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
+                        : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
+                    }`}
+                  >
+                    <input type="radio" className="sr-only" checked={editHoldUnit === unit} onChange={() => setEditHoldUnit(unit)} />
+                    {unit}
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  className="input-field max-w-[100px] text-sm py-1 px-2.5 rounded-xl"
+                  value={editHoldValue}
+                  onChange={(e) => setEditHoldValue(e.target.value)}
+                />
+                <span className="text-[10px] text-[var(--color-text-muted)]">{editHoldUnit}</span>
+              </div>
+            </div>
+
+            {editError && <p className="text-[10px] text-[var(--color-danger)]">{editError}</p>}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl bg-[var(--color-cta)]/15 border border-[var(--color-cta)]/30 text-[var(--color-cta)] hover:bg-[var(--color-cta)]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {editSaving ? (
+                  <div className="w-3 h-3 border border-[var(--color-cta)]/30 border-t-[var(--color-cta)] rounded-full animate-spin" />
+                ) : (
+                  <Check size={11} />
+                )}
+                {editSaving ? "Saving…" : "Save changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsEditing(false); setEditError(null); }}
+                className="px-3 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── Normal card view ─────────────────────────────── */
+          <>
+            {/* Row 1: symbol + price + actions */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-lg font-black text-[var(--color-text-inverse)] tracking-tight">{t.symbol}</span>
+                  {hasPrice && (
+                    <span className="text-sm font-sans text-[var(--color-text-secondary)]">{fmt$(currentPrice!)}</span>
+                  )}
+                  {pnlPct != null && (
+                    <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                      {isGain ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {pct(pnlPct)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-sans">
+                  {t.shares} shares @ {fmt$(t.buy_price)}{t.buy_price !== Math.round(t.buy_price * 100) / 100 ? " avg" : ""}
+                </p>
+              </div>
+
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                {pnlAbs != null && (
+                  <span className={`text-sm font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                    {isGain ? "+" : "−"}{fmt$(pnlAbs)}
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    title="Edit position"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-cta)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-cta)]/30 hover:bg-[var(--color-cta)]/10 p-1.5 rounded-2xl transition-all"
+                  >
+                    <Pencil size={11} />
+                  </button>
+                  <button
+                    onClick={() => onClose(t.id)}
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Alert bar */}
+            {alertText && (
+              <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-2xl p-2.5 flex gap-2 items-start">
+                <AlertTriangle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={14} />
+                <p className="text-xs text-[var(--color-danger)]/80 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
+              </div>
+            )}
+
+            {/* Dip threshold editor */}
+            <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Dip Alert</p>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">0 disables</span>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="90"
+                  step="0.5"
+                  className="input-field text-xs py-1.5 px-2.5 rounded-2xl max-w-[110px]"
+                  value={dipDraft}
+                  onChange={(e) => setDipDraft(e.target.value)}
+                />
+                <span className="text-[10px] text-[var(--color-text-muted)]">% from entry</span>
+                <button
+                  type="button"
+                  onClick={handleSaveDip}
+                  disabled={!dipDirty || dipSaving}
+                  className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {dipSaving ? "Saving" : "Save"}
+                </button>
+              </div>
+              {dipError && <p className="text-[10px] text-[var(--color-danger)] mt-1">{dipError}</p>}
+            </div>
+
+            {/* Footer metadata */}
+            <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)] uppercase tracking-wider">
+              <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              <span className="text-center">Hold: {t.hold_value ?? t.hold_days}{t.hold_unit ? t.hold_unit[0] : "d"}</span>
+              <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
+              <span className="text-right text-[var(--color-cta)]">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+          </>
+        )}
       </div>
     </Card>
   );
@@ -255,7 +412,7 @@ export default function DashboardPage() {
 
   const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
   const [tradeError, setTradeError] = useState<string | null>(null);
-  const [tradeSuccess, setTradeSuccess] = useState(false);
+  const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [holdUnit, setHoldUnit] = useState<"days" | "months" | "years">("days");
   const [holdValue, setHoldValue] = useState("10");
@@ -387,7 +544,7 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!canSubmitTrade) return;
     setTradeError(null);
-    setTradeSuccess(false);
+    setTradeSuccess(null);
     setSubmitting(true);
     try {
       const sym = newTrade.symbol.trim().toUpperCase();
@@ -405,7 +562,7 @@ export default function DashboardPage() {
         }
         dipThreshold = dipValue > 0 ? dipValue / 100 : null;
       }
-      await api.trades.create({
+      const result = await api.trades.create({
         symbol: sym,
         shares: parseFloat(newTrade.shares),
         buy_price: parseFloat(newTrade.buy_price),
@@ -414,14 +571,24 @@ export default function DashboardPage() {
         dip_threshold_pct: dipThreshold,
       });
       setNewTrade({ symbol: "", shares: "", buy_price: "" });
-      setTradeSuccess(true);
-      setTimeout(() => setTradeSuccess(false), 4000);
+      if (result.aggregated && result.prev_shares != null && result.prev_buy_price != null) {
+        const msg = `${sym} position updated — ${result.shares} shares @ $${result.buy_price.toFixed(2)} avg (was ${result.prev_shares} @ $${result.prev_buy_price.toFixed(2)})`;
+        setTradeSuccess(msg);
+      } else {
+        setTradeSuccess("Trade logged! Telegram alert activated if connected.");
+      }
+      setTimeout(() => setTradeSuccess(null), 5000);
       loadTrades();
     } catch (e: unknown) {
       setTradeError(e instanceof Error ? e.message : "Failed to log trade");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleUpdateTrade = async (id: number, req: TradeUpdate) => {
+    await api.trades.update(id, req);
+    loadTrades();
   };
 
   const handleCloseTrade = async (id: number) => {
@@ -855,7 +1022,7 @@ export default function DashboardPage() {
               )}
               {tradeSuccess && (
                 <Alert variant="success">
-                  <span className="font-semibold">Trade logged!</span> Telegram alert activated if connected.
+                  {tradeSuccess}
                 </Alert>
               )}
 
@@ -888,6 +1055,7 @@ export default function DashboardPage() {
                   currentPrice={prices[t.symbol]}
                   onClose={handleCloseTrade}
                   onUpdateDip={handleUpdateDip}
+                  onEdit={handleUpdateTrade}
                 />
               ))
             )}
