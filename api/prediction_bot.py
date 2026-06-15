@@ -14,6 +14,18 @@ from api.models import PredictionSubscription, AdhocPredictionCache
 from api.schemas import PredictionItem
 from api.driver_explain import humanize_driver, build_plain_summary
 
+
+def _news_line(s) -> str:
+    """Format a single news sentiment line for a signal, HTML-safe."""
+    if not s.news:
+        return ""
+    emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
+    line = f"   {emoji} <b>{s.news.label}</b>"
+    if s.news.headlines:
+        escaped = html.escape(s.news.headlines[0][:80])
+        line += f" · <i>{escaped}</i>"
+    return line + "\n"
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("prediction_bot")
 
@@ -442,6 +454,7 @@ async def top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             summary = build_plain_summary(s.side, s.explanations)
             if summary:
                 msg += f"   <i>{summary}</i>\n"
+            msg += _news_line(s)
 
         msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
         await update.message.reply_text(msg, parse_mode="HTML")
@@ -485,6 +498,7 @@ async def bottom_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             summary = build_plain_summary(s.side, s.explanations)
             if summary:
                 msg += f"   <i>{summary}</i>\n"
+            msg += _news_line(s)
 
         msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
         await update.message.reply_text(msg, parse_mode="HTML")
@@ -634,18 +648,6 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
 
     longs = [s for s in result.signals if s.side == "long"]
     shorts = [s for s in result.signals if s.side == "short"]
-
-    def _news_line(s) -> str:
-        if not s.news:
-            return ""
-        emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
-        line = f"   {emoji} <b>{s.news.label}</b>"
-        if s.news.headlines:
-            # Headlines come from yfinance and routinely contain &, <, > — escape
-            # them or Telegram's HTML parser rejects the whole message.
-            escaped = html.escape(s.news.headlines[0][:80])
-            line += f" · <i>{escaped}</i>"
-        return line + "\n"
 
     msg = (
         f"✅ <b>Full 500-Stock Scan Complete</b>\n"
