@@ -634,6 +634,15 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
     longs = [s for s in result.signals if s.side == "long"]
     shorts = [s for s in result.signals if s.side == "short"]
 
+    def _news_line(s) -> str:
+        if not s.news:
+            return ""
+        emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
+        line = f"   {emoji} <b>{s.news.label}</b>"
+        if s.news.headlines:
+            line += f" · <i>{s.news.headlines[0][:80]}</i>"
+        return line + "\n"
+
     msg = (
         f"✅ <b>Full 500-Stock Scan Complete</b>\n"
         f"📅 <b>Date:</b> {result.date}\n"
@@ -646,6 +655,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         summary = build_plain_summary(s.side, s.explanations)
         if summary:
             msg += f"   <i>{summary}</i>\n"
+        msg += _news_line(s)
 
     msg += "\n🔴 <b>Top Shorts</b>\n"
     for i, s in enumerate(shorts[:8], 1):
@@ -653,6 +663,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         summary = build_plain_summary(s.side, s.explanations)
         if summary:
             msg += f"   <i>{summary}</i>\n"
+        msg += _news_line(s)
 
     msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
 
