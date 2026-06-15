@@ -21,7 +21,7 @@ _cache: dict[PredictionMode, dict[str, object | None]] = {
     "live": {"result": None, "timestamp": None},
     "previous_close": {"result": None, "timestamp": None},
 }
-_is_computing = False
+_is_computing: bool = False
 _LIVE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_LIVE_CACHE_TTL_SECONDS", "300"))
 _PREVIOUS_CLOSE_CACHE_TTL_SECONDS = int(os.getenv("PREDICTION_PREVIOUS_CLOSE_CACHE_TTL_SECONDS", "604800"))
 
@@ -181,6 +181,40 @@ def update_memory_cache(mode: PredictionMode, result: PredictionResponse) -> Non
     cache_slot = _cache_bucket(mode)
     cache_slot["result"] = result
     cache_slot["timestamp"] = time.time()
+
+
+def _load_prediction_cache(db, mode: PredictionMode = "previous_close") -> tuple[Optional[PredictionResponse], Optional[float]]:
+    """Return (result, timestamp) from memory cache or GitHub; db arg accepted for API compatibility."""
+    cache_slot = _cache_bucket(mode)
+    cached_result: Optional[PredictionResponse] = cache_slot.get("result")  # type: ignore[assignment]
+    cached_ts: Optional[float] = cache_slot.get("timestamp")  # type: ignore[assignment]
+
+    if cached_result and cached_ts and (time.time() - cached_ts < _cache_ttl_seconds(mode)):
+        return cached_result, cached_ts
+
+    new_result = _fetch_screener_results_from_github()
+    if new_result:
+        update_memory_cache(mode, new_result)
+        return new_result, time.time()
+
+    return None, None
+
+
+def _run_and_cache_predictions(caller: str = "unknown") -> None:
+    """Fetch a fresh copy of screener results from GitHub and warm the memory cache."""
+    global _is_computing
+    if _is_computing:
+        return
+    _is_computing = True
+    try:
+        log.info("_run_and_cache_predictions triggered by %s", caller)
+        result = _fetch_screener_results_from_github()
+        if result:
+            update_memory_cache("previous_close", result)
+    except Exception as exc:
+        log.error("_run_and_cache_predictions failed: %s", exc)
+    finally:
+        _is_computing = False
 
 
 def _download_latest_model() -> bool:
