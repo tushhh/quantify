@@ -34,6 +34,9 @@ def ensure_trade_columns() -> None:
         ("last_health_reason", "ALTER TABLE trades ADD COLUMN last_health_reason VARCHAR(512)"),
         ("last_health_alert_at", "ALTER TABLE trades ADD COLUMN last_health_alert_at TIMESTAMP"),
         ("last_dip_alert_at", "ALTER TABLE trades ADD COLUMN last_dip_alert_at TIMESTAMP"),
+        ("sell_price", "ALTER TABLE trades ADD COLUMN sell_price FLOAT"),
+        ("realized_pnl", "ALTER TABLE trades ADD COLUMN realized_pnl FLOAT"),
+        ("closed_at", "ALTER TABLE trades ADD COLUMN closed_at TIMESTAMP"),
     ]
     try:
         inspector = inspect(engine)

@@ -401,7 +401,6 @@ async def partial_sell_trade(
     if req.shares_to_sell >= trade.shares:
         raise HTTPException(status_code=400, detail="Use close endpoint to sell all shares")
     realized = reduce_trade_shares(db, trade, req.shares_to_sell, req.sell_price)
-    sell_utc = _ensure_utc(trade.sell_date)
     return {
         "status": "ok",
         "realized_pnl": realized,
