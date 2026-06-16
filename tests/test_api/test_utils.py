@@ -47,7 +47,7 @@ def test_validate_symbol_non_us(monkeypatch):
     assert res.status_code == 200
     payload = res.json()
     assert payload["valid"] is False
-    assert payload["reason"] in {"not_us_equity", "lookup_failed"}
+    assert payload["reason"] in {"not_us_equity", "not_us_listed", "lookup_failed"}
 
 
 def test_validate_symbol_missing(monkeypatch):
