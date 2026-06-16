@@ -52,6 +52,8 @@ def _signal_row_named(s, idx: int) -> str:
 
 
 
+
+def _news_line(s) -> str:
     if not s.news:
         return ""
     emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
@@ -850,10 +852,10 @@ async def _send_results_to_pending_chats(result) -> None:
         "🟢 <b>Top Longs</b>\n"
     )
     for i, s in enumerate(longs[:5], 1):
-        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+        msg += _signal_row(s, i)
     msg += "\n🔴 <b>Top Shorts</b>\n"
     for i, s in enumerate(shorts[:5], 1):
-        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
+        msg += _signal_row(s, i)
     msg += "\n<i>Use /top and /bottom for the full list, or /predict &lt;SYMBOL&gt; for details.</i>"
 
     bot = Bot(token=BOT_TOKEN)
