@@ -52,6 +52,8 @@ def _signal_row_named(s, idx: int) -> str:
 
 
 
+
+def _news_line(s) -> str:
     if not s.news:
         return ""
     emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
