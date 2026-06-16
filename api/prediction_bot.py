@@ -343,7 +343,7 @@ def format_prediction_msg(signal: PredictionItem) -> str:
     if signal.explanations:
         msg += "\n<b>What's driving it:</b>\n"
         for exp in signal.explanations[:3]:
-            label, meaning = humanize_driver(exp.feature, exp.direction)
+            label, meaning = humanize_driver(exp.feature, exp.direction, side=effective_side)
             msg += f"• <b>{label}:</b> {meaning}\n"
 
     msg += (
