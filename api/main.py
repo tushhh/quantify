@@ -124,8 +124,9 @@ ALLOWED_ORIGINS = list(dict.fromkeys([
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    # Allow any Vercel deployment URL (production aliases + per-commit previews)
-    allow_origin_regex=r"https://[a-zA-Z0-9\-]+\.vercel\.app",
+    # Allow any HTTPS origin — safe for Bearer-token auth (no cookies = no CSRF risk).
+    # Explicit origins in ALLOWED_ORIGINS cover localhost and the FRONTEND_URL env var.
+    allow_origin_regex=r"https://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
