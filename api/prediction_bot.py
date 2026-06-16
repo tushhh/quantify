@@ -15,8 +15,43 @@ from api.schemas import PredictionItem
 from api.driver_explain import humanize_driver, build_plain_summary
 
 
-def _news_line(s) -> str:
-    """Format a single news sentiment line for a signal, HTML-safe."""
+def _signal_row(s, idx: int) -> str:
+    """Format one signal as a numbered list row for /top, /bottom, /fullscan, and broadcast.
+
+    Handles three display fixes applied consistently:
+    - Strength is shown as abs value (model stores negative for shorts internally).
+    - Plain-English summary is driven by the sign of predicted_return_pct, not side,
+      so longs with negative returns don't say "positive".
+    - Longs with negative predicted returns get a ⚠️ prefix.
+    """
+    ret = s.predicted_return_pct
+    conflict = (s.side == "long" and ret < 0) or (s.side == "short" and ret > 0)
+    prefix = "⚠️ " if conflict else ""
+    effective_side = "long" if ret >= 0 else "short"
+    row = f"{idx}. {prefix}<b>{s.symbol}</b> | {ret:+.2f}% | Strength: {abs(s.strength):.2%}\n"
+    summary = build_plain_summary(effective_side, s.explanations)
+    if summary:
+        row += f"   <i>{summary}</i>\n"
+    return row
+
+
+def _signal_row_named(s, idx: int) -> str:
+    """Like _signal_row but includes company name — used in /top and /bottom."""
+    ret = s.predicted_return_pct
+    conflict = (s.side == "long" and ret < 0) or (s.side == "short" and ret > 0)
+    prefix = "⚠️ " if conflict else ""
+    effective_side = "long" if ret >= 0 else "short"
+    row = (
+        f"{idx}. {prefix}<b>{s.symbol}</b> ({s.name})\n"
+        f"   • Return: {ret:+.2f}% | Strength: {abs(s.strength):.2%}\n"
+    )
+    summary = build_plain_summary(effective_side, s.explanations)
+    if summary:
+        row += f"   <i>{summary}</i>\n"
+    return row
+
+
+
     if not s.news:
         return ""
     emoji = {"BULLISH": "📰🟢", "BEARISH": "📰🔴"}.get(s.news.label, "📰")
@@ -471,13 +506,7 @@ async def top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg = f"🟢 <b>Top Bullish Predictions ({cache_result.date})</b>\n\n"
         for i, s in enumerate(longs[:10], 1):
-            msg += (
-                f"{i}. <b>{s.symbol}</b> ({s.name})\n"
-                f"   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
-            )
-            summary = build_plain_summary(s.side, s.explanations)
-            if summary:
-                msg += f"   <i>{summary}</i>\n"
+            msg += _signal_row_named(s, i)
             msg += _news_line(s)
 
         msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
@@ -515,13 +544,7 @@ async def bottom_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg = f"🔴 <b>Top Bearish Predictions ({cache_result.date})</b>\n\n"
         for i, s in enumerate(shorts[:10], 1):
-            msg += (
-                f"{i}. <b>{s.symbol}</b> ({s.name})\n"
-                f"   • Return: {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
-            )
-            summary = build_plain_summary(s.side, s.explanations)
-            if summary:
-                msg += f"   <i>{summary}</i>\n"
+            msg += _signal_row_named(s, i)
             msg += _news_line(s)
 
         msg += "\n<i>Tap /predict &lt;SYMBOL&gt; for a full breakdown.</i>"
@@ -601,17 +624,11 @@ async def broadcast_predictions(result=None):
             "🟢 <b>Top Long Predictions (Buy)</b>\n"
         )
         for i, s in enumerate(longs[:5], 1):
-            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 21d | Strength: {s.strength:.2%}\n"
-            summary = build_plain_summary(s.side, s.explanations)
-            if summary:
-                msg += f"   <i>{summary}</i>\n"
+            msg += _signal_row(s, i)
 
         msg += "\n🔴 <b>Top Short Predictions (Sell)</b>\n"
         for i, s in enumerate(shorts[:5], 1):
-            msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% 21d | Strength: {s.strength:.2%}\n"
-            summary = build_plain_summary(s.side, s.explanations)
-            if summary:
-                msg += f"   <i>{summary}</i>\n"
+            msg += _signal_row(s, i)
 
         msg += (
             "\n<i>Strength = model conviction. Type /predict &lt;SYMBOL&gt; for a full breakdown. "
@@ -681,18 +698,12 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         "🟢 <b>Top Longs</b>\n"
     )
     for i, s in enumerate(longs[:8], 1):
-        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
-        summary = build_plain_summary(s.side, s.explanations)
-        if summary:
-            msg += f"   <i>{summary}</i>\n"
+        msg += _signal_row(s, i)
         msg += _news_line(s)
 
     msg += "\n🔴 <b>Top Shorts</b>\n"
     for i, s in enumerate(shorts[:8], 1):
-        msg += f"{i}. <b>{s.symbol}</b> | {s.predicted_return_pct:+.2f}% | Strength: {s.strength:.2%}\n"
-        summary = build_plain_summary(s.side, s.explanations)
-        if summary:
-            msg += f"   <i>{summary}</i>\n"
+        msg += _signal_row(s, i)
         msg += _news_line(s)
 
     msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
