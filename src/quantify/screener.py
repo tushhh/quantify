@@ -152,14 +152,18 @@ def run_screener(
                 len(blackout),
             )
 
+    # Shorts store a negative strength internally (-norm_strength * confidence),
+    # so rank both sides by conviction magnitude to surface the strongest
+    # signals first. Sorting shorts by raw strength descending would invert the
+    # list and put the weakest bearish signals at the top.
     longs = sorted(
         [s for s in signals if s.direction == "long"],
-        key=lambda x: x.strength,
+        key=lambda x: abs(x.strength),
         reverse=True,
     )
     shorts = sorted(
         [s for s in signals if s.direction == "short"],
-        key=lambda x: x.strength,
+        key=lambda x: abs(x.strength),
         reverse=True,
     )
 
