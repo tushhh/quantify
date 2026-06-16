@@ -23,7 +23,7 @@ export default function LoginPage() {
       localStorage.setItem("token", res.access_token);
       // notify other components (persistent layout) about auth change
       try { window.dispatchEvent(new Event('auth')); } catch {}
-      router.push("/dashboard");
+      router.push("/portfolio");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Login failed");
     } finally {

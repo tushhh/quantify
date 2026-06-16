@@ -1,0 +1,809 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Shield, AlertTriangle, Plus, Send,
+  LogOut, UserCircle, RefreshCw, TrendingUp, TrendingDown,
+  AlertCircle, Pencil, X, Check,
+} from "lucide-react";
+import Link from "next/link";
+import { api, type AuthUser, type TrackedTrade, type TradeUpdate, type TickerInfo, type PortfolioSummary } from "@/lib/api";
+import { Card, Badge, Alert } from "@/components/ui";
+
+function pct(v: number) {
+  return `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2)}%`;
+}
+
+function fmt$(v: number) {
+  return `$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// ── Portfolio summary card ────────────────────────────────────────────────────
+function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
+  const unreal = summary.unrealized_pnl;
+  const real = summary.realized_pnl;
+  const unrealPct = summary.unrealized_pnl_pct * 100;
+  const isUnrealGain = unreal >= 0;
+  const isRealGain = real >= 0;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Portfolio value</p>
+        <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
+          {fmt$(summary.total_value)}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">
+          {summary.positions_count} position{summary.positions_count !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Total invested</p>
+        <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
+          {fmt$(summary.total_invested)}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">cost basis</p>
+      </div>
+
+      <div className={`rounded-2xl border p-3 ${isUnrealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Unrealized P&L</p>
+        <p className={`mt-1 text-base font-black tabular-nums ${isUnrealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {isUnrealGain ? "+" : "−"}{fmt$(Math.abs(unreal))}
+        </p>
+        <p className={`text-[10px] mt-0.5 tabular-nums ${isUnrealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {unrealPct >= 0 ? "+" : ""}{unrealPct.toFixed(2)}%
+        </p>
+      </div>
+
+      <div className={`rounded-2xl border p-3 ${real === 0 ? "border-[var(--border)] bg-[var(--color-surface-raised)]" : isRealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Realized P&L</p>
+        <p className={`mt-1 text-base font-black tabular-nums ${real === 0 ? "text-[var(--color-text-secondary)]" : isRealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+          {real === 0 ? "$0.00" : `${isRealGain ? "+" : "−"}${fmt$(Math.abs(real))}`}
+        </p>
+        <p className="text-[10px] text-[var(--color-text-secondary)] mt-0.5">closed trades</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Loading state ─────────────────────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-2 border-[var(--color-cta)]/50 border-t-[var(--color-cta)] rounded-full animate-spin" />
+        <p className="text-[var(--color-text-muted)] text-sm">Loading portfolio…</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Trade card ────────────────────────────────────────────────────────────────
+function TradeCard({
+  t,
+  currentPrice,
+  onClose,
+  onUpdateDip,
+  onEdit,
+}: {
+  t: TrackedTrade;
+  currentPrice: number | null | undefined;
+  onClose: (id: number) => void;
+  onUpdateDip: (id: number, dipThreshold: number | null) => Promise<void>;
+  onEdit: (id: number, req: TradeUpdate) => Promise<void>;
+}) {
+  const dipThreshold = t.dip_threshold_pct ?? null;
+  const displayDip = dipThreshold ? (dipThreshold * 100).toFixed(1) : "";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editShares, setEditShares] = useState(t.shares.toString());
+  const [editPrice, setEditPrice] = useState(t.buy_price.toFixed(2));
+  const [editHoldUnit, setEditHoldUnit] = useState<"days" | "months" | "years">(
+    (t.hold_unit as "days" | "months" | "years") ?? "days"
+  );
+  const [editHoldValue, setEditHoldValue] = useState((t.hold_value ?? t.hold_days ?? 10).toString());
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [dipDraft, setDipDraft] = useState(displayDip);
+  const [dipSaving, setDipSaving] = useState(false);
+  const [dipError, setDipError] = useState<string | null>(null);
+  const dipDirty = dipDraft.trim() !== displayDip;
+
+  useEffect(() => {
+    setDipDraft(displayDip);
+  }, [displayDip]);
+
+  useEffect(() => {
+    setEditShares(t.shares.toString());
+    setEditPrice(t.buy_price.toFixed(2));
+    setEditHoldUnit((t.hold_unit as "days" | "months" | "years") ?? "days");
+    setEditHoldValue((t.hold_value ?? t.hold_days ?? 10).toString());
+  }, [t.shares, t.buy_price, t.hold_unit, t.hold_value, t.hold_days]);
+
+  const handleSaveDip = async () => {
+    const raw = dipDraft.trim();
+    let next: number | null = null;
+    if (raw) {
+      const val = parseFloat(raw);
+      if (!Number.isFinite(val) || val < 0 || val > 90) {
+        setDipError("Dip alert must be between 0 and 90%.");
+        return;
+      }
+      next = val > 0 ? val / 100 : null;
+    }
+    setDipSaving(true);
+    setDipError(null);
+    try {
+      await onUpdateDip(t.id, next);
+    } catch (e) {
+      setDipError(e instanceof Error ? e.message : "Failed to update dip alert.");
+    } finally {
+      setDipSaving(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    const shares = parseFloat(editShares);
+    const buy_price = parseFloat(editPrice);
+    const hold_value = parseInt(editHoldValue);
+    if (!Number.isFinite(shares) || shares <= 0) {
+      setEditError("Shares must be a positive number.");
+      return;
+    }
+    if (!Number.isFinite(buy_price) || buy_price <= 0) {
+      setEditError("Buy price must be a positive number.");
+      return;
+    }
+    if (!Number.isFinite(hold_value) || hold_value <= 0) {
+      setEditError("Hold duration must be a positive number.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await onEdit(t.id, { shares, buy_price, hold_unit: editHoldUnit, hold_value });
+      setIsEditing(false);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Failed to save changes.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const hasPrice = currentPrice != null;
+  const pnlAbs = hasPrice ? (currentPrice! - t.buy_price) * t.shares : null;
+  const pnlPct = hasPrice ? (currentPrice! - t.buy_price) / t.buy_price : null;
+  const isGain = pnlAbs != null && pnlAbs >= 0;
+  const dipDrawdown = hasPrice && dipThreshold != null && dipThreshold > 0
+    ? (currentPrice! - t.buy_price) / t.buy_price
+    : null;
+  const dipAlert = dipDrawdown != null && dipDrawdown <= -dipThreshold!
+    ? `PRICE DROP ALERT — ${Math.abs(dipDrawdown * 100).toFixed(2)}% vs entry (threshold ${(dipThreshold! * 100).toFixed(1)}%)`
+    : null;
+  const alertText = dipAlert ? (t.alert ? `${dipAlert}\n${t.alert}` : dipAlert) : t.alert;
+
+  return (
+    <Card variant="compact" className="shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
+      {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-[var(--color-danger)] animate-pulse" />}
+      {!t.alert && hasPrice && (
+        <div className={`absolute top-0 left-0 w-full h-0.5 ${isGain ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`} />
+      )}
+
+      <div className="p-5">
+        {isEditing ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-[var(--color-text-inverse)]">Edit {t.symbol}</p>
+              <button
+                type="button"
+                onClick={() => { setIsEditing(false); setEditError(null); }}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
+                <input
+                  type="number" step="0.01" min="0.01"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  value={editShares}
+                  onChange={(e) => setEditShares(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy price $</label>
+                <input
+                  type="number" step="0.01" min="0.01"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5 flex flex-col gap-2">
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Hold duration</p>
+              <div className="flex gap-1.5">
+                {(["days", "months", "years"] as const).map((unit) => (
+                  <label
+                    key={unit}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-xl border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
+                      editHoldUnit === unit
+                        ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
+                        : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
+                    }`}
+                  >
+                    <input type="radio" className="sr-only" checked={editHoldUnit === unit} onChange={() => setEditHoldUnit(unit)} />
+                    {unit}
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min="1"
+                  className="input-field max-w-[100px] text-sm py-1 px-2.5 rounded-xl"
+                  value={editHoldValue}
+                  onChange={(e) => setEditHoldValue(e.target.value)}
+                />
+                <span className="text-[10px] text-[var(--color-text-muted)]">{editHoldUnit}</span>
+              </div>
+            </div>
+
+            {editError && <p className="text-[10px] text-[var(--color-danger)]">{editError}</p>}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl bg-[var(--color-cta)]/15 border border-[var(--color-cta)]/30 text-[var(--color-cta)] hover:bg-[var(--color-cta)]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {editSaving ? (
+                  <div className="w-3 h-3 border border-[var(--color-cta)]/30 border-t-[var(--color-cta)] rounded-full animate-spin" />
+                ) : (
+                  <Check size={11} />
+                )}
+                {editSaving ? "Saving…" : "Save changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsEditing(false); setEditError(null); }}
+                className="px-3 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-lg font-black text-[var(--color-text-inverse)] tracking-tight">{t.symbol}</span>
+                  {hasPrice && (
+                    <span className="text-sm font-sans text-[var(--color-text-secondary)]">{fmt$(currentPrice!)}</span>
+                  )}
+                  {pnlPct != null && (
+                    <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                      {isGain ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {pct(pnlPct)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-sans">
+                  {t.shares} shares @ {fmt$(t.buy_price)}{t.buy_price !== Math.round(t.buy_price * 100) / 100 ? " avg" : ""}
+                </p>
+              </div>
+
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                {pnlAbs != null && (
+                  <span className={`text-sm font-bold tabular-nums ${isGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                    {isGain ? "+" : "−"}{fmt$(pnlAbs)}
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    title="Edit position"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-cta)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-cta)]/30 hover:bg-[var(--color-cta)]/10 p-1.5 rounded-2xl transition-all"
+                  >
+                    <Pencil size={11} />
+                  </button>
+                  <button
+                    onClick={() => onClose(t.id)}
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {alertText && (
+              <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-2xl p-2.5 flex gap-2 items-start">
+                <AlertTriangle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={14} />
+                <p className="text-xs text-[var(--color-danger)]/80 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
+              </div>
+            )}
+
+            <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Dip Alert</p>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">0 disables</span>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number" min="0" max="90" step="0.5"
+                  className="input-field text-xs py-1.5 px-2.5 rounded-2xl max-w-[110px]"
+                  value={dipDraft}
+                  onChange={(e) => setDipDraft(e.target.value)}
+                />
+                <span className="text-[10px] text-[var(--color-text-muted)]">% from entry</span>
+                <button
+                  type="button"
+                  onClick={handleSaveDip}
+                  disabled={!dipDirty || dipSaving}
+                  className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {dipSaving ? "Saving" : "Save"}
+                </button>
+              </div>
+              {dipError && <p className="text-[10px] text-[var(--color-danger)] mt-1">{dipError}</p>}
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)] uppercase tracking-wider">
+              <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              <span className="text-center">Hold: {t.hold_value ?? t.hold_days}{t.hold_unit ? t.hold_unit[0] : "d"}</span>
+              <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
+              <span className="text-right text-[var(--color-cta)]">Out: {new Date(t.sell_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function PortfolioPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  const [trades, setTrades] = useState<TrackedTrade[]>([]);
+  const [prices, setPrices] = useState<Record<string, number | null>>({});
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [universe, setUniverse] = useState<TickerInfo[]>([]);
+
+  const [newTrade, setNewTrade] = useState({ symbol: "", shares: "", buy_price: "" });
+  const [tradeError, setTradeError] = useState<string | null>(null);
+  const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [holdUnit, setHoldUnit] = useState<"days" | "months" | "years">("days");
+  const [holdValue, setHoldValue] = useState("10");
+  const [dipThresholdPct, setDipThresholdPct] = useState("8");
+  const [symbolOpen, setSymbolOpen] = useState(false);
+  const [symbolIndex, setSymbolIndex] = useState(0);
+
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+
+  const loadPrices = useCallback(async () => {
+    setLoadingPrices(true);
+    try {
+      const [p, s] = await Promise.all([
+        api.trades.prices(),
+        api.trades.summary().catch(() => null),
+      ]);
+      setPrices(p);
+      if (s) setSummary(s);
+      setLastPriceUpdate(new Date());
+    } catch {
+      // prices are supplemental; silently skip
+    } finally {
+      setLoadingPrices(false);
+    }
+  }, []);
+
+  const loadTrades = useCallback(async () => {
+    try {
+      const data = await api.trades.list();
+      const active = data.filter((t) => t.status === "active");
+      setTrades(active);
+      if (active.length > 0) loadPrices();
+    } catch (err) {
+      console.error(err);
+    }
+  }, [loadPrices]);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const u = await api.auth.me();
+        setUser(u);
+        loadTrades().catch(console.error);
+      } catch {
+        router.push("/login");
+      } finally {
+        setLoadingAuth(false);
+      }
+    };
+    void check();
+  }, [router, loadTrades]);
+
+  // Auto-refresh prices every 30s when tab is visible
+  useEffect(() => {
+    if (trades.length === 0) return;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      interval = setInterval(() => {
+        if (!document.hidden) loadPrices();
+      }, 30_000);
+    };
+    const handleVisibility = () => {
+      if (!document.hidden) loadPrices();
+    };
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [trades.length, loadPrices]);
+
+  useEffect(() => {
+    api.universe.get()
+      .then((r) => setUniverse(r.tickers))
+      .catch(console.error);
+  }, []);
+
+  const symbolQuery = newTrade.symbol.trim().toUpperCase();
+  const filteredSymbols = symbolQuery
+    ? universe.filter((t) =>
+        t.symbol.toUpperCase().startsWith(symbolQuery) ||
+        t.name.toLowerCase().includes(symbolQuery.toLowerCase())
+      ).slice(0, 8)
+    : universe.slice(0, 8);
+  const isSymbolInUniverse = !!symbolQuery && universe.some((t) => t.symbol === symbolQuery);
+  const canSubmitTrade = !!symbolQuery && !!newTrade.shares && !!newTrade.buy_price && !!holdValue;
+
+  useEffect(() => {
+    if (!symbolOpen) return;
+    setSymbolIndex(0);
+  }, [symbolQuery, symbolOpen]);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    router.push("/");
+  };
+
+  const selectSymbol = (symbol: string) => {
+    setNewTrade({ ...newTrade, symbol });
+    setSymbolOpen(false);
+    setSymbolIndex(0);
+  };
+
+  const handleCreateTrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmitTrade) return;
+    setTradeError(null);
+    setTradeSuccess(null);
+    setSubmitting(true);
+    try {
+      const sym = newTrade.symbol.trim().toUpperCase();
+      const holdInt = parseInt(holdValue);
+      if (!Number.isFinite(holdInt) || holdInt <= 0) {
+        setTradeError("Enter a valid holding duration.");
+        return;
+      }
+      let dipThreshold: number | null = null;
+      if (dipThresholdPct.trim()) {
+        const dipValue = parseFloat(dipThresholdPct);
+        if (!Number.isFinite(dipValue) || dipValue < 0 || dipValue > 90) {
+          setTradeError("Dip alert must be between 0 and 90%. Use 0 to disable.");
+          return;
+        }
+        dipThreshold = dipValue > 0 ? dipValue / 100 : null;
+      }
+      const result = await api.trades.create({
+        symbol: sym,
+        shares: parseFloat(newTrade.shares),
+        buy_price: parseFloat(newTrade.buy_price),
+        hold_unit: holdUnit,
+        hold_value: holdInt,
+        dip_threshold_pct: dipThreshold,
+      });
+      setNewTrade({ symbol: "", shares: "", buy_price: "" });
+      if (result.aggregated && result.prev_shares != null && result.prev_buy_price != null) {
+        setTradeSuccess(`${sym} position updated — ${result.shares} shares @ $${result.buy_price.toFixed(2)} avg (was ${result.prev_shares} @ $${result.prev_buy_price.toFixed(2)})`);
+      } else {
+        setTradeSuccess("Trade logged! Telegram alert activated if connected.");
+      }
+      setTimeout(() => setTradeSuccess(null), 5000);
+      loadTrades();
+    } catch (e: unknown) {
+      setTradeError(e instanceof Error ? e.message : "Failed to log trade");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateTrade = async (id: number, req: TradeUpdate) => {
+    await api.trades.update(id, req);
+    loadTrades();
+  };
+
+  const handleCloseTrade = async (id: number) => {
+    try {
+      const trade = trades.find((t) => t.id === id);
+      const sellPrice = trade ? (prices[trade.symbol] ?? null) : null;
+      await api.trades.close(id, sellPrice);
+      loadTrades();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateDip = async (id: number, dipThreshold: number | null) => {
+    await api.trades.updateDipThreshold(id, dipThreshold);
+    loadTrades();
+  };
+
+  if (loadingAuth) return <PageLoader />;
+  if (!user) return null;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 pt-16 pb-16 md:pb-10 animate-fade-in">
+
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--border)]">
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 gradient-accent rounded-3xl flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/20 shrink-0">
+            <UserCircle className="text-[var(--color-text-inverse)]" size={22} />
+          </div>
+          <div>
+            <p className="font-bold text-[var(--color-text-inverse)] leading-tight">{user.username}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1.5">
+              <Send size={9} className="text-[var(--color-cta)]" />
+              {user.telegram_username
+                ? <span><span className="text-[var(--color-cta)]">{user.telegram_username}</span> connected</span>
+                : "No Telegram connected — add in Settings"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/account" className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors px-3 py-1.5 rounded-2xl hover:bg-[var(--color-surface-raised)]/50 border border-[var(--border)] hover:border-[var(--border-bright)]">
+            Settings
+          </Link>
+          <button
+            onClick={logout}
+            className="text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-danger)] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-2xl hover:bg-[var(--color-danger)]/10"
+          >
+            <LogOut size={13} /> Logout
+          </button>
+        </div>
+      </div>
+
+      {/* ── Page heading ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl font-bold text-[var(--color-text-inverse)] flex items-center gap-2">
+            <Shield size={20} className="text-[var(--color-cta)]" /> Portfolio
+          </h1>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+            {trades.length === 0 ? "No active positions" : `${trades.length} position${trades.length > 1 ? "s" : ""} tracked`}
+          </p>
+        </div>
+        {trades.length > 0 && (
+          <div className="flex items-center gap-2">
+            {lastPriceUpdate && !loadingPrices && (
+              <span className="text-[10px] text-[var(--color-text-secondary)] font-sans">
+                Updated {Math.round((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
+              </span>
+            )}
+            <button
+              onClick={loadPrices}
+              disabled={loadingPrices}
+              className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-2xl hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
+              {loadingPrices ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Portfolio summary ─────────────────────────────────────── */}
+      {summary && summary.positions_count > 0 && (
+        <div className="mb-4">
+          <PortfolioSummaryCard summary={summary} />
+        </div>
+      )}
+
+      {/* ── Log a new trade ───────────────────────────────────────── */}
+      <Card variant="compact" className="p-4 mb-4">
+        <h3 className="text-xs font-bold text-[var(--color-cta)] mb-4 flex items-center gap-2 uppercase tracking-wider">
+          <Plus size={14} /> Log a new trade
+        </h3>
+        <form onSubmit={handleCreateTrade} className="flex flex-col gap-3">
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Symbol</label>
+              <div className="relative">
+                <input
+                  required
+                  type="text"
+                  placeholder="AAPL"
+                  className="input-field uppercase text-sm py-2 px-3 rounded-2xl"
+                  value={newTrade.symbol}
+                  onFocus={() => setSymbolOpen(true)}
+                  onBlur={() => setTimeout(() => setSymbolOpen(false), 120)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setSymbolOpen(false); return; }
+                    if (!symbolOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) setSymbolOpen(true);
+                    if (!filteredSymbols.length) return;
+                    if (e.key === "ArrowDown") { e.preventDefault(); setSymbolIndex((i) => (i + 1) % filteredSymbols.length); }
+                    if (e.key === "ArrowUp")   { e.preventDefault(); setSymbolIndex((i) => (i - 1 + filteredSymbols.length) % filteredSymbols.length); }
+                    if (e.key === "Enter" && symbolOpen) {
+                      e.preventDefault();
+                      const picked = filteredSymbols[symbolIndex];
+                      if (picked) selectSymbol(picked.symbol);
+                    }
+                  }}
+                  onChange={(e) => {
+                    setTradeError(null);
+                    setSymbolOpen(true);
+                    setNewTrade({ ...newTrade, symbol: e.target.value.toUpperCase() });
+                  }}
+                />
+                {symbolOpen && (
+                  <div className="absolute z-20 mt-1 w-full rounded-3xl bg-[var(--color-surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
+                    {filteredSymbols.length > 0 ? (
+                      filteredSymbols.map((t, i) => (
+                        <button
+                          key={t.symbol}
+                          type="button"
+                          onClick={() => selectSymbol(t.symbol)}
+                          onMouseEnter={() => setSymbolIndex(i)}
+                          className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
+                            i === symbolIndex ? "bg-[var(--color-cta)]/20 text-[var(--color-text-inverse)]" : "hover:bg-[var(--color-surface-raised)]/50 text-[var(--color-text-muted)]"
+                          }`}
+                        >
+                          <span className="font-sans font-bold text-[var(--color-text-inverse)] text-xs w-14 shrink-0">{t.symbol}</span>
+                          <span className="text-[var(--color-text-muted)] truncate flex-1 text-[10px]">{t.name}</span>
+                        </button>
+                      ))
+                    ) : symbolQuery ? (
+                      <div className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">No matches found.</div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {symbolQuery && !isSymbolInUniverse && (
+                <p className="text-[10px] text-[var(--color-cta)] mt-0.5">Custom symbol will be verified</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
+              <input
+                required type="number" step="0.01" min="0.01" placeholder="10"
+                className="input-field text-sm py-2 px-3 rounded-2xl"
+                value={newTrade.shares}
+                onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy $</label>
+              <input
+                required type="number" step="0.01" min="0.01" placeholder="150.00"
+                className="input-field text-sm py-2 px-3 rounded-2xl"
+                value={newTrade.buy_price}
+                onChange={(e) => setNewTrade({ ...newTrade, buy_price: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Holding Duration</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {(["days", "months", "years"] as const).map((unit) => (
+                <label
+                  key={unit}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border text-[10px] uppercase tracking-wider font-bold cursor-pointer transition-all ${
+                    holdUnit === unit
+                      ? "bg-[var(--color-cta)]/15 border-[var(--color-cta)]/40 text-[var(--color-cta)]"
+                      : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)]"
+                  }`}
+                >
+                  <input type="radio" name="hold_unit" className="accent-[var(--color-cta)] sr-only" checked={holdUnit === unit} onChange={() => setHoldUnit(unit)} />
+                  {unit}
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="1"
+                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
+                value={holdValue}
+                onChange={(e) => setHoldValue(e.target.value)}
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">{holdUnit}</span>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Dip Alert Threshold</p>
+              <span className="text-[10px] text-[var(--color-text-secondary)]">Optional</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="0" max="90" step="0.5"
+                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
+                value={dipThresholdPct}
+                onChange={(e) => setDipThresholdPct(e.target.value)}
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">% drop from entry</span>
+            </div>
+            <p className="text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
+              Sends a Telegram alert if the price drops beyond this threshold.
+            </p>
+          </div>
+
+          {tradeError && (
+            <Alert variant="danger">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              {tradeError}
+            </Alert>
+          )}
+          {tradeSuccess && (
+            <Alert variant="success">{tradeSuccess}</Alert>
+          )}
+
+          <button
+            type="submit"
+            disabled={!canSubmitTrade || submitting}
+            className="w-full gradient-accent text-[var(--color-text-inverse)] font-bold py-2.5 rounded-3xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-[var(--color-cta)]/20"
+          >
+            {submitting ? (
+              <><div className="w-4 h-4 border-2 border-[var(--color-border)]/30 border-t-[var(--color-text-inverse)] rounded-full animate-spin" /> Validating…</>
+            ) : (
+              <>Log trade &amp; activate alerts</>
+            )}
+          </button>
+        </form>
+      </Card>
+
+      {/* ── Active positions ──────────────────────────────────────── */}
+      <div className="flex flex-col gap-3">
+        {trades.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-[var(--border)]/20 text-[var(--color-text-secondary)] gap-3">
+            <Shield size={28} className="opacity-20" />
+            <p className="text-sm">No active positions being tracked.</p>
+          </div>
+        ) : (
+          trades.map((t) => (
+            <TradeCard
+              key={t.id}
+              t={t}
+              currentPrice={prices[t.symbol]}
+              onClose={handleCloseTrade}
+              onUpdateDip={handleUpdateDip}
+              onEdit={handleUpdateTrade}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

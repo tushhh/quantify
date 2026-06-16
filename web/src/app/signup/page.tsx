@@ -33,7 +33,7 @@ export default function SignUpPage() {
       if (form.telegram) {
         setShowPopup(true);
       } else {
-        router.push("/dashboard");
+        router.push("/portfolio");
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Registration failed");
@@ -171,7 +171,7 @@ export default function SignUpPage() {
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>
               <button 
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/portfolio")}
                 className="w-full text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] font-semibold py-3 text-sm transition-colors"
               >
                 Go home

@@ -10,7 +10,7 @@ export default function TradesPage() {
   const router = useRouter();
   // Redirect to dashboard since trades page is consolidated there
   useEffect(() => {
-    router.push("/dashboard");
+    router.push("/portfolio");
   }, [router]);
 
   const [trades, setTrades] = useState<any[]>([]);
