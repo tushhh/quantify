@@ -12,7 +12,7 @@ router = APIRouter(prefix="/utils", tags=["utils"])
 
 
 def _is_us_equity(symbol: str) -> Tuple[bool, str]:
-    """Check whether a ticker symbol refers to a US-listed equity.
+    """Check whether a ticker symbol refers to a US-listed security (equity or ETF).
 
     Synchronous — always call via run_in_executor from async routes.
     """
@@ -32,22 +32,26 @@ def _is_us_equity(symbol: str) -> Tuple[bool, str]:
     country = info.get("country")
     exchange = info.get("exchange") or info.get("primaryExchange") or info.get("market")
     quote_type = info.get("quoteType") or info.get("instrumentType")
+    market = info.get("market", "")
 
     if country:
         if "United" in str(country):
             return True, exchange or "US"
-        return False, "not_us_equity"
+        return False, "not_us_listed"
 
     if exchange:
         exch = str(exchange).upper()
-        for known in ("NASDAQ", "NYSE", "AMEX", "NMS", "ARCA", "BATS"):
+        for known in ("NASDAQ", "NYSE", "AMEX", "NMS", "ARCA", "BATS", "PCX", "CBOE"):
             if known in exch:
                 return True, exchange
 
-    if quote_type and str(quote_type).upper() in ("EQUITY", "STOCK"):
+    if "us_market" in str(market).lower():
+        return True, exchange or market
+
+    if quote_type and str(quote_type).upper() in ("EQUITY", "STOCK", "ETF", "MUTUALFUND"):
         return True, exchange or "unknown"
 
-    return False, "not_us_equity"
+    return False, "not_us_listed"
 
 
 @router.get("/validate_symbol")
