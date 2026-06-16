@@ -55,6 +55,16 @@ async def lifespan(app: FastAPI):
     # Start the background task for telegram alerts only on worker dynos
     scheduler = AsyncIOScheduler()
     if not is_web_dyno:
+        # Every 10 minutes during US market hours (9 AM–4:30 PM ET, Mon–Fri)
+        scheduler.add_job(
+            check_alerts_loop,
+            'cron',
+            day_of_week='mon-fri',
+            hour='9-16',
+            minute='*/10',
+            timezone='America/New_York',
+        )
+        # Every 3 hours for overnight/weekend coverage (hold expiry, etc.)
         scheduler.add_job(check_alerts_loop, 'interval', hours=3)
         scheduler.start()
     else:

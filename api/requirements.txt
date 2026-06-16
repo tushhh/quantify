@@ -12,6 +12,7 @@ pandas-ta
 pyarrow>=14.0
 pyyaml>=6.0
 apscheduler>=3.10
+pytz>=2024.1
 python-dotenv>=1.0
 matplotlib>=3.7
 seaborn>=0.12
