@@ -124,7 +124,6 @@ ALLOWED_ORIGINS = list(dict.fromkeys([
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r".*",  # Allow all origins safely with credentials
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
