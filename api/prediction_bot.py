@@ -256,26 +256,50 @@ def predict_single_ticker(symbol: str) -> Optional[PredictionItem]:
 
 def _signal_one_liner(signal: PredictionItem) -> str:
     """Plain-English 'why' line for a single predicted stock (no leading bullet)."""
-    summary = build_plain_summary(signal.side, signal.explanations)
+    ret_positive = signal.predicted_return_pct >= 0
+    side_long = signal.side == "long"
+    effective_side = "long" if ret_positive else "short"
+    summary = build_plain_summary(effective_side, signal.explanations)
+    if side_long != ret_positive:
+        lead = "Mixed"
+    else:
+        lead = "Bullish" if side_long else "Bearish"
     if summary:
-        lead = "Bullish" if signal.side == "long" else "Bearish"
         return f"{lead} — {summary}."
-    return "Bullish signal." if signal.side == "long" else "Bearish signal."
+    return f"{lead} signal."
 
 
 def format_prediction_msg(signal: PredictionItem) -> str:
     """Format a PredictionItem into a formatted HTML string."""
-    side_word = "Bullish 🟢" if signal.side == "long" else "Bearish 🔴"
+    ret = signal.predicted_return_pct
+    ret_positive = ret >= 0
+    side_long = signal.side == "long"
+
+    # Conflict: cross-sectional rank says long but absolute return is negative (or vice versa).
+    # This happens when a stock ranks top-decile vs peers but the model still predicts a small loss.
+    conflict = side_long != ret_positive
+    if conflict:
+        side_word = "Mixed ⚠️"
+    else:
+        side_word = "Bullish 🟢" if side_long else "Bearish 🔴"
+
     msg = (
         f"📊 <b>ML Prediction for {signal.symbol} ({signal.name})</b>\n\n"
         f"• <b>Signal:</b> {side_word}\n"
-        f"• <b>Strength:</b> {signal.strength:.2%}\n"
-        f"• <b>Predicted 21d Return:</b> {signal.predicted_return_pct:+.2f}%\n"
+        f"• <b>Strength:</b> {abs(signal.strength):.2%}\n"
+        f"• <b>Predicted 21d Return:</b> {ret:+.2f}%\n"
         f"• <b>Sector:</b> {signal.sector}\n"
     )
 
-    # Plain-English summary line so non-expert users understand the call.
-    summary = build_plain_summary(signal.side, signal.explanations)
+    if conflict:
+        if side_long:
+            msg += "\n⚠️ <i>Ranked top-decile vs peers, but predicted return is slightly negative — relatively stronger than most stocks in the universe, yet still expected to dip.</i>\n"
+        else:
+            msg += "\n⚠️ <i>Ranked bottom-decile vs peers, but predicted return is slightly positive — relatively weaker than most stocks, yet still expected to gain modestly.</i>\n"
+
+    # Plain-English summary line: use actual return sign, not cross-sectional side.
+    effective_side = "long" if ret_positive else "short"
+    summary = build_plain_summary(effective_side, signal.explanations)
     if summary:
         msg += f"\n💡 <b>In plain terms:</b> {summary}.\n"
 
