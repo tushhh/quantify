@@ -1114,7 +1114,11 @@ class MLReturnPredictorStrategy(Strategy):
         dispersion_scale = None
         if self._last_prediction_dispersion:
             dispersion_vals = np.array(list(self._last_prediction_dispersion.values()))
-            dispersion_scale = float(np.median(dispersion_vals)) if dispersion_vals.size else None
+            if dispersion_vals.size:
+                # Use 75th percentile so most stocks have confidence > 0.5.
+                # Median would set confidence=0.5 for half the universe, capping
+                # top-signal strength around 47% regardless of prediction quality.
+                dispersion_scale = float(np.percentile(dispersion_vals, 75))
             if dispersion_scale is not None and dispersion_scale <= 0:
                 dispersion_scale = None
 
