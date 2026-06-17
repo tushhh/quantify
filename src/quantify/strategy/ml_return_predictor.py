@@ -148,7 +148,9 @@ _SECTOR_FEATURES: tuple[str, ...] = (
     "sector_rs_21d",
 )
 
-# LightGBM hyperparameters (tuned to prevent overfitting on noisy financial data)
+# LightGBM hyperparameters — LGBM-specific; do NOT pass directly to XGBoost/CatBoost.
+# max_depth=3 with num_leaves=7 is correct for LGBM's leaf-wise growth but would
+# make XGB/CatBoost (level-wise) critically shallow. See _XGB_PARAMS/_CB_PARAMS below.
 _LGBM_PARAMS: dict[str, Any] = {
     "objective": "regression",
     "metric": "rmse",
@@ -164,6 +166,20 @@ _LGBM_PARAMS: dict[str, Any] = {
     "random_state": 42,
     "n_jobs": -1,
     "verbose": -1,
+}
+
+# Per-library overrides for params that are NOT safely shared from _LGBM_PARAMS.
+# Shared structural params (learning_rate, n_estimators, subsample, colsample_bytree,
+# reg_alpha, reg_lambda) are still forwarded from lgbm_params at build time.
+_XGB_PARAMS: dict[str, Any] = {
+    "max_depth": 6,        # level-wise growth — depth 6 ≈ 64 leaves (diversity vs LGBM)
+    "min_child_weight": 50,  # Hessian-sum threshold; ~half of LGBM's min_child_samples
+}
+
+_CB_PARAMS: dict[str, Any] = {
+    "depth": 6,             # symmetric trees — depth 6 gives meaningful complexity
+    "min_data_in_leaf": 50,
+    "random_strength": 1.0,  # per-split noise for implicit regularization
 }
 
 
@@ -1253,18 +1269,19 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     except ImportError:
         log.error("LightGBM not found for ensemble.")
 
-    # 2. XGBoost
+    # 2. XGBoost — use _XGB_PARAMS for library-specific settings; share structural
+    #    params (learning_rate, n_estimators, subsample, reg) from lgbm_params.
     try:
         from xgboost import XGBRegressor
         xgb_params = {
-            "n_estimators": params.get("n_estimators", 200),
+            "n_estimators": params.get("n_estimators", 400),
             "learning_rate": params.get("learning_rate", 0.02),
-            "max_depth": params.get("max_depth", 6),
-            "min_child_weight": params.get("min_child_samples", 30),
+            "max_depth": _XGB_PARAMS["max_depth"],
+            "min_child_weight": _XGB_PARAMS["min_child_weight"],
             "subsample": params.get("subsample", 0.8),
             "colsample_bytree": params.get("colsample_bytree", 0.8),
-            "reg_alpha": params.get("reg_alpha", 0.1),
-            "reg_lambda": params.get("reg_lambda", 0.1),
+            "reg_alpha": params.get("reg_alpha", 1.0),
+            "reg_lambda": params.get("reg_lambda", 1.0),
             "n_jobs": -1,
             "random_state": 42,
             "verbosity": 0,
@@ -1274,15 +1291,16 @@ def _build_model(params: dict[str, Any]) -> tuple[Any, list[str]]:
     except ImportError:
         log.error("XGBoost not found for ensemble.")
 
-    # 3. CatBoost
+    # 3. CatBoost — same principle: own depth/leaf settings, shared structural params.
     try:
         from catboost import CatBoostRegressor
         cb_params = {
-            "iterations": params.get("n_estimators", 200),
-            "learning_rate": params.get("learning_rate", 0.05),
-            "depth": params.get("max_depth", 6),
-            "min_data_in_leaf": params.get("min_child_samples", 30),
-            "l2_leaf_reg": params.get("reg_lambda", 0.1),
+            "iterations": params.get("n_estimators", 400),
+            "learning_rate": params.get("learning_rate", 0.02),
+            "depth": _CB_PARAMS["depth"],
+            "min_data_in_leaf": _CB_PARAMS["min_data_in_leaf"],
+            "random_strength": _CB_PARAMS["random_strength"],
+            "l2_leaf_reg": params.get("reg_lambda", 1.0),
             "verbose": False,
             "random_seed": 42,
         }
