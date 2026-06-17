@@ -785,7 +785,7 @@ class MLReturnPredictorStrategy(Strategy):
         self._model_metrics = None
         if X_val is not None and y_val is not None and not X_val.empty:
             try:
-                pred_val = model.predict(X_val[self.features].values)
+                pred_val = model.predict(X_val[self.features])
                 err = pred_val - y_val.values
                 rmse = float(np.sqrt(np.mean(err ** 2)))
                 mae = float(np.mean(np.abs(err)))
@@ -885,9 +885,18 @@ class MLReturnPredictorStrategy(Strategy):
         predictions: dict[str, float] = {}
 
         try:
-            # Prefer passing a DataFrame to preserve feature names
             model_input = feat_df[self.features] if all(f in feat_df.columns for f in self.features) else feat_df
-            model_preds = self._model.predict(model_input)
+            # StackingRegressor converts DataFrames to numpy arrays internally
+            # before calling each base learner, triggering a LightGBM feature-name
+            # warning that is harmless (column order is guaranteed by model_input
+            # construction above). Suppress it at the call site.
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="X does not have valid feature names",
+                    category=UserWarning,
+                )
+                model_preds = self._model.predict(model_input)
             for symbol, pred in zip(feat_df.index, model_preds):
                 predictions[symbol] = float(pred)
         except Exception as exc:
@@ -911,7 +920,7 @@ class MLReturnPredictorStrategy(Strategy):
                 for estimator in self._model.estimators_:
                     if estimator is None:
                         continue
-                    estimator_preds.append(estimator.predict(feat_df[self.features].values))
+                    estimator_preds.append(estimator.predict(feat_df[self.features]))
                 if estimator_preds:
                     stacked = np.vstack(estimator_preds)
                     dispersion = np.nanstd(stacked, axis=0)
