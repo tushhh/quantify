@@ -36,7 +36,7 @@ jobs:
         env:
           PREDICTION_DATA_CACHE_DIR: "./data/cache"
         run: |
-          python scripts/walk_forward_backtest.py --universe-size 100 --years 2
+          python scripts/walk_forward_backtest.py --universe-size 100 --years 5
 
       - name: Print summary
         run: cat walk_forward_summary.json
