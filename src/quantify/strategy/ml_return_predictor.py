@@ -182,6 +182,22 @@ _CB_PARAMS: dict[str, Any] = {
     "random_strength": 1.0,  # per-split noise for implicit regularization
 }
 
+# Cross-sectional regime features — computed internally from the universe cross-section
+# on each date.  NOT sourced from FeatureEngine (excluded from get_required_features).
+# NOT z-scored per date: they represent absolute market state across time, not relative
+# stock ranking within a day.  These let the ensemble learn regime-conditional behaviour
+# (e.g. discounting momentum in high-volatility environments).
+_CS_FEATURES: tuple[str, ...] = (
+    "cs_mkt_return_252d",    # cross-sectional mean 252d return — market trend proxy
+    "cs_mkt_vol_60d",        # cross-sectional mean 60d volatility — market stress proxy
+    "cs_return_dispersion",  # cross-sectional std of 5d returns — signal quality proxy
+)
+
+# Regime gate: suppress all signals when the cross-sectional mean 252d return is below
+# this threshold.  Momentum-style signals fail systematically during sustained downtrends;
+# sitting out those periods directly removes the worst negative-IC periods.
+_REGIME_GATE_RETURN_THRESHOLD: float = -0.10
+
 
 class MLReturnPredictorStrategy(Strategy):
     """
@@ -270,10 +286,16 @@ class MLReturnPredictorStrategy(Strategy):
             list(features) if features is not None else list(_ALL_FEATURES)
         )
         self.sector_features: list[str] = list(_SECTOR_FEATURES) if use_sector_rs else []
+        self.cs_features: list[str] = list(_CS_FEATURES)
         if use_fundamentals:
-            self.features = self.technical_features + self.sector_features + list(FUNDAMENTAL_FEATURES)
+            self.features = (
+                self.technical_features
+                + self.sector_features
+                + self.cs_features
+                + list(FUNDAMENTAL_FEATURES)
+            )
         else:
-            self.features = self.technical_features + self.sector_features
+            self.features = self.technical_features + self.sector_features + self.cs_features
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
         self.rebalance_days = rebalance_days
@@ -552,13 +574,15 @@ class MLReturnPredictorStrategy(Strategy):
         """
         data = self._filter_to_universe(data)
         X_parts: list[pd.DataFrame] = []
+        # CS features are computed from the full cross-section after stacking;
+        # they are never present in individual stock DataFrames.
+        stock_feats = [f for f in self.features if f not in self.cs_features]
 
         for symbol, df in data.items():
             if df.empty or len(df) < _FORWARD_RETURN_DAYS + 30:
                 continue
 
-            # Check that all feature columns are present
-            missing = [f for f in self.features if f not in df.columns]
+            missing = [f for f in stock_feats if f not in df.columns]
             if missing:
                 log.debug("%s: %s missing features: %s", self.name, symbol, missing)
                 continue
@@ -568,7 +592,7 @@ class MLReturnPredictorStrategy(Strategy):
             if n < 20:
                 continue
 
-            feat_df = df[self.features].iloc[:n].copy()
+            feat_df = df[stock_feats].iloc[:n].copy()
 
             # FIX Bug #1: Correct forward return computation.
             # We want the return from day t to day t+N:
@@ -602,16 +626,36 @@ class MLReturnPredictorStrategy(Strategy):
             start_date = unique_dates[-self.train_window_days]
             all_data = all_data[all_data.index >= start_date]
 
-        # Winsorize feature tails per date to control outliers before z-scoring
+        # Winsorize stock-level feature tails per date (CS features not computed yet)
         if 0.0 < self.feature_winsor_q < 0.5:
             q = self.feature_winsor_q
             try:
-                winsorized = all_data[self.features].groupby(level=0).transform(
+                stock_feats_to_winsorize = [
+                    f for f in self.features
+                    if f not in self.cs_features and f in all_data.columns
+                ]
+                winsorized = all_data[stock_feats_to_winsorize].groupby(level=0).transform(
                     lambda s: s.clip(lower=s.quantile(q), upper=s.quantile(1.0 - q))
                 )
-                all_data[self.features] = winsorized
+                all_data[stock_feats_to_winsorize] = winsorized
             except Exception:
                 log.debug("%s: feature winsorization skipped", self.name)
+
+        # Compute cross-sectional regime features from the (winsorized) stock data.
+        # transform broadcasts the per-date aggregate to every row within that date.
+        # These are kept in raw form — z-scoring them per date would collapse them to zero.
+        if "cs_mkt_return_252d" in self.cs_features and "return_252d" in all_data.columns:
+            all_data["cs_mkt_return_252d"] = (
+                all_data.groupby(level=0)["return_252d"].transform("mean")
+            )
+        if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in all_data.columns:
+            all_data["cs_mkt_vol_60d"] = (
+                all_data.groupby(level=0)["volatility_60d"].transform("mean")
+            )
+        if "cs_return_dispersion" in self.cs_features and "return_5d" in all_data.columns:
+            all_data["cs_return_dispersion"] = (
+                all_data.groupby(level=0)["return_5d"].transform("std")
+            )
 
         # Winsorize raw target tails before rank transformation
         if 0.0 < self.target_winsor_q < 0.5:
@@ -635,21 +679,33 @@ class MLReturnPredictorStrategy(Strategy):
             except Exception:
                 log.debug("%s: rank target transformation skipped", self.name)
 
-        # Cross-sectional standardization (z-score per timestamp) for features only.
+        # Cross-sectional standardization (z-score per timestamp) for stock-level features only.
+        # CS features are constant within each day — applying the cross-sectional z-score
+        # would collapse them to zero and destroy their time-series information.
         def zscore(x: pd.Series) -> pd.Series:
             std = x.std()
             if len(x) > 1 and std > 0:
                 return (x - x.mean()) / std
             return x - x.mean()
 
-        feature_normed = all_data.groupby(level=0)[self.features].transform(zscore)
+        stock_feats = [f for f in self.features if f not in self.cs_features]
+        feature_normed = all_data.groupby(level=0)[stock_feats].transform(zscore)
         valid_mask = feature_normed.notna().all(axis=1)
         feature_normed = feature_normed[valid_mask]
 
         if feature_normed.empty:
             return None, None
 
-        X_all = feature_normed
+        # Append CS regime features in raw form — their time-series variation is what
+        # gives the ensemble market-regime context.
+        cs_feats_present = [f for f in self.cs_features if f in all_data.columns]
+        if cs_feats_present:
+            X_all = pd.concat(
+                [feature_normed, all_data.loc[valid_mask, cs_feats_present]], axis=1
+            )
+        else:
+            X_all = feature_normed
+
         y_all = all_data.loc[valid_mask, "target"]
 
         return X_all, y_all
@@ -846,17 +902,18 @@ class MLReturnPredictorStrategy(Strategy):
 
         # Collect current feature rows for all symbols
         current_features = {}
+        stock_feats = [f for f in self.features if f not in self.cs_features]
         for symbol, df in data.items():
             if df.empty or len(df) < 30:
                 continue
 
-            missing = [f for f in self.features if f not in df.columns]
+            missing = [f for f in stock_feats if f not in df.columns]
             if missing:
                 log.warning("%s: %s missing features: %s", self.name, symbol, missing)
                 continue
 
-            # Use the most recent complete bar
-            feat_row = df[self.features].iloc[-1]
+            # Use the most recent complete bar (stock-level features only)
+            feat_row = df[stock_feats].iloc[-1]
             if feat_row.isna().any():
                 nan_cols = feat_row.index[feat_row.isna()].tolist()
                 log.warning("%s: %s has NaN features at latest bar: %s", self.name, symbol, nan_cols)
@@ -867,17 +924,46 @@ class MLReturnPredictorStrategy(Strategy):
         if not current_features:
             return {}
 
-        # Build DataFrame for cross-sectional standardization
+        # Build DataFrame from stock-level features (CS features added separately below)
         feat_df = pd.DataFrame.from_dict(current_features, orient="index")
         raw_df = feat_df.copy()
 
-        # Z-score standardization across the cross-section
+        # Compute cross-sectional regime features from the current universe snapshot.
+        # These are the same aggregates computed per-date during training.
+        cs_vals: dict[str, float] = {}
+        if len(feat_df) > 1:
+            if "cs_mkt_return_252d" in self.cs_features and "return_252d" in feat_df.columns:
+                cs_vals["cs_mkt_return_252d"] = float(feat_df["return_252d"].mean())
+            if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in feat_df.columns:
+                cs_vals["cs_mkt_vol_60d"] = float(feat_df["volatility_60d"].mean())
+            if "cs_return_dispersion" in self.cs_features and "return_5d" in feat_df.columns:
+                cs_vals["cs_return_dispersion"] = float(feat_df["return_5d"].std())
+
+        # Regime gate: sit out when the broad market is in a sustained downtrend.
+        # Momentum signals fail systematically in these periods (confirmed by walk-forward
+        # showing IC clusters of -0.25 to -0.40 coinciding with bear market windows).
+        cs_mkt_ret = cs_vals.get("cs_mkt_return_252d")
+        if cs_mkt_ret is not None and cs_mkt_ret < _REGIME_GATE_RETURN_THRESHOLD:
+            log.info(
+                "%s: regime gate — suppressing signals "
+                "(cs_mkt_return_252d=%.3f < threshold=%.2f)",
+                self.name, cs_mkt_ret, _REGIME_GATE_RETURN_THRESHOLD,
+            )
+            return {}
+
+        # Z-score stock-level features cross-sectionally
         if len(feat_df) > 1:
             stds = feat_df.std()
             stds[stds == 0] = 1.0  # Avoid division by zero
             feat_df = (feat_df - feat_df.mean()) / stds
         else:
             feat_df = feat_df - feat_df.mean()
+
+        # Append CS regime features as raw (unscaled) columns.
+        # They must NOT be cross-sectionally z-scored — the constant-within-day value
+        # would collapse to zero, destroying the regime signal.
+        for cs_feat, cs_val in cs_vals.items():
+            feat_df[cs_feat] = cs_val
 
         self._last_feature_values = raw_df.to_dict(orient="index")
         self._last_feature_zscores = feat_df.to_dict(orient="index")
