@@ -24,12 +24,11 @@ Features (all from FeatureEngine):
   - Momentum:     rsi_14, macd_histogram
   - Bands:        bollinger_width
   - Moving avgs:  sma_crossover
-  - Volume:       volume_ratio_20d, obv_slope, volume_trend
+  - Volume:       volume_ratio_20d, volume_trend, vwap_ratio
   - Liquidity:    amihud_illiquidity
-  - ATR:          atr_14
-  - Higher-moment: return_std_21d, skewness_21d, max_return_21d, min_return_21d
+  - Higher-moment: return_std_21d, max_return_21d, min_return_21d
   - Anchoring:    price_to_high_52w, price_to_low_52w
-  - Quality:      return_consistency, gap_return, intraday_range
+  - Quality:      return_consistency
   - Interaction:  rsi_divergence, mean_reversion_5d
 
 Target:
@@ -83,8 +82,8 @@ _SHORT_DECILE: float = 0.10         # bottom 10%
 _REBALANCE_DAYS: int = 5            # weekly
 _TARGET_WINSOR_Q: float = 0.01      # winsorize target tails (1% / 99%)
 _FEATURE_WINSOR_Q: float = 0.01     # winsorize feature tails per date
-_TRAIN_WINDOW_DAYS: int = 756       # ~1 year of history for model training
-_DECAY_HALFLIFE_DAYS: int = 126     # time-decay half-life for sample weights
+_TRAIN_WINDOW_DAYS: int = 1008      # ~4 trading years of history for model training
+_DECAY_HALFLIFE_DAYS: int = 252     # time-decay half-life for sample weights
 _PURGE_EMBARGO_DAYS: int = 21       # embargo gap = forward return horizon
 
 
@@ -111,20 +110,13 @@ _ALL_FEATURES: list[str] = [
     "sma_crossover",
     # Volume (core)
     "volume_ratio_20d",
-    "obv_slope",
     "volume_trend",
-    # Volume profile / confirmation
-    "volume_price_corr_20d",
-    "mfi_14",
+    # Volume profile
     "vwap_ratio",
-    "volume_price_divergence",
     # Liquidity
     "amihud_illiquidity",
-    # ATR
-    "atr_14",
     # Higher-moment features (Gu et al. 2020)
     "return_std_21d",
-    "skewness_21d",
     "max_return_21d",
     "min_return_21d",
     # Anchoring features (George & Hwang 2004)
@@ -132,8 +124,6 @@ _ALL_FEATURES: list[str] = [
     "price_to_low_52w",
     # Return quality / consistency
     "return_consistency",
-    "gap_return",
-    "intraday_range",
     # Interaction / composite
     "rsi_divergence",
     "mean_reversion_5d",
@@ -188,15 +178,17 @@ _CB_PARAMS: dict[str, Any] = {
 # stock ranking within a day.  These let the ensemble learn regime-conditional behaviour
 # (e.g. discounting momentum in high-volatility environments).
 _CS_FEATURES: tuple[str, ...] = (
-    "cs_mkt_return_252d",    # cross-sectional mean 252d return — market trend proxy
+    "cs_mkt_return_252d",    # cross-sectional mean 252d return — long-horizon trend proxy
+    "cs_mkt_return_63d",     # cross-sectional mean 63d return — catches sharp corrections
     "cs_mkt_vol_60d",        # cross-sectional mean 60d volatility — market stress proxy
     "cs_return_dispersion",  # cross-sectional std of 5d returns — signal quality proxy
 )
 
-# Regime gate: suppress all signals when the cross-sectional mean 252d return is below
-# this threshold.  Momentum-style signals fail systematically during sustained downtrends;
-# sitting out those periods directly removes the worst negative-IC periods.
-_REGIME_GATE_RETURN_THRESHOLD: float = -0.10
+# Regime gates: suppress all signals when either return horizon triggers.
+# The 252d gate catches sustained bear markets; the 63d gate catches sharp corrections
+# where the long-term return is still positive but recent momentum has reversed hard.
+_REGIME_GATE_RETURN_THRESHOLD: float = -0.10    # 252d gate
+_REGIME_GATE_SHORT_RETURN_THRESHOLD: float = -0.08  # 63d gate
 
 
 class MLReturnPredictorStrategy(Strategy):
@@ -293,6 +285,8 @@ class MLReturnPredictorStrategy(Strategy):
         cs_features_avail: list[str] = []
         if "return_252d" in _tf:
             cs_features_avail.append("cs_mkt_return_252d")
+        if "return_63d" in _tf:
+            cs_features_avail.append("cs_mkt_return_63d")
         if "volatility_60d" in _tf:
             cs_features_avail.append("cs_mkt_vol_60d")
         if "return_5d" in _tf:
@@ -659,6 +653,10 @@ class MLReturnPredictorStrategy(Strategy):
             all_data["cs_mkt_return_252d"] = (
                 all_data.groupby(level=0)["return_252d"].transform("mean")
             )
+        if "cs_mkt_return_63d" in self.cs_features and "return_63d" in all_data.columns:
+            all_data["cs_mkt_return_63d"] = (
+                all_data.groupby(level=0)["return_63d"].transform("mean")
+            )
         if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in all_data.columns:
             all_data["cs_mkt_vol_60d"] = (
                 all_data.groupby(level=0)["volatility_60d"].transform("mean")
@@ -945,20 +943,31 @@ class MLReturnPredictorStrategy(Strategy):
         if len(feat_df) > 1:
             if "cs_mkt_return_252d" in self.cs_features and "return_252d" in feat_df.columns:
                 cs_vals["cs_mkt_return_252d"] = float(feat_df["return_252d"].mean())
+            if "cs_mkt_return_63d" in self.cs_features and "return_63d" in feat_df.columns:
+                cs_vals["cs_mkt_return_63d"] = float(feat_df["return_63d"].mean())
             if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in feat_df.columns:
                 cs_vals["cs_mkt_vol_60d"] = float(feat_df["volatility_60d"].mean())
             if "cs_return_dispersion" in self.cs_features and "return_5d" in feat_df.columns:
                 cs_vals["cs_return_dispersion"] = float(feat_df["return_5d"].std())
 
-        # Regime gate: sit out when the broad market is in a sustained downtrend.
-        # Momentum signals fail systematically in these periods (confirmed by walk-forward
-        # showing IC clusters of -0.25 to -0.40 coinciding with bear market windows).
+        # Dual regime gate: sit out when either the 252d or 63d market return breaches
+        # its threshold.  The 252d gate catches sustained bear markets; the 63d gate
+        # catches sharp corrections (tariff shocks, flash crashes) where long-term
+        # return is still positive but recent momentum has reversed hard.
         cs_mkt_ret = cs_vals.get("cs_mkt_return_252d")
         if cs_mkt_ret is not None and cs_mkt_ret < _REGIME_GATE_RETURN_THRESHOLD:
             log.info(
-                "%s: regime gate — suppressing signals "
+                "%s: regime gate (252d) — suppressing signals "
                 "(cs_mkt_return_252d=%.3f < threshold=%.2f)",
                 self.name, cs_mkt_ret, _REGIME_GATE_RETURN_THRESHOLD,
+            )
+            return {}
+        cs_mkt_ret_63d = cs_vals.get("cs_mkt_return_63d")
+        if cs_mkt_ret_63d is not None and cs_mkt_ret_63d < _REGIME_GATE_SHORT_RETURN_THRESHOLD:
+            log.info(
+                "%s: regime gate (63d) — suppressing signals "
+                "(cs_mkt_return_63d=%.3f < threshold=%.2f)",
+                self.name, cs_mkt_ret_63d, _REGIME_GATE_SHORT_RETURN_THRESHOLD,
             )
             return {}
 
