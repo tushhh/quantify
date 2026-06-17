@@ -541,11 +541,17 @@ def test_ml_predictor_predict_cross_sectional_standardization():
     assert "MSFT" in predictions
     assert "GOOG" in predictions
 
-    # Check that the sum of predictions is approximately 0
-    # because the inputs should be cross-sectionally mean 0
-    # and our dummy model is linear sum
-    sum_preds = sum(predictions.values())
-    assert abs(sum_preds) < 1e-7, f"Sum of predictions should be near 0 due to CS normalization, got {sum_preds}"
+    # The stock-level features are cross-sectionally z-scored (mean 0 per date).
+    # CS regime features add an identical constant to every stock's prediction,
+    # so the raw sum can be non-zero (= n_stocks × sum(cs_feature_values)).
+    # What must hold is that the *centered* predictions sum to 0.
+    pred_vals = list(predictions.values())
+    mean_pred = sum(pred_vals) / len(pred_vals)
+    centered_sum = sum(p - mean_pred for p in pred_vals)
+    assert abs(centered_sum) < 1e-7, (
+        f"Centered predictions should sum to 0 (CS normalization + constant CS offset), "
+        f"got {centered_sum}"
+    )
 
 
 def test_compute_sample_weights_returns_numpy():

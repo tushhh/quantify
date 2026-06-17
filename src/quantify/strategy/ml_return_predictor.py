@@ -286,7 +286,18 @@ class MLReturnPredictorStrategy(Strategy):
             list(features) if features is not None else list(_ALL_FEATURES)
         )
         self.sector_features: list[str] = list(_SECTOR_FEATURES) if use_sector_rs else []
-        self.cs_features: list[str] = list(_CS_FEATURES)
+        # Only enable CS features whose source column is present in the active feature set.
+        # If the caller passes a reduced feature list (common in tests), CS features that
+        # depend on missing source columns are simply not added — they'd be uncomputable.
+        _tf = set(self.technical_features)
+        cs_features_avail: list[str] = []
+        if "return_252d" in _tf:
+            cs_features_avail.append("cs_mkt_return_252d")
+        if "volatility_60d" in _tf:
+            cs_features_avail.append("cs_mkt_vol_60d")
+        if "return_5d" in _tf:
+            cs_features_avail.append("cs_return_dispersion")
+        self.cs_features: list[str] = cs_features_avail
         if use_fundamentals:
             self.features = (
                 self.technical_features
