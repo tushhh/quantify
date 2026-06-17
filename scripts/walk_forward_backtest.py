@@ -54,8 +54,11 @@ def _fresh_strategy(universe: list[str]) -> MLReturnPredictorStrategy:
     # must train fresh per window — and avoid clobbering the production model
     # artifacts when _train_model persists.
     strat._model = None
-    strat.features = list(strat.technical_features) + strat.sector_features + (
-        list(FUNDAMENTAL_FEATURES) if strat.use_fundamentals else []
+    strat.features = (
+        list(strat.technical_features)
+        + strat.sector_features
+        + strat.cs_features
+        + (list(FUNDAMENTAL_FEATURES) if strat.use_fundamentals else [])
     )
     strat._model_path = "./models/walk_forward_tmp.joblib"
     strat._model_meta_path = "./models/walk_forward_tmp_meta.json"
