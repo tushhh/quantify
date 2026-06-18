@@ -180,15 +180,17 @@ _CB_PARAMS: dict[str, Any] = {
 _CS_FEATURES: tuple[str, ...] = (
     "cs_mkt_return_252d",    # cross-sectional mean 252d return — long-horizon trend proxy
     "cs_mkt_return_63d",     # cross-sectional mean 63d return — catches sharp corrections
+    "cs_mkt_return_21d",     # cross-sectional mean 21d return — catches acute sell-offs
     "cs_mkt_vol_60d",        # cross-sectional mean 60d volatility — market stress proxy
     "cs_return_dispersion",  # cross-sectional std of 5d returns — signal quality proxy
 )
 
-# Regime gates: suppress all signals when either return horizon triggers.
-# The 252d gate catches sustained bear markets; the 63d gate catches sharp corrections
-# where the long-term return is still positive but recent momentum has reversed hard.
-_REGIME_GATE_RETURN_THRESHOLD: float = -0.10    # 252d gate
-_REGIME_GATE_SHORT_RETURN_THRESHOLD: float = -0.08  # 63d gate
+# Regime gates: suppress all signals when any horizon triggers.
+# 252d: sustained bear markets; 63d: sharp corrections where long-term return still positive;
+# 21d: acute sell-offs / flash crashes not yet visible in the 63d return window.
+_REGIME_GATE_RETURN_THRESHOLD: float = -0.10            # 252d gate
+_REGIME_GATE_SHORT_RETURN_THRESHOLD: float = -0.08      # 63d gate
+_REGIME_GATE_ULTRASHORT_RETURN_THRESHOLD: float = -0.04 # 21d gate
 
 
 class MLReturnPredictorStrategy(Strategy):
@@ -287,6 +289,8 @@ class MLReturnPredictorStrategy(Strategy):
             cs_features_avail.append("cs_mkt_return_252d")
         if "return_63d" in _tf:
             cs_features_avail.append("cs_mkt_return_63d")
+        if "return_21d" in _tf:
+            cs_features_avail.append("cs_mkt_return_21d")
         if "volatility_60d" in _tf:
             cs_features_avail.append("cs_mkt_vol_60d")
         if "return_5d" in _tf:
@@ -657,6 +661,10 @@ class MLReturnPredictorStrategy(Strategy):
             all_data["cs_mkt_return_63d"] = (
                 all_data.groupby(level=0)["return_63d"].transform("mean")
             )
+        if "cs_mkt_return_21d" in self.cs_features and "return_21d" in all_data.columns:
+            all_data["cs_mkt_return_21d"] = (
+                all_data.groupby(level=0)["return_21d"].transform("mean")
+            )
         if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in all_data.columns:
             all_data["cs_mkt_vol_60d"] = (
                 all_data.groupby(level=0)["volatility_60d"].transform("mean")
@@ -945,6 +953,8 @@ class MLReturnPredictorStrategy(Strategy):
                 cs_vals["cs_mkt_return_252d"] = float(feat_df["return_252d"].mean())
             if "cs_mkt_return_63d" in self.cs_features and "return_63d" in feat_df.columns:
                 cs_vals["cs_mkt_return_63d"] = float(feat_df["return_63d"].mean())
+            if "cs_mkt_return_21d" in self.cs_features and "return_21d" in feat_df.columns:
+                cs_vals["cs_mkt_return_21d"] = float(feat_df["return_21d"].mean())
             if "cs_mkt_vol_60d" in self.cs_features and "volatility_60d" in feat_df.columns:
                 cs_vals["cs_mkt_vol_60d"] = float(feat_df["volatility_60d"].mean())
             if "cs_return_dispersion" in self.cs_features and "return_5d" in feat_df.columns:
@@ -968,6 +978,14 @@ class MLReturnPredictorStrategy(Strategy):
                 "%s: regime gate (63d) — suppressing signals "
                 "(cs_mkt_return_63d=%.3f < threshold=%.2f)",
                 self.name, cs_mkt_ret_63d, _REGIME_GATE_SHORT_RETURN_THRESHOLD,
+            )
+            return {}
+        cs_mkt_ret_21d = cs_vals.get("cs_mkt_return_21d")
+        if cs_mkt_ret_21d is not None and cs_mkt_ret_21d < _REGIME_GATE_ULTRASHORT_RETURN_THRESHOLD:
+            log.info(
+                "%s: regime gate (21d) — suppressing signals "
+                "(cs_mkt_return_21d=%.3f < threshold=%.2f)",
+                self.name, cs_mkt_ret_21d, _REGIME_GATE_ULTRASHORT_RETURN_THRESHOLD,
             )
             return {}
 
