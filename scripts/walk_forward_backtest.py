@@ -32,6 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
+from quantify.data.earnings import EARNINGS_FEATURES
 from quantify.data.fundamentals import FUNDAMENTAL_FEATURES
 from quantify.data.universe import get_sp500
 from quantify.screener import prepare_enriched_data
@@ -59,6 +60,7 @@ def _fresh_strategy(universe: list[str]) -> MLReturnPredictorStrategy:
         + strat.sector_features
         + strat.cs_features
         + (list(FUNDAMENTAL_FEATURES) if strat.use_fundamentals else [])
+        + (list(EARNINGS_FEATURES) if strat.use_earnings else [])
     )
     strat._model_path = "./models/walk_forward_tmp.joblib"
     strat._model_meta_path = "./models/walk_forward_tmp_meta.json"

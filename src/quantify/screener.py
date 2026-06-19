@@ -92,6 +92,12 @@ def prepare_enriched_data(
         fundamentals = fetch_fundamentals(list(enriched.keys()), cache_dir=cache_dir)
         enriched = add_fundamental_features(enriched, fundamentals)
 
+    if strategy.use_earnings:
+        log.info("screener: adding earnings PEAD features…")
+        from quantify.data.earnings import fetch_earnings, add_earnings_features
+        earnings = fetch_earnings(list(enriched.keys()), cache_dir=cache_dir)
+        enriched = add_earnings_features(enriched, earnings)
+
     return enriched, strategy
 
 

@@ -64,6 +64,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from quantify.data.earnings import EARNINGS_FEATURES
 from quantify.data.fundamentals import FUNDAMENTAL_FEATURES
 from quantify.data.universe import get_sp500
 from quantify.strategy.base import Strategy
@@ -241,6 +242,10 @@ class MLReturnPredictorStrategy(Strategy):
         fcf_yield, roe) to the technical feature set.  These columns must be
         added to the input data frames via ``add_fundamental_features``;
         they are not computed by FeatureEngine.
+    use_earnings:
+        If True (default), append PEAD earnings features from
+        ``quantify.data.earnings`` (earnings_surprise_pct, days_since_earnings).
+        Columns must be added via ``add_earnings_features`` before training.
     """
 
     name: str = "ml_return_predictor"
@@ -268,10 +273,12 @@ class MLReturnPredictorStrategy(Strategy):
         train_enabled: bool = True,
         use_fundamentals: bool = True,
         use_sector_rs: bool = False,
+        use_earnings: bool = True,
     ) -> None:
         self.universe: list[str] = universe if universe is not None else get_sp500()
         self.use_fundamentals = use_fundamentals
         self.use_sector_rs = use_sector_rs
+        self.use_earnings = use_earnings
         # Technical features come from FeatureEngine; sector RS and fundamental
         # features are appended onto the data frames separately.
         self.technical_features: list[str] = (
@@ -301,6 +308,8 @@ class MLReturnPredictorStrategy(Strategy):
             )
         else:
             self.features = self.technical_features + self.sector_features + self.cs_features
+        if use_earnings:
+            self.features = self.features + list(EARNINGS_FEATURES)
         self.min_train_bars = min_train_bars
         self.retrain_interval_days = retrain_interval_days
         self.rebalance_days = rebalance_days

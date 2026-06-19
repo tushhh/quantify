@@ -226,6 +226,21 @@ _GLOSSARY: dict[str, dict[str, str]] = {
         "high": "wide ▲",
         "low": "narrow ▼",
     },
+    # Earnings / PEAD
+    "earnings_surprise_pct": {
+        "label": "Earnings beat",
+        "high": "beat estimates recently ▲",
+        "low": "missed estimates recently ▼",
+        "short_high": "beat already priced in — may fade ▼",
+        "short_low": "missed estimates recently ▼",
+    },
+    "days_since_earnings": {
+        "label": "Earnings recency",
+        "high": "results are getting stale ▼",
+        "low": "fresh earnings still in play ▲",
+        "short_high": "earnings drift fading ▼",
+        "short_low": "recent report — drift window active ▼",
+    },
     # Fundamentals — for shorts, quality/value metrics that rank it poorly vs peers
     "earnings_yield": {
         "label": "Valuation",
