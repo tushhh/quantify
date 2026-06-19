@@ -365,6 +365,13 @@ class MLReturnPredictorStrategy(Strategy):
                     if isinstance(persisted_features, list) and persisted_features:
                         self.features = list(persisted_features)
                         log.info("%s: explicitly set features to %d items from persisted model", self.name, len(self.features))
+                    fi = meta.get("feature_importances")
+                    if isinstance(fi, dict) and fi:
+                        self._feature_importances = fi
+                        log.info("%s: loaded feature importances for %d features from meta", self.name, len(fi))
+                    mm = meta.get("model_metrics")
+                    if isinstance(mm, dict) and mm:
+                        self._model_metrics = mm
                 except Exception as exc:
                     log.warning("%s: failed to load persisted features: %s", self.name, exc)
                     
@@ -1232,12 +1239,7 @@ class MLReturnPredictorStrategy(Strategy):
         importances = self._feature_importances or {}
         cs_feat_set = set(self.cs_features)
 
-        # Sign convention: for long signals, z > 0 is directionally aligned (bullish).
-        # For short signals, z < 0 is directionally aligned (bearish).
-        z_sign = 1.0 if signal_direction != "short" else -1.0
-
-        aligned: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
-        unaligned: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
+        items: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
 
         for feat in self.features:
             # Skip cross-sectional market features — they are market-wide constants,
@@ -1251,18 +1253,26 @@ class MLReturnPredictorStrategy(Strategy):
             score = abs(float(z)) * (weight if weight and weight > 0 else 1.0)
             raw = raw_vals.get(feat)
             raw_val = None if raw is None or pd.isna(raw) else float(raw)
-            entry = (score, feat, float(z), raw_val, weight)
-            if float(z) * z_sign > 0:
-                aligned.append(entry)
-            else:
-                unaligned.append(entry)
+            items.append((score, feat, float(z), raw_val, weight))
 
-        # Prefer features whose direction matches the signal; fall back to all if needed.
-        pool = aligned if aligned else unaligned
+        if not items:
+            return []
+
+        items.sort(key=lambda x: x[0], reverse=True)
+
+        if signal_direction == "long":
+            # For long signals, only surface features where z > 0 (above-average = bullish).
+            # Showing "50-day below 200-day (downtrend)" as a reason to buy is confusing;
+            # if no positive-z features exist, return nothing rather than mislead.
+            pool = [entry for entry in items if entry[2] > 0]
+        else:
+            # For short signals, any z-sign is valid: high z → overbought/extended
+            # (short_high framing), low z → weak/lagging (short_low framing).
+            pool = items
+
         if not pool:
             return []
 
-        pool.sort(key=lambda x: x[0], reverse=True)
         top = pool[:3]
         explanations: list[dict[str, Any]] = []
         for score, feat, z, raw_val, weight in top:
