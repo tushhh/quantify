@@ -1145,8 +1145,6 @@ class MLReturnPredictorStrategy(Strategy):
                 confidence = float(1.0 / (1.0 + (dispersion / dispersion_scale)))
                 confidence = float(np.clip(confidence, 0.2, 1.0))
 
-            explanations = self._build_explanations(symbol)
-
             if pct_rank >= self.long_decile:
                 direction = "long"
                 strength = norm_strength * confidence
@@ -1156,6 +1154,8 @@ class MLReturnPredictorStrategy(Strategy):
             else:
                 direction = "close"
                 strength = 0.0
+
+            explanations = self._build_explanations(symbol, direction)
 
             meta: dict[str, Any] = {
                 "predicted_return_21d": round(pred_ret, 6),
@@ -1222,7 +1222,7 @@ class MLReturnPredictorStrategy(Strategy):
         delta = timestamp - self._last_train_date
         return delta.days >= self.retrain_interval_days
 
-    def _build_explanations(self, symbol: str) -> list[dict[str, Any]]:
+    def _build_explanations(self, symbol: str, signal_direction: str = "long") -> list[dict[str, Any]]:
         zscores = self._last_feature_zscores.get(symbol)
         raw_vals = self._last_feature_values.get(symbol, {})
         if not zscores:
@@ -1230,9 +1230,20 @@ class MLReturnPredictorStrategy(Strategy):
 
         use_importance = bool(self._feature_importances)
         importances = self._feature_importances or {}
-        items: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
+        cs_feat_set = set(self.cs_features)
+
+        # Sign convention: for long signals, z > 0 is directionally aligned (bullish).
+        # For short signals, z < 0 is directionally aligned (bearish).
+        z_sign = 1.0 if signal_direction != "short" else -1.0
+
+        aligned: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
+        unaligned: list[tuple[float, str, float, Optional[float], Optional[float]]] = []
 
         for feat in self.features:
+            # Skip cross-sectional market features — they are market-wide constants,
+            # not stock-specific z-scores, and add nothing to per-stock explanations.
+            if feat in cs_feat_set:
+                continue
             z = zscores.get(feat)
             if z is None or pd.isna(z):
                 continue
@@ -1240,13 +1251,19 @@ class MLReturnPredictorStrategy(Strategy):
             score = abs(float(z)) * (weight if weight and weight > 0 else 1.0)
             raw = raw_vals.get(feat)
             raw_val = None if raw is None or pd.isna(raw) else float(raw)
-            items.append((score, feat, float(z), raw_val, weight))
+            entry = (score, feat, float(z), raw_val, weight)
+            if float(z) * z_sign > 0:
+                aligned.append(entry)
+            else:
+                unaligned.append(entry)
 
-        if not items:
+        # Prefer features whose direction matches the signal; fall back to all if needed.
+        pool = aligned if aligned else unaligned
+        if not pool:
             return []
 
-        items.sort(key=lambda x: x[0], reverse=True)
-        top = items[:3]
+        pool.sort(key=lambda x: x[0], reverse=True)
+        top = pool[:3]
         explanations: list[dict[str, Any]] = []
         for score, feat, z, raw_val, weight in top:
             explanations.append({
