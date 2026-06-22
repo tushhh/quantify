@@ -469,6 +469,59 @@ def test_ml_predictor_ignores_non_universe_symbols():
     assert "CIEN" not in {sig.symbol for sig in signals}
 
 
+def test_ml_predictor_predicts_with_persisted_schema_missing_optional_features():
+    """
+    Regression: a persisted model has a locked feature schema (it was trained
+    with earnings features), but the inference data lacks those columns.  The
+    predictor must fill the missing features (neutral) and still predict for
+    every symbol rather than feeding the model a narrower matrix — which makes
+    backends like LightGBM reject the input and silently zeroes out the whole
+    ML sleeve.
+    """
+    strat = MLReturnPredictorStrategy(
+        universe=["AAPL", "MSFT", "GOOG"],
+        features=["return_5d", "volatility_20d"],
+        min_train_bars=50,
+        use_fundamentals=False,
+        use_earnings=True,
+    )
+    # Earnings features are part of the configured (and trained) schema.
+    assert "earnings_surprise_pct" in strat.features
+    assert "days_since_earnings" in strat.features
+
+    class SchemaLockedModel:
+        """Mimics a fitted LightGBM/sklearn model that rejects width mismatch."""
+
+        def __init__(self, feature_names):
+            self.feature_names_in_ = np.array(feature_names)
+
+        def predict(self, X):
+            width = X.shape[1]
+            if width != len(self.feature_names_in_):
+                raise ValueError(
+                    f"feature count mismatch: got {width}, "
+                    f"expected {len(self.feature_names_in_)}"
+                )
+            return np.asarray(X).sum(axis=1)
+
+    strat._model = SchemaLockedModel(strat.features)
+    strat._last_train_date = datetime.now(timezone.utc)
+
+    start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    # Dummy data deliberately omits the earnings columns.
+    data = {
+        "AAPL": _make_dummy_data("AAPL", start_date, 200),
+        "MSFT": _make_dummy_data("MSFT", start_date, 200),
+        "GOOG": _make_dummy_data("GOOG", start_date, 200),
+    }
+    assert "earnings_surprise_pct" not in data["AAPL"].columns
+
+    predictions = strat._predict(data)
+
+    assert set(predictions) == {"AAPL", "MSFT", "GOOG"}
+    assert all(np.isfinite(v) for v in predictions.values())
+
+
 def test_ml_predictor_emits_explanations():
     """
     Test that signal metadata includes feature explanations for ranking.

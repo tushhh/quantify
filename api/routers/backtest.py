@@ -367,6 +367,21 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
     except Exception as exc:
         log.warning(f"Failed to compute sector RS features: {exc}")
 
+    # Earnings (PEAD) features — the persisted ML model is trained with these,
+    # so the backtest data must carry them too; otherwise the model is fed a
+    # narrower matrix than its locked schema. add_earnings_features is
+    # point-in-time safe (only past reports per row date) and defaults missing
+    # symbols to neutral values, so this is safe for any universe.
+    try:
+        from quantify.data.earnings import fetch_earnings, add_earnings_features
+        cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
+        _progress("Fetching earnings (PEAD) features…")
+        earnings = fetch_earnings(list(data.keys()), cache_dir=cache_dir)
+        data = add_earnings_features(data, earnings)
+        _progress("Successfully appended earnings features")
+    except Exception as exc:
+        log.warning(f"Failed to compute earnings features: {exc}")
+
     # ── Build engine components ────────────────────────────────────────────
     _progress("Step 2/5: Instantiating strategies…")
     strategies = _build_strategy_instances(req)

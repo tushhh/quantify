@@ -246,3 +246,28 @@ def test_sell_execution_price_decreases_with_costs(
     base_price = 100.0
     exec_price = model.calculate_execution_price(base_price, OrderSide.SELL, OrderType.MARKET)
     assert exec_price <= base_price
+
+
+# ---------------------------------------------------------------------------
+# Slippage sanity guard
+# ---------------------------------------------------------------------------
+
+
+def test_implausible_slippage_warns(caplog):
+    """slippage_pct far above the default is flagged as a likely units error."""
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="quantify.backtest.costs"):
+        CostModel(slippage_pct=0.05)  # 5% per fill — 100x the 5 bps default
+
+    assert any("likely a units error" in r.message for r in caplog.records)
+
+
+def test_normal_slippage_does_not_warn(caplog):
+    """A realistic slippage value produces no units-error warning."""
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="quantify.backtest.costs"):
+        CostModel(slippage_pct=0.0005)  # 5 bps — the default
+
+    assert not any("likely a units error" in r.message for r in caplog.records)

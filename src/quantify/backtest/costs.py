@@ -31,6 +31,10 @@ from quantify.execution.order import OrderSide, OrderType
 
 log = logging.getLogger(__name__)
 
+# Per-fill slippage above this fraction of price (1% = 200x the 5 bps default)
+# is treated as a probable units error and triggers a loud warning.
+_SLIPPAGE_SANITY_THRESHOLD = 0.01
+
 
 @dataclass
 class CostModel:
@@ -71,6 +75,22 @@ class CostModel:
             raise ValueError("market_impact_bps must be >= 0")
         if self.slippage_pct < 0:
             raise ValueError("slippage_pct must be >= 0")
+
+        # slippage_pct is a *fraction* of price (0.0005 = 5 bps). Anything above
+        # ~1% per fill is almost certainly a units error — e.g. a caller passing
+        # 0.05 meaning "0.05%" but sending the raw fraction (100x too large),
+        # which silently bleeds the portfolio on every trade. Warn loudly rather
+        # than clamp, so the explicit value is honoured but the likely mistake is
+        # visible in the logs.
+        if self.slippage_pct > _SLIPPAGE_SANITY_THRESHOLD:
+            log.warning(
+                "CostModel: slippage_pct=%.4f is %.0fx the 5 bps default and "
+                "implies %.1f%% cost per fill — likely a units error "
+                "(expected a fraction of price, e.g. 0.0005 for 5 bps).",
+                self.slippage_pct,
+                self.slippage_pct / 0.0005,
+                self.slippage_pct * 100.0,
+            )
 
     # ------------------------------------------------------------------
     # Core pricing methods

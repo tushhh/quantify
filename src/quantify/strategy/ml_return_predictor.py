@@ -1047,11 +1047,21 @@ class MLReturnPredictorStrategy(Strategy):
         predictions: dict[str, float] = {}
 
         try:
-            # Select the features the model was actually trained on (resolved
-            # set), preserving configured order; fall back to the full frame
-            # only if none are present.
-            model_cols = [f for f in self.features if f in feat_df.columns]
-            model_input = feat_df[model_cols] if model_cols else feat_df
+            # The fitted model has a locked feature schema (its training
+            # columns).  Optional enrichment features (earnings, etc.) may be
+            # absent from this run's data — _resolve_stock_features dropped
+            # them above — but the model still expects every column it was
+            # trained on.  Reindex to the model's schema, filling any missing
+            # feature with 0.0, which after cross-sectional z-scoring is the
+            # neutral value (the per-date mean), i.e. "no signal".  Dropping
+            # the columns instead would change the matrix width and make
+            # backends like LightGBM reject the input outright.
+            schema = getattr(self._model, "feature_names_in_", None)
+            if schema is not None and len(schema) > 0:
+                expected = list(schema)
+            else:
+                expected = [f for f in self.features if f in feat_df.columns]
+            model_input = feat_df.reindex(columns=expected, fill_value=0.0)
             # StackingRegressor converts DataFrames to numpy arrays internally
             # before calling each base learner, triggering a LightGBM feature-name
             # warning that is harmless (column order is guaranteed by model_input
@@ -1066,10 +1076,10 @@ class MLReturnPredictorStrategy(Strategy):
             for symbol, pred in zip(feat_df.index, model_preds):
                 predictions[symbol] = float(pred)
         except Exception as exc:
-            log.debug("%s: prediction batch failed: %s", self.name, exc)
+            log.warning("%s: prediction batch failed: %s", self.name, exc)
             for symbol in feat_df.index:
                 try:
-                    row = feat_df.loc[symbol].values.reshape(1, -1)
+                    row = model_input.loc[symbol].values.reshape(1, -1)
                     pred = self._model.predict(row)[0]
                     predictions[symbol] = float(pred)
                 except Exception as exc2:
