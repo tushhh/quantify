@@ -91,7 +91,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   costs: {
     commission_per_share: 0.005,
     spread_bps: 5,
-    slippage_pct: 0.05,
+    slippage_pct: 0.0005, // fraction of price (0.0005 = 5 bps)
   },
   strategies: { ...DEFAULT_STRATEGIES },
   selectedPresetId: "moderate",
