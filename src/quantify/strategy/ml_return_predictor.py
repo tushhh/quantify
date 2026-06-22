@@ -580,6 +580,34 @@ class MLReturnPredictorStrategy(Strategy):
     # Training data construction
     # ------------------------------------------------------------------
 
+    def _resolve_stock_features(self, data: dict[str, pd.DataFrame]) -> list[str]:
+        """
+        Return the configured stock-level features that are usable for *data*.
+
+        Optional enrichment features (earnings, fundamentals, sector RS) are
+        appended to ``self.features`` at construction, but the pipeline steps
+        that supply them can be disabled or fail (e.g. a backtest run without
+        earnings data, or unit tests that build bare OHLCV frames).  When such
+        a feature is absent from *every* symbol's frame we drop it from the
+        working set — with a warning — so the model degrades gracefully to the
+        features it does have, instead of discarding every symbol and emitting
+        no predictions.  Features present for at least one symbol are kept; the
+        per-symbol callers still skip the individual symbols that lack them.
+        """
+        stock_feats = [f for f in self.features if f not in self.cs_features]
+        non_empty = [df for df in data.values() if not df.empty]
+        if not non_empty:
+            return stock_feats
+
+        present = [f for f in stock_feats if any(f in df.columns for df in non_empty)]
+        dropped = [f for f in stock_feats if f not in present]
+        if dropped:
+            log.warning(
+                "%s: dropping features absent from all input data: %s",
+                self.name, dropped,
+            )
+        return present
+
     def _build_training_data(
         self, data: dict[str, pd.DataFrame]
     ) -> tuple[Optional[pd.DataFrame], Optional[pd.Series]]:
@@ -597,7 +625,7 @@ class MLReturnPredictorStrategy(Strategy):
         X_parts: list[pd.DataFrame] = []
         # CS features are computed from the full cross-section after stacking;
         # they are never present in individual stock DataFrames.
-        stock_feats = [f for f in self.features if f not in self.cs_features]
+        stock_feats = self._resolve_stock_features(data)
 
         for symbol, df in data.items():
             if df.empty or len(df) < _FORWARD_RETURN_DAYS + 30:
@@ -713,7 +741,13 @@ class MLReturnPredictorStrategy(Strategy):
                 return (x - x.mean()) / std
             return x - x.mean()
 
-        stock_feats = [f for f in self.features if f not in self.cs_features]
+        # Re-derive from the stacked frame's columns so we stay consistent with
+        # whatever _resolve_stock_features admitted above (dropped enrichment
+        # features are absent from all_data and must not be selected here).
+        stock_feats = [
+            f for f in self.features
+            if f not in self.cs_features and f in all_data.columns
+        ]
         feature_normed = all_data.groupby(level=0)[stock_feats].transform(zscore)
         valid_mask = feature_normed.notna().all(axis=1)
         feature_normed = feature_normed[valid_mask]
@@ -819,6 +853,12 @@ class MLReturnPredictorStrategy(Strategy):
 
         sample_weight = self._compute_sample_weights(X_train.index)
 
+        # The training matrix only carries the features that survived
+        # _resolve_stock_features (plus the CS features), so select against the
+        # columns actually present rather than the full configured set — the
+        # latter may reference enrichment features absent from this run.
+        train_cols = [f for f in self.features if f in X_train.columns]
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
@@ -827,12 +867,12 @@ class MLReturnPredictorStrategy(Strategy):
                 # preserves column names for later prediction.
                 if sample_weight is not None:
                     model.fit(
-                        X_train[self.features],
+                        X_train[train_cols],
                         y_train,
                         sample_weight=sample_weight,
                     )
                 else:
-                    model.fit(X_train[self.features], y_train)
+                    model.fit(X_train[train_cols], y_train)
             except Exception as exc:
                 log.exception("%s: model training failed: %s", self.name, exc)
                 return
@@ -841,7 +881,7 @@ class MLReturnPredictorStrategy(Strategy):
         self._model_backends = backends
 
         # Extract feature importances
-        self._feature_importances = _extract_feature_importances(model, self.features)
+        self._feature_importances = _extract_feature_importances(model, train_cols)
         if self._feature_importances:
             top5 = sorted(
                 self._feature_importances.items(),
@@ -927,7 +967,7 @@ class MLReturnPredictorStrategy(Strategy):
 
         # Collect current feature rows for all symbols
         current_features = {}
-        stock_feats = [f for f in self.features if f not in self.cs_features]
+        stock_feats = self._resolve_stock_features(data)
         for symbol, df in data.items():
             if df.empty or len(df) < 30:
                 continue
@@ -1007,7 +1047,11 @@ class MLReturnPredictorStrategy(Strategy):
         predictions: dict[str, float] = {}
 
         try:
-            model_input = feat_df[self.features] if all(f in feat_df.columns for f in self.features) else feat_df
+            # Select the features the model was actually trained on (resolved
+            # set), preserving configured order; fall back to the full frame
+            # only if none are present.
+            model_cols = [f for f in self.features if f in feat_df.columns]
+            model_input = feat_df[model_cols] if model_cols else feat_df
             # StackingRegressor converts DataFrames to numpy arrays internally
             # before calling each base learner, triggering a LightGBM feature-name
             # warning that is harmless (column order is guaranteed by model_input
