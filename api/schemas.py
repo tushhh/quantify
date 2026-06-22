@@ -36,7 +36,10 @@ class StrategyConfig(BaseModel):
 class BacktestCostConfig(BaseModel):
     commission_per_share: float = Field(0.005, ge=0.0)
     spread_bps: float = Field(5.0, ge=0.0)
-    slippage_pct: float = Field(0.05, ge=0.0)
+    # Fraction of price (NOT a percent): 0.0005 == 5 bps. The cost model adds
+    # this directly to the adverse-fill fraction, so a value like 0.05 would
+    # mean a 5% execution shortfall on every market-order fill.
+    slippage_pct: float = Field(0.0005, ge=0.0)
 
 
 # ---------------------------------------------------------------------------

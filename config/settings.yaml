@@ -58,7 +58,7 @@ backtest:
   initial_capital: 100_000          # USD
   commission_per_share: 0.005       # USD per share (SEC + exchange fees)
   spread_bps: 5                     # half-spread assumption in basis points
-  slippage_pct: 0.05                # additional slippage as % of price
+  slippage_pct: 0.0005              # additional slippage as a fraction of price (0.0005 = 5 bps)
   benchmark: SPY
   rebalance_frequency: weekly       # daily | weekly | monthly
 

@@ -264,13 +264,13 @@ export default function BacktestPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Slippage (%)</label>
+                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Slippage (bps)</label>
                       <input
                         type="number"
-                        step={0.01}
+                        step={1}
                         min={0}
-                        value={costs.slippage_pct}
-                        onChange={(e) => setCosts({ slippage_pct: Number(e.target.value) })}
+                        value={Math.round(costs.slippage_pct * 10000)}
+                        onChange={(e) => setCosts({ slippage_pct: Number(e.target.value) / 10000 })}
                         className="w-full rounded-lg bg-[var(--color-surface-raised)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:ring-[var(--color-accent)]/40 focus:ring-1 focus:outline-none transition-all"
                       />
                     </div>

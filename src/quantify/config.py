@@ -177,7 +177,7 @@ class BacktestSettings:
             initial_capital=float(d.get("initial_capital", 100_000)),
             commission_per_share=float(d.get("commission_per_share", 0.005)),
             spread_bps=float(d.get("spread_bps", 5)),
-            slippage_pct=float(d.get("slippage_pct", 0.05)),
+            slippage_pct=float(d.get("slippage_pct", 0.0005)),
             benchmark=str(d.get("benchmark", "SPY")),
             rebalance_frequency=str(d.get("rebalance_frequency", "weekly")),
         )
