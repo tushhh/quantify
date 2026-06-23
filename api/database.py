@@ -76,6 +76,37 @@ def ensure_user_columns() -> None:
     except Exception as e:
         log.error(f"❌ Failed to run user migrations: {e}")
 
+def ensure_gain_alert_columns() -> None:
+    """Add columns introduced after initial deploy of the gain alert tables."""
+    migrations = {
+        "gain_alert_subscriptions": [
+            ("threshold_pct", "ALTER TABLE gain_alert_subscriptions ADD COLUMN threshold_pct FLOAT DEFAULT 4.0"),
+        ],
+        "gain_alert_state": [
+            ("chat_id", "ALTER TABLE gain_alert_state ADD COLUMN chat_id VARCHAR(64)"),
+            ("last_alerted_pct", "ALTER TABLE gain_alert_state ADD COLUMN last_alerted_pct FLOAT"),
+        ],
+    }
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        with engine.begin() as conn:
+            for table, cols in migrations.items():
+                if table not in existing_tables:
+                    continue
+                existing_cols = {c["name"] for c in inspector.get_columns(table)}
+                for col, stmt in cols:
+                    if col not in existing_cols:
+                        try:
+                            conn.execute(text(stmt))
+                            log.info("✅ Migration executed: %s", stmt)
+                        except Exception as e:
+                            log.warning("Migration failed for %s.%s: %s", table, col, e)
+        log.info("✅ Gain alert columns verified/created successfully")
+    except Exception as e:
+        log.error("❌ Failed to run gain alert migrations: %s", e)
+
+
 def get_db():
     db = SessionLocal()
     try:

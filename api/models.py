@@ -66,17 +66,19 @@ class GainAlertSubscription(Base):
     __tablename__ = "gain_alert_subscriptions"
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(String(64), unique=True, index=True)
+    threshold_pct = Column(Float, default=4.0)   # user's personal first-alert threshold
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class GainAlertState(Base):
-    """Tracks which gain threshold tier has already fired per symbol per ET trading day."""
+    """Tracks the highest gain % already alerted per subscriber per symbol per ET trading day."""
     __tablename__ = "gain_alert_state"
-    __table_args__ = (UniqueConstraint("symbol", "alert_date", name="uq_gain_alert_symbol_date"),)
+    __table_args__ = (UniqueConstraint("symbol", "alert_date", "chat_id", name="uq_gain_alert_symbol_date_chat"),)
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(16), index=True)
     alert_date = Column(String(10), index=True)  # YYYY-MM-DD (ET)
-    last_threshold_pct = Column(Float)            # highest tier fired so far: 4.0, 7.0, or 10.0
+    chat_id = Column(String(64), index=True)
+    last_alerted_pct = Column(Float)             # highest tier fired so far for this subscriber
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

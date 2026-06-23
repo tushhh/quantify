@@ -25,7 +25,7 @@ log = logging.getLogger("run_gain_scan")
 _ET = pytz.timezone("America/New_York")
 _MARKET_OPEN_H, _MARKET_OPEN_M = 9, 30
 _MARKET_CLOSE_H, _MARKET_CLOSE_M = 16, 0
-_THRESHOLD = float(os.getenv("GAIN_ALERT_THRESHOLD_PCT", "4.0"))
+_THRESHOLD = float(os.getenv("GAIN_ALERT_THRESHOLD_PCT", "1.0"))
 _WORKERS = 25
 
 

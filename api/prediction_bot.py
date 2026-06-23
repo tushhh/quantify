@@ -363,7 +363,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /bottom - View top 10 bearish predictions of the day\n"
         "• /subscribe - Subscribe this chat to daily prediction signals\n"
         "• /unsubscribe - Stop receiving daily summaries\n"
-        "• /gainers - Subscribe to intraday gain alerts (≥4% on the day)\n"
+        "• /gainers [%] - Subscribe to intraday gain alerts (default ≥4%; e.g. <code>/gainers 3</code>)\n"
         "• /gainers_off - Unsubscribe from gain alerts\n"
         "• /fullscan - Run a live full 500-stock S&P 500 scan (results sent when ready)\n"
         "• /help - Display this help message"
@@ -602,22 +602,54 @@ async def unsubscribe_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.close()
 
 async def subscribe_gainers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Subscribe this chat to intraday stock gain alerts: /gainers"""
+    """Subscribe to intraday gain alerts: /gainers [threshold]
+
+    Optional threshold in percent (1–15). Defaults to 4.
+    Examples: /gainers  /gainers 3  /gainers 6
+    Re-running updates an existing subscription's threshold.
+    """
     chat_id = str(update.effective_chat.id)
+
+    threshold = 4.0
+    if context.args:
+        try:
+            threshold = float(context.args[0])
+            if not (1.0 <= threshold <= 15.0):
+                await update.message.reply_text(
+                    "⚠️ Threshold must be between 1 and 15. Example: <code>/gainers 3</code>",
+                    parse_mode="HTML",
+                )
+                return
+        except ValueError:
+            await update.message.reply_text(
+                "⚠️ Invalid threshold. Use a number, e.g. <code>/gainers 3</code>",
+                parse_mode="HTML",
+            )
+            return
+
+    t1, t2, t3 = threshold, threshold + 5, threshold + 10
     db = SessionLocal()
     try:
         from api.models import GainAlertSubscription
         existing = db.query(GainAlertSubscription).filter(GainAlertSubscription.chat_id == chat_id).first()
         if existing:
-            await update.message.reply_text("🔔 This chat is already subscribed to gain alerts!")
-        else:
-            db.add(GainAlertSubscription(chat_id=chat_id))
+            existing.threshold_pct = threshold
             db.commit()
             await update.message.reply_text(
-                "✅ <b>Gain alerts on!</b>\n\n"
-                "You'll be notified whenever any S&P 500 stock gains ≥4% in a single trading day.\n"
-                "Higher tiers (≥7%, ≥10%) get a second alert if the move continues.\n\n"
-                "Use /gainers_off to unsubscribe.",
+                f"✅ <b>Gain alert threshold updated to {t1:.0f}%.</b>\n\n"
+                f"You'll be alerted at <code>+{t1:.0f}%</code>, "
+                f"<code>+{t2:.0f}%</code>, and <code>+{t3:.0f}%</code> — at most once per tier per stock per day.\n\n"
+                f"Use /gainers_off to unsubscribe.",
+                parse_mode="HTML",
+            )
+        else:
+            db.add(GainAlertSubscription(chat_id=chat_id, threshold_pct=threshold))
+            db.commit()
+            await update.message.reply_text(
+                f"✅ <b>Gain alerts on at {t1:.0f}%!</b>\n\n"
+                f"You'll be notified when any S&P 500 stock gains ≥<code>{t1:.0f}%</code> in a trading day.\n"
+                f"Re-alerts fire if the move reaches <code>+{t2:.0f}%</code> or <code>+{t3:.0f}%</code>.\n\n"
+                f"Use <code>/gainers &lt;number&gt;</code> to change your threshold. Use /gainers_off to stop.",
                 parse_mode="HTML",
             )
     except Exception as e:
@@ -649,53 +681,50 @@ async def unsubscribe_gainers_cmd(update: Update, context: ContextTypes.DEFAULT_
         db.close()
 
 
-async def broadcast_gain_alerts(new_alerts: list) -> None:
-    """Fan-out gain alert messages to all subscribed chats."""
-    if not BOT_TOKEN or not new_alerts:
+def _tier_emoji(tier: float) -> str:
+    if tier >= 13:
+        return "🔥"
+    if tier >= 8:
+        return "🚀"
+    return "📈"
+
+
+async def broadcast_gain_alerts(per_chat_alerts: dict) -> None:
+    """Send gain alert messages to specific chats with their personalised tier labels.
+
+    per_chat_alerts: {chat_id: [(GainerInfo, tier_pct), ...]}
+    """
+    if not BOT_TOKEN or not per_chat_alerts:
         return
-
-    db = SessionLocal()
-    try:
-        from api.models import GainAlertSubscription
-        subscriptions = db.query(GainAlertSubscription).all()
-    finally:
-        db.close()
-
-    if not subscriptions:
-        log.info("No gain alert subscribers — nothing to broadcast.")
-        return
-
-    # Group alerts by tier so higher-tier moves get a separate, more urgent message
-    tier_groups: dict[float, list] = {}
-    for g, tier in new_alerts:
-        tier_groups.setdefault(tier, []).append(g)
-
-    tier_headers = {
-        4.0: ("📈", "Stocks gaining +4%+ today"),
-        7.0: ("🚀", "Stocks now up +7%+ today"),
-        10.0: ("🔥", "Stocks now up +10%+ today!"),
-    }
 
     bot = Bot(token=BOT_TOKEN)
-    for tier in sorted(tier_groups.keys()):
-        stocks = sorted(tier_groups[tier], key=lambda x: x.gain_pct, reverse=True)
-        emoji, header_text = tier_headers.get(tier, ("📈", f"Stocks up +{tier:.0f}%+ today"))
 
-        lines = [f"{emoji} <b>{header_text}</b>", ""]
-        for g in stocks:
-            lines.append(f"• <b>{g.symbol}</b>  <code>+{g.gain_pct:.2f}%</code>  @ <code>${g.price:.2f}</code>  (prev close <code>${g.prev_close:.2f}</code>)")
-        lines.append("")
-        lines.append("<i>Use /gainers_off to stop these alerts. Not financial advice.</i>")
-        msg = "\n".join(lines)
+    for chat_id, alerts in per_chat_alerts.items():
+        # Group by tier so each tier gets its own message
+        tier_groups: dict[float, list] = {}
+        for g, tier in alerts:
+            tier_groups.setdefault(tier, []).append(g)
 
-        for sub in subscriptions:
+        for tier in sorted(tier_groups.keys()):
+            stocks = sorted(tier_groups[tier], key=lambda x: x.gain_pct, reverse=True)
+            emoji = _tier_emoji(tier)
+            lines = [f"{emoji} <b>Stocks up +{tier:.0f}%+ today</b>", ""]
+            for g in stocks:
+                lines.append(
+                    f"• <b>{g.symbol}</b>  <code>+{g.gain_pct:.2f}%</code>"
+                    f"  @ <code>${g.price:.2f}</code>  (prev <code>${g.prev_close:.2f}</code>)"
+                )
+            lines += ["", "<i>Use /gainers_off to stop. Not financial advice.</i>"]
+            msg = "\n".join(lines)
+
             try:
-                await bot.send_message(chat_id=sub.chat_id, text=msg, parse_mode="HTML")
-                log.info("Gain alert (tier %.0f%%) sent to chat %s", tier, sub.chat_id)
+                await bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+                log.info("Gain alert tier=%.0f%% sent to chat %s", tier, chat_id)
             except Exception as e:
-                log.error("Failed to send gain alert to %s: %s", sub.chat_id, e)
-                if any(phrase in str(e).lower() for phrase in ("chat not found", "bot was blocked", "kicked")):
-                    _remove_stale_gain_sub(sub.chat_id)
+                log.error("Failed to send gain alert to %s: %s", chat_id, e)
+                if any(p in str(e).lower() for p in ("chat not found", "bot was blocked", "kicked")):
+                    _remove_stale_gain_sub(chat_id)
+                    break  # stop sending to this chat
 
 
 def _remove_stale_gain_sub(chat_id: str) -> None:

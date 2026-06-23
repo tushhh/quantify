@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: E402
 
 from api.routers import backtest, risk, strategies, universe, predict, trades, auth, utils, internal  # noqa: E402
-from api.database import engine, ensure_trade_columns, ensure_user_columns  # noqa: E402
+from api.database import engine, ensure_trade_columns, ensure_user_columns, ensure_gain_alert_columns  # noqa: E402
 from api import models  # noqa: E402
 from api.telegram_bot import check_alerts_loop  # noqa: E402
 
@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     models.Base.metadata.create_all(bind=engine)
     ensure_trade_columns()
     ensure_user_columns()
+    ensure_gain_alert_columns()
     
     # Only run telegram bot on worker dyno, not web dyno (prevents polling conflicts on Heroku)
     # unless FORCE_RUN_BOTS is explicitly set.

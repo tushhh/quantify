@@ -42,6 +42,6 @@ jobs:
         env:
           HEROKU_APP_URL: ${{ secrets.HEROKU_APP_URL }}
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
-          GAIN_ALERT_THRESHOLD_PCT: "4.0"
+          GAIN_ALERT_THRESHOLD_PCT: "1.0"
         run: |
           python scripts/run_gain_scan.py

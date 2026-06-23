@@ -168,42 +168,54 @@ async def job_complete(
     return {"status": "received"}
 
 
-_GAIN_TIERS = [4.0, 7.0, 10.0]  # ascending; each fires at most once per symbol per day
-
-
 @router.post("/gain-alert-complete")
 async def gain_alert_complete(
     body: GainAlertPayload,
     x_internal_secret: Optional[str] = Header(None),
 ):
-    """Receive intraday gain scan results from GitHub Actions and fan-out Telegram alerts."""
+    """Receive intraday gain scan results from GitHub Actions and fan-out Telegram alerts.
+
+    Each subscriber has a personal threshold. Escalation tiers are threshold+5% and threshold+10%.
+    At most one alert per tier per subscriber per symbol per trading day.
+    """
     _verify_secret(x_internal_secret)
 
-    from api.models import GainAlertState
+    from api.models import GainAlertState, GainAlertSubscription
+
     db = SessionLocal()
-    new_alerts: list[tuple] = []
+    # per_chat_alerts: {chat_id: [(GainerInfo, tier_pct), ...]}
+    per_chat_alerts: dict[str, list] = {}
     try:
+        subscriptions = db.query(GainAlertSubscription).all()
+        if not subscriptions:
+            return {"received": len(body.gainers), "new_alerts": 0}
+
         for g in body.gainers:
-            crossed = max((t for t in _GAIN_TIERS if g.gain_pct >= t), default=None)
-            if crossed is None:
-                continue
+            for sub in subscriptions:
+                threshold = sub.threshold_pct or 4.0
+                tiers = [threshold, threshold + 5.0, threshold + 10.0]
+                crossed = max((t for t in tiers if g.gain_pct >= t), default=None)
+                if crossed is None:
+                    continue
 
-            state = db.query(GainAlertState).filter(
-                GainAlertState.symbol == g.symbol,
-                GainAlertState.alert_date == body.scan_date,
-            ).first()
+                state = db.query(GainAlertState).filter(
+                    GainAlertState.symbol == g.symbol,
+                    GainAlertState.alert_date == body.scan_date,
+                    GainAlertState.chat_id == sub.chat_id,
+                ).first()
 
-            if state is None:
-                db.add(GainAlertState(
-                    symbol=g.symbol,
-                    alert_date=body.scan_date,
-                    last_threshold_pct=crossed,
-                ))
-                new_alerts.append((g, crossed))
-            elif crossed > state.last_threshold_pct:
-                state.last_threshold_pct = crossed
-                state.updated_at = datetime.now(timezone.utc)
-                new_alerts.append((g, crossed))
+                if state is None:
+                    db.add(GainAlertState(
+                        symbol=g.symbol,
+                        alert_date=body.scan_date,
+                        chat_id=sub.chat_id,
+                        last_alerted_pct=crossed,
+                    ))
+                    per_chat_alerts.setdefault(sub.chat_id, []).append((g, crossed))
+                elif crossed > state.last_alerted_pct:
+                    state.last_alerted_pct = crossed
+                    state.updated_at = datetime.now(timezone.utc)
+                    per_chat_alerts.setdefault(sub.chat_id, []).append((g, crossed))
 
         db.commit()
     except Exception:
@@ -212,21 +224,23 @@ async def gain_alert_complete(
     finally:
         db.close()
 
-    log.info("Gain scan received: %d gainers, %d new alerts", len(body.gainers), len(new_alerts))
+    total_new = sum(len(v) for v in per_chat_alerts.values())
+    log.info("Gain scan: %d gainers, %d new alerts across %d chats",
+             len(body.gainers), total_new, len(per_chat_alerts))
 
-    if new_alerts:
+    if per_chat_alerts:
         try:
             import asyncio
             from api.prediction_bot import broadcast_gain_alerts
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(broadcast_gain_alerts(new_alerts))
+                loop.create_task(broadcast_gain_alerts(per_chat_alerts))
             except RuntimeError:
-                asyncio.run(broadcast_gain_alerts(new_alerts))
+                asyncio.run(broadcast_gain_alerts(per_chat_alerts))
         except Exception as e:
             log.error("Failed to schedule gain alert broadcast: %s", e)
 
-    return {"received": len(body.gainers), "new_alerts": len(new_alerts)}
+    return {"received": len(body.gainers), "new_alerts": total_new}
 
 
 @router.post("/backtest-complete")
