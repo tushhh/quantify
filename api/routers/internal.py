@@ -37,6 +37,18 @@ class JobCompletePayload(BaseModel):
     error: Optional[str] = None
 
 
+class GainerInfo(BaseModel):
+    symbol: str
+    gain_pct: float
+    price: float
+    prev_close: float
+
+
+class GainAlertPayload(BaseModel):
+    gainers: list[GainerInfo]
+    scan_date: str  # YYYY-MM-DD in ET
+
+
 class BacktestCompletePayload(BaseModel):
     job_id: str
     status: str  # "complete" or "failed"
@@ -154,6 +166,67 @@ async def job_complete(
             log.error("Failed to send Telegram notification: %s", e)
 
     return {"status": "received"}
+
+
+_GAIN_TIERS = [4.0, 7.0, 10.0]  # ascending; each fires at most once per symbol per day
+
+
+@router.post("/gain-alert-complete")
+async def gain_alert_complete(
+    body: GainAlertPayload,
+    x_internal_secret: Optional[str] = Header(None),
+):
+    """Receive intraday gain scan results from GitHub Actions and fan-out Telegram alerts."""
+    _verify_secret(x_internal_secret)
+
+    from api.models import GainAlertState
+    db = SessionLocal()
+    new_alerts: list[tuple] = []
+    try:
+        for g in body.gainers:
+            crossed = max((t for t in _GAIN_TIERS if g.gain_pct >= t), default=None)
+            if crossed is None:
+                continue
+
+            state = db.query(GainAlertState).filter(
+                GainAlertState.symbol == g.symbol,
+                GainAlertState.alert_date == body.scan_date,
+            ).first()
+
+            if state is None:
+                db.add(GainAlertState(
+                    symbol=g.symbol,
+                    alert_date=body.scan_date,
+                    last_threshold_pct=crossed,
+                ))
+                new_alerts.append((g, crossed))
+            elif crossed > state.last_threshold_pct:
+                state.last_threshold_pct = crossed
+                state.updated_at = datetime.now(timezone.utc)
+                new_alerts.append((g, crossed))
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+    log.info("Gain scan received: %d gainers, %d new alerts", len(body.gainers), len(new_alerts))
+
+    if new_alerts:
+        try:
+            import asyncio
+            from api.prediction_bot import broadcast_gain_alerts
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(broadcast_gain_alerts(new_alerts))
+            except RuntimeError:
+                asyncio.run(broadcast_gain_alerts(new_alerts))
+        except Exception as e:
+            log.error("Failed to schedule gain alert broadcast: %s", e)
+
+    return {"received": len(body.gainers), "new_alerts": len(new_alerts)}
 
 
 @router.post("/backtest-complete")

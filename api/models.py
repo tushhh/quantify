@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, UniqueConstraint
 from api.database import Base
 
 class User(Base):
@@ -60,6 +60,25 @@ class AsyncPredictionJob(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     result_json = Column(String, nullable=True)
+
+
+class GainAlertSubscription(Base):
+    __tablename__ = "gain_alert_subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String(64), unique=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class GainAlertState(Base):
+    """Tracks which gain threshold tier has already fired per symbol per ET trading day."""
+    __tablename__ = "gain_alert_state"
+    __table_args__ = (UniqueConstraint("symbol", "alert_date", name="uq_gain_alert_symbol_date"),)
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String(16), index=True)
+    alert_date = Column(String(10), index=True)  # YYYY-MM-DD (ET)
+    last_threshold_pct = Column(Float)            # highest tier fired so far: 4.0, 7.0, or 10.0
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class BacktestJob(Base):

@@ -363,6 +363,8 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /bottom - View top 10 bearish predictions of the day\n"
         "• /subscribe - Subscribe this chat to daily prediction signals\n"
         "• /unsubscribe - Stop receiving daily summaries\n"
+        "• /gainers - Subscribe to intraday gain alerts (≥4% on the day)\n"
+        "• /gainers_off - Unsubscribe from gain alerts\n"
         "• /fullscan - Run a live full 500-stock S&P 500 scan (results sent when ready)\n"
         "• /help - Display this help message"
     )
@@ -598,6 +600,119 @@ async def unsubscribe_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ An error occurred while unsubscribing. Please try again.")
     finally:
         db.close()
+
+async def subscribe_gainers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Subscribe this chat to intraday stock gain alerts: /gainers"""
+    chat_id = str(update.effective_chat.id)
+    db = SessionLocal()
+    try:
+        from api.models import GainAlertSubscription
+        existing = db.query(GainAlertSubscription).filter(GainAlertSubscription.chat_id == chat_id).first()
+        if existing:
+            await update.message.reply_text("🔔 This chat is already subscribed to gain alerts!")
+        else:
+            db.add(GainAlertSubscription(chat_id=chat_id))
+            db.commit()
+            await update.message.reply_text(
+                "✅ <b>Gain alerts on!</b>\n\n"
+                "You'll be notified whenever any S&P 500 stock gains ≥4% in a single trading day.\n"
+                "Higher tiers (≥7%, ≥10%) get a second alert if the move continues.\n\n"
+                "Use /gainers_off to unsubscribe.",
+                parse_mode="HTML",
+            )
+    except Exception as e:
+        db.rollback()
+        log.exception("Failed to subscribe gain alerts for chat %s: %s", chat_id, e)
+        await update.message.reply_text("⚠️ An error occurred while subscribing. Please try again.")
+    finally:
+        db.close()
+
+
+async def unsubscribe_gainers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Unsubscribe this chat from intraday stock gain alerts: /gainers_off"""
+    chat_id = str(update.effective_chat.id)
+    db = SessionLocal()
+    try:
+        from api.models import GainAlertSubscription
+        sub = db.query(GainAlertSubscription).filter(GainAlertSubscription.chat_id == chat_id).first()
+        if sub:
+            db.delete(sub)
+            db.commit()
+            await update.message.reply_text("🔕 Gain alerts off. You'll no longer be notified about big intraday movers.")
+        else:
+            await update.message.reply_text("ℹ️ This chat isn't subscribed to gain alerts.")
+    except Exception as e:
+        db.rollback()
+        log.exception("Failed to unsubscribe gain alerts for chat %s: %s", chat_id, e)
+        await update.message.reply_text("⚠️ An error occurred. Please try again.")
+    finally:
+        db.close()
+
+
+async def broadcast_gain_alerts(new_alerts: list) -> None:
+    """Fan-out gain alert messages to all subscribed chats."""
+    if not BOT_TOKEN or not new_alerts:
+        return
+
+    db = SessionLocal()
+    try:
+        from api.models import GainAlertSubscription
+        subscriptions = db.query(GainAlertSubscription).all()
+    finally:
+        db.close()
+
+    if not subscriptions:
+        log.info("No gain alert subscribers — nothing to broadcast.")
+        return
+
+    # Group alerts by tier so higher-tier moves get a separate, more urgent message
+    tier_groups: dict[float, list] = {}
+    for g, tier in new_alerts:
+        tier_groups.setdefault(tier, []).append(g)
+
+    tier_headers = {
+        4.0: ("📈", "Stocks gaining +4%+ today"),
+        7.0: ("🚀", "Stocks now up +7%+ today"),
+        10.0: ("🔥", "Stocks now up +10%+ today!"),
+    }
+
+    bot = Bot(token=BOT_TOKEN)
+    for tier in sorted(tier_groups.keys()):
+        stocks = sorted(tier_groups[tier], key=lambda x: x.gain_pct, reverse=True)
+        emoji, header_text = tier_headers.get(tier, ("📈", f"Stocks up +{tier:.0f}%+ today"))
+
+        lines = [f"{emoji} <b>{header_text}</b>", ""]
+        for g in stocks:
+            lines.append(f"• <b>{g.symbol}</b>  <code>+{g.gain_pct:.2f}%</code>  @ <code>${g.price:.2f}</code>  (prev close <code>${g.prev_close:.2f}</code>)")
+        lines.append("")
+        lines.append("<i>Use /gainers_off to stop these alerts. Not financial advice.</i>")
+        msg = "\n".join(lines)
+
+        for sub in subscriptions:
+            try:
+                await bot.send_message(chat_id=sub.chat_id, text=msg, parse_mode="HTML")
+                log.info("Gain alert (tier %.0f%%) sent to chat %s", tier, sub.chat_id)
+            except Exception as e:
+                log.error("Failed to send gain alert to %s: %s", sub.chat_id, e)
+                if any(phrase in str(e).lower() for phrase in ("chat not found", "bot was blocked", "kicked")):
+                    _remove_stale_gain_sub(sub.chat_id)
+
+
+def _remove_stale_gain_sub(chat_id: str) -> None:
+    db = SessionLocal()
+    try:
+        from api.models import GainAlertSubscription
+        sub = db.query(GainAlertSubscription).filter(GainAlertSubscription.chat_id == chat_id).first()
+        if sub:
+            db.delete(sub)
+            db.commit()
+            log.info("Removed stale gain alert subscription for chat %s", chat_id)
+    except Exception as e:
+        db.rollback()
+        log.error("Failed to remove stale gain sub %s: %s", chat_id, e)
+    finally:
+        db.close()
+
 
 async def broadcast_predictions(result=None):
     """Broadcast daily predictions to all subscribed chats."""
@@ -886,6 +1001,8 @@ async def start_prediction_bot():
     prediction_app.add_handler(CommandHandler("bottom", bottom_cmd))
     prediction_app.add_handler(CommandHandler("subscribe", subscribe_cmd))
     prediction_app.add_handler(CommandHandler("unsubscribe", unsubscribe_cmd))
+    prediction_app.add_handler(CommandHandler("gainers", subscribe_gainers_cmd))
+    prediction_app.add_handler(CommandHandler("gainers_off", unsubscribe_gainers_cmd))
     prediction_app.add_handler(CommandHandler("fullscan", fullscan_cmd))
 
     await prediction_app.initialize()
