@@ -26,6 +26,7 @@ from api.routers import backtest, risk, strategies, universe, predict, trades, a
 from api.database import engine, ensure_trade_columns, ensure_user_columns, ensure_gain_alert_columns  # noqa: E402
 from api import models  # noqa: E402
 from api.telegram_bot import check_alerts_loop  # noqa: E402
+from api.gain_scanner import run_gain_scan  # noqa: E402
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,6 +68,14 @@ async def lifespan(app: FastAPI):
         )
         # Every 3 hours for overnight/weekend coverage (hold expiry, etc.)
         scheduler.add_job(check_alerts_loop, 'interval', hours=3)
+        scheduler.add_job(
+            run_gain_scan,
+            'cron',
+            day_of_week='mon-fri',
+            hour='9-16',
+            minute='*/7',
+            timezone='America/New_York',
+        )
         scheduler.start()
     else:
         # On web dyno, schedule the ML predictions to run at 4:00 AM UTC daily
