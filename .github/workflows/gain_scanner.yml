@@ -1,11 +1,10 @@
 name: Intraday Gain Scanner
 
 on:
-  # 13:00–21:00 UTC = 9:00 AM–5:00 PM ET (covers DST shift).
-  # The script itself gates on exact market hours (9:30–16:00 ET) so
-  # runs outside those bounds exit immediately.
+  # 13:00–21:00 UTC covers 9:30 AM–4:00 PM ET in both EDT (UTC-4) and EST (UTC-5).
+  # The script gates on exact market hours internally, so runs outside 9:30–16:00 ET exit immediately.
   schedule:
-    - cron: '*/5 13-20 * * 1-5'
+    - cron: '*/7 13-21 * * 1-5'
   workflow_dispatch:
 
 jobs:
