@@ -168,6 +168,34 @@ async def job_complete(
     return {"status": "received"}
 
 
+@router.delete("/gain-alert-state")
+async def clear_gain_alert_state(
+    alert_date: Optional[str] = None,
+    x_internal_secret: Optional[str] = Header(None),
+):
+    """Clear gain alert dedup state for a given date (default: today ET).
+
+    Use this to reset phantom records created by a now-fixed bug so the
+    next scan fires fresh alerts.
+    """
+    _verify_secret(x_internal_secret)
+
+    import pytz
+    from api.models import GainAlertState
+
+    if not alert_date:
+        alert_date = datetime.now(pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
+
+    db = SessionLocal()
+    try:
+        deleted = db.query(GainAlertState).filter(GainAlertState.alert_date == alert_date).delete()
+        db.commit()
+    finally:
+        db.close()
+
+    return {"deleted": deleted, "alert_date": alert_date}
+
+
 @router.post("/gain-alert-complete")
 async def gain_alert_complete(
     body: GainAlertPayload,
