@@ -706,13 +706,13 @@ async def broadcast_gain_alerts(per_chat_alerts: dict) -> None:
             tier_groups.setdefault(tier, []).append(g)
 
         for tier in sorted(tier_groups.keys()):
-            stocks = sorted(tier_groups[tier], key=lambda x: x.gain_pct, reverse=True)
+            stocks = sorted(tier_groups[tier], key=lambda x: x["gain_pct"], reverse=True)
             emoji = _tier_emoji(tier)
             lines = [f"{emoji} <b>Stocks up +{tier:.0f}%+ today</b>", ""]
             for g in stocks:
                 lines.append(
-                    f"• <b>{g.symbol}</b>  <code>+{g.gain_pct:.2f}%</code>"
-                    f"  @ <code>${g.price:.2f}</code>  (prev <code>${g.prev_close:.2f}</code>)"
+                    f"• <b>{g['symbol']}</b>  <code>+{g['gain_pct']:.2f}%</code>"
+                    f"  @ <code>${g['price']:.2f}</code>  (prev <code>${g['prev_close']:.2f}</code>)"
                 )
             lines += ["", "<i>Use /gainers_off to stop. Not financial advice.</i>"]
             msg = "\n".join(lines)
