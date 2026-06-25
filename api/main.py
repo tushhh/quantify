@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
             run_gain_scan,
             'cron',
             day_of_week='mon-fri',
-            hour='9-16',
+            hour='4-20',
             minute='*/7',
             timezone='America/New_York',
         )
