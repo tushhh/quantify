@@ -68,11 +68,12 @@ async def lifespan(app: FastAPI):
         )
         # Every 3 hours for overnight/weekend coverage (hold expiry, etc.)
         scheduler.add_job(check_alerts_loop, 'interval', hours=3)
+        # Gain scanner: every 7 min across premarket (4 AM), market, and postmarket (8 PM ET)
         scheduler.add_job(
             run_gain_scan,
             'cron',
             day_of_week='mon-fri',
-            hour='9-16',
+            hour='4-20',
             minute='*/7',
             timezone='America/New_York',
         )

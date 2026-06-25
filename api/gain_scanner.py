@@ -1,9 +1,9 @@
 """
 Intraday gain scanner — runs on the worker dyno via APScheduler.
 
-Fetches live prices for the S&P 500 universe every 7 minutes during US market
-hours, computes the day's gain vs previous close, and broadcasts Telegram alerts
-to subscribers who have crossed a new tier.
+Fetches live prices for the S&P 500 universe every 7 minutes during US premarket,
+market, and postmarket hours (4 AM–8 PM ET), computes the day's gain vs previous
+close, and broadcasts Telegram alerts to subscribers who have crossed a new tier.
 """
 
 from __future__ import annotations
@@ -146,12 +146,13 @@ async def process_and_broadcast(gainers: list[dict], scan_date: str) -> int:
 
 
 async def run_gain_scan() -> None:
-    """APScheduler entry point — called every 7 min during market hours."""
+    """APScheduler entry point — called every 7 min during premarket/market/postmarket."""
     now_et = datetime.now(_ET)
-    # APScheduler's cron already limits to market hours, but double-check so
+    # APScheduler's cron already limits to extended hours, but double-check so
     # edge-of-window runs during the scheduler's minute=*/7 cycle exit cleanly.
-    open_h, open_m = 9, 30
-    close_h, close_m = 16, 0
+    # Premarket opens 4:00 AM ET; postmarket closes 8:00 PM ET.
+    open_h, open_m = 4, 0
+    close_h, close_m = 20, 0
     t = (now_et.hour, now_et.minute)
     if not ((open_h, open_m) <= t < (close_h, close_m)):
         return
