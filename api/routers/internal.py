@@ -168,6 +168,33 @@ async def job_complete(
     return {"status": "received"}
 
 
+@router.get("/gain-scan-status")
+async def gain_scan_status():
+    """Diagnostic: show subscriptions, today's state records, and server time."""
+    import pytz
+    from api.models import GainAlertState, GainAlertSubscription
+
+    et = pytz.timezone("America/New_York")
+    now_et = datetime.now(et)
+    alert_date = now_et.strftime("%Y-%m-%d")
+
+    db = SessionLocal()
+    try:
+        subs = db.query(GainAlertSubscription).all()
+        states = db.query(GainAlertState).filter(GainAlertState.alert_date == alert_date).all()
+    finally:
+        db.close()
+
+    return {
+        "server_time_et": now_et.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "subscriptions": [{"chat_id": s.chat_id, "threshold_pct": s.threshold_pct} for s in subs],
+        "todays_state_records": [
+            {"symbol": s.symbol, "chat_id": s.chat_id, "last_alerted_pct": s.last_alerted_pct}
+            for s in states
+        ],
+    }
+
+
 @router.get("/clear-gain-state-today")
 async def clear_gain_alert_state_today():
     """One-time helper: delete today's gain alert dedup records so the next scan sends fresh alerts."""
