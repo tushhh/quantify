@@ -40,57 +40,41 @@ async def lifespan(app: FastAPI):
     ensure_user_columns()
     ensure_gain_alert_columns()
     
-    # Only run telegram bot on worker dyno, not web dyno (prevents polling conflicts on Heroku)
-    # unless FORCE_RUN_BOTS is explicitly set.
-    dyno_type = os.getenv("DYNO", "local")
-    force_run = os.getenv("FORCE_RUN_BOTS", "").lower() in ("true", "1", "yes")
-    is_web_dyno = dyno_type.startswith("web.") and not force_run
-    
-    if not is_web_dyno:
-        log.info(f"Starting Telegram bot polling on dyno: {dyno_type}")
-        # Start telegram bot polling
-        await start_telegram_bot()
-        await start_prediction_bot()
-    else:
-        log.info("Skipping Telegram bot polling on web dyno (Heroku). Run on worker dyno instead.")
-    
-    # Start the background task for telegram alerts only on worker dynos
+    log.info("Starting Telegram bots and scheduler on dyno: %s", os.getenv("DYNO", "local"))
+    await start_telegram_bot()
+    await start_prediction_bot()
+
     scheduler = AsyncIOScheduler()
-    if not is_web_dyno:
-        # Every 10 minutes during US market hours (9 AM–4:30 PM ET, Mon–Fri)
-        scheduler.add_job(
-            check_alerts_loop,
-            'cron',
-            day_of_week='mon-fri',
-            hour='9-16',
-            minute='*/10',
-            timezone='America/New_York',
-        )
-        # Every 3 hours for overnight/weekend coverage (hold expiry, etc.)
-        scheduler.add_job(check_alerts_loop, 'interval', hours=3)
-        # Gain scanner: every 7 min across premarket (4 AM), market, and postmarket (8 PM ET)
-        scheduler.add_job(
-            run_gain_scan,
-            'cron',
-            day_of_week='mon-fri',
-            hour='4-20',
-            minute='*/7',
-            timezone='America/New_York',
-        )
-        scheduler.start()
-    else:
-        # On web dyno, schedule the ML predictions to run at 4:00 AM UTC daily
-        from api.routers.predict import _run_and_cache_predictions
-        scheduler.add_job(_run_and_cache_predictions, 'cron', hour=4, minute=0)
-        scheduler.start()
-    
+    # Trade/hold alerts — every 10 min during market hours, every 3 h overnight
+    scheduler.add_job(
+        check_alerts_loop,
+        'cron',
+        day_of_week='mon-fri',
+        hour='9-16',
+        minute='*/10',
+        timezone='America/New_York',
+    )
+    scheduler.add_job(check_alerts_loop, 'interval', hours=3)
+    # Gain scanner — every 7 min, premarket through postmarket (4 AM–8 PM ET)
+    scheduler.add_job(
+        run_gain_scan,
+        'cron',
+        day_of_week='mon-fri',
+        hour='4-20',
+        minute='*/7',
+        timezone='America/New_York',
+    )
+    # ML predictions — daily at 4 AM UTC
+    from api.routers.predict import _run_and_cache_predictions
+    scheduler.add_job(_run_and_cache_predictions, 'cron', hour=4, minute=0)
+    scheduler.start()
+
     yield
-    
+
     if scheduler.running:
         scheduler.shutdown()
-    if not is_web_dyno:
-        await stop_telegram_bot()
-        await stop_prediction_bot()
+    await stop_telegram_bot()
+    await stop_prediction_bot()
 
 # ---------------------------------------------------------------------------
 # Logging
