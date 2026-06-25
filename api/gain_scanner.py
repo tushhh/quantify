@@ -46,17 +46,45 @@ def _get_universe() -> list[str]:
 
 
 def _fetch_gain(symbol: str):
-    """Blocking single-ticker price fetch. Returns (symbol, dict) or (symbol, None)."""
+    """Blocking single-ticker price fetch. Returns (symbol, dict) or (symbol, None).
+
+    During regular market hours yfinance daily history includes today's partial
+    candle, so we compare today vs yesterday directly. During pre/post market
+    the daily candle for today doesn't exist yet, so we fetch 1-minute intraday
+    data with prepost=True to get the current extended-hours price.
+    """
     try:
+        import pandas as pd
         import yfinance as yf
-        hist = yf.Ticker(symbol).history(period="5d")
-        if hist is None or len(hist) < 2:
+
+        today_str = datetime.now(_ET).strftime("%Y-%m-%d")
+        ticker = yf.Ticker(symbol)
+
+        # Daily history — gives us the previous close and (if open) today's price
+        hist = ticker.history(period="5d")
+        if hist is None or len(hist) < 1:
             return symbol, None
         closes = hist["Close"].dropna()
-        if len(closes) < 2:
+        if len(closes) < 1:
             return symbol, None
-        prev_close = float(closes.iloc[-2])
-        today_price = float(closes.iloc[-1])
+
+        # Determine whether today's regular-session candle is present
+        last_date = pd.Timestamp(closes.index[-1]).tz_convert(_ET).strftime("%Y-%m-%d")
+
+        if last_date == today_str:
+            # Regular market hours: today's row is the current price
+            if len(closes) < 2:
+                return symbol, None
+            prev_close = float(closes.iloc[-2])
+            today_price = float(closes.iloc[-1])
+        else:
+            # Pre/post market: today's candle not in daily hist yet — use 1m intraday
+            prev_close = float(closes.iloc[-1])  # last completed session close
+            intraday = ticker.history(period="1d", interval="1m", prepost=True)
+            if intraday is None or len(intraday) == 0:
+                return symbol, None
+            today_price = float(intraday["Close"].iloc[-1])
+
         if prev_close <= 0:
             return symbol, None
         gain_pct = (today_price - prev_close) / prev_close * 100
