@@ -129,10 +129,13 @@ quantify backtest `
   --capital 100000
 ```
 
-Backtest outputs now include a deterministic run manifest (`run_id`, assumptions, provider provenance, environment versions).  
+Every backtest gets a `run_id` (printed by the CLI, returned in the API's `metadata`). It is a fingerprint of everything that determines the result: capital, dates, strategies and their parameters, position sizing, risk, stop and cost settings, the input price data, the persisted ML model file, the code revision and library versions. Two runs share a `run_id` only when all of those match.
 If you pass `--output-dir`, Quantify saves both:
-- `summary.json` (metrics + provenance fields)
-- `manifest.json` (durable run manifest for reproducibility/audit)
+- `summary.json` (metrics, including `run_id`)
+- `manifest.json` (the full fingerprint plus provenance: data provider and skipped symbols)
+
+> [!NOTE]
+> Prices come from yfinance with split/dividend adjustment, so history shifts slightly after each dividend and the `run_id` of a re-run changes with it. Backtests over today's large caps or S&P 500 members also carry survivorship bias: companies delisted during the test window are not in the universe.
 
 ### Paper Trade (Dry Run)
 

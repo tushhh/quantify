@@ -1,5 +1,14 @@
+"""
+Provider boundary for market data.
+
+:func:`fetch_market_data` wraps a :class:`DataProvider` so callers get the
+usable frames *and* a record of which symbols were skipped and why, instead
+of symbols silently disappearing.
+"""
+
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -7,7 +16,9 @@ from typing import Any
 import pandas as pd
 
 from quantify.data.models import TimeFrame
-from quantify.data.providers.base import DataProvider, DataProviderError
+from quantify.data.providers.base import DataProvider
+
+log = logging.getLogger(__name__)
 
 
 class ProviderBoundaryError(RuntimeError):
@@ -45,28 +56,30 @@ def fetch_market_data(
     timeframe: TimeFrame = TimeFrame.DAILY,
     min_bars: int = 1,
 ) -> ProviderFetchResult:
-    requested_symbols = [s.upper() for s in symbols]
+    """Fetch *symbols* through *provider*, recording every symbol that is skipped.
+
+    Symbols the provider omits are reported as failed, not re-requested:
+    providers already retry internally (``YFinanceProvider.get_multiple``
+    falls back to per-symbol downloads), and a second pass only doubles
+    traffic when the provider is rate-limited.
+    """
+    requested_symbols = list(dict.fromkeys(s.upper() for s in symbols))
     failed_symbols: dict[str, str] = {}
 
     try:
         raw = provider.get_multiple(requested_symbols, start, end, timeframe=timeframe)
-    except DataProviderError as exc:
+    except Exception as exc:
+        # The bulk call failed outright (YFinanceProvider raises when the only
+        # uncached symbol errors). Fetch individually so cached or healthy
+        # symbols still come through.
+        log.warning("Bulk fetch failed (%s); fetching %d symbols individually.",
+                    exc, len(requested_symbols))
         raw = {}
-        failed_symbols["__bulk__"] = str(exc)
-    except Exception as exc:  # pragma: no cover - safety net
-        raw = {}
-        failed_symbols["__bulk__"] = f"unexpected provider error: {exc}"
-
-    # If bulk fetch failed or omitted symbols, try symbol-level calls so callers
-    # get useful failure metadata instead of a silent drop.
-    for sym in requested_symbols:
-        if sym in raw:
-            continue
-        try:
-            single = provider.get_bars(sym, start, end, timeframe=timeframe)
-            raw[sym] = single
-        except Exception as exc:
-            failed_symbols[sym] = str(exc)
+        for sym in requested_symbols:
+            try:
+                raw[sym] = provider.get_bars(sym, start, end, timeframe=timeframe)
+            except Exception as sym_exc:
+                failed_symbols[sym] = str(sym_exc)
 
     filtered: dict[str, pd.DataFrame] = {}
     for sym in requested_symbols:
@@ -75,7 +88,7 @@ def fetch_market_data(
             failed_symbols.setdefault(sym, "no data returned")
             continue
         if min_bars > 0 and len(df) < min_bars:
-            failed_symbols.setdefault(sym, f"insufficient bars ({len(df)} < {min_bars})")
+            failed_symbols[sym] = f"insufficient bars ({len(df)} < {min_bars})"
             continue
         filtered[sym] = df
 
@@ -83,10 +96,14 @@ def fetch_market_data(
         provider_name=type(provider).__name__,
         data=filtered,
         requested_symbols=requested_symbols,
-        returned_symbols=sorted(filtered.keys()),
+        returned_symbols=sorted(filtered),
         failed_symbols=failed_symbols,
         min_bars=min_bars,
     )
+
+    if failed_symbols:
+        log.warning("Skipped %d of %d symbols: %s",
+                    len(failed_symbols), len(requested_symbols), failed_symbols)
 
     if not filtered:
         raise ProviderBoundaryError(

@@ -212,7 +212,6 @@ class TestBacktestEngineRun:
         required_keys = {
             "start", "end", "initial_capital", "final_equity",
             "strategies", "symbols", "n_trading_days",
-            "run_manifest", "run_id", "manifest_hash", "data_provider", "execution_costs",
         }
         assert required_keys <= set(result.metadata.keys())
 

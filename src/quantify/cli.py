@@ -198,22 +198,30 @@ def backtest(
         f"Fetching data for {len(universe)} symbols "
         f"({start_date} to {end_date})..."
     )
+    from quantify.data.provider_router import ProviderBoundaryError, fetch_market_data
     try:
-        from quantify.data.provider_router import fetch_market_data
         from quantify.data.providers import create_provider
         provider = create_provider("yfinance")
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
         fetch_result = fetch_market_data(provider, universe, start_dt, end_dt)
-        data = fetch_result.data
-        if fetch_result.failed_symbols:
-            click.echo(
-                f"Warning: provider skipped {len(fetch_result.failed_symbols)} "
-                "symbols; continuing with available data.",
-                err=True,
-            )
+    except ProviderBoundaryError:
+        raise click.ClickException(
+            "No data was retrieved for any symbol. "
+            "Check your date range and internet connection."
+        )
     except Exception as exc:
         raise click.ClickException(f"Data download failed: {exc}")
+
+    data = fetch_result.data
+    if fetch_result.failed_symbols:
+        skipped = sorted(fetch_result.failed_symbols)
+        shown = ", ".join(skipped[:10]) + (", ..." if len(skipped) > 10 else "")
+        click.echo(
+            f"Warning: skipped {len(skipped)} symbols with no usable data ({shown}); "
+            "continuing with the rest.",
+            err=True,
+        )
 
     if not data:
         raise click.ClickException(
@@ -246,25 +254,37 @@ def backtest(
             position_sizer=sizer,
             start_date=start_date,
             end_date=end_date,
-            run_context={
-                "provider_name": fetch_result.provider_name,
-                "provider_metadata": fetch_result.to_metadata(),
-            },
         )
+    except Exception as exc:
+        raise click.ClickException(f"Backtest failed: {exc}")
+
+    # Fingerprint the run before it starts (provenance only — never fatal)
+    manifest = None
+    try:
+        from quantify.backtest.manifest import build_backtest_manifest
+        manifest = build_backtest_manifest(engine, data, data_provider=fetch_result.to_metadata())
+    except Exception as exc:
+        click.echo(f"Warning: could not build run manifest: {exc}", err=True)
+
+    try:
         result = engine.run(data=data)
     except Exception as exc:
         raise click.ClickException(f"Backtest failed: {exc}")
+
+    if manifest:
+        result.metadata.update(
+            run_manifest=manifest,
+            run_id=manifest["run_id"],
+            manifest_hash=manifest["manifest_hash"],
+        )
 
     # Print report
     try:
         from quantify.backtest.report import BacktestReport
         report = BacktestReport(result)
         report.print_summary()
-        if result.metadata.get("run_id"):
-            click.echo(
-                f"Run ID: {result.metadata.get('run_id')} "
-                f"({result.metadata.get('manifest_hash', 'no manifest hash')})"
-            )
+        if manifest:
+            click.echo(f"Run ID: {manifest['run_id']} ({manifest['manifest_hash']})")
     except Exception as exc:
         click.echo(f"Warning: could not print report: {exc}", err=True)
         click.echo(repr(result))

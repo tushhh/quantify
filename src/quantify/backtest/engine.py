@@ -51,7 +51,6 @@ import numpy as np
 import pandas as pd
 
 from quantify.backtest.costs import CostModel
-from quantify.backtest.manifest import build_backtest_manifest
 from quantify.data.features import FeatureEngine
 from quantify.execution.broker.simulated import BarData, SimulatedBroker
 from quantify.execution.order import Order, OrderSide, OrderType
@@ -247,7 +246,6 @@ class BacktestEngine:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         benchmark_symbol: str = "SPY",
-        run_context: Optional[dict[str, Any]] = None,
     ) -> None:
         if not strategies:
             raise ValueError("BacktestEngine requires at least one strategy")
@@ -263,7 +261,6 @@ class BacktestEngine:
         self.start_date = start_date
         self.end_date = end_date
         self.benchmark_symbol = benchmark_symbol
-        self.run_context = run_context or {}
 
         # Validate all strategies
         for strat in self.strategies:
@@ -594,25 +591,6 @@ class BacktestEngine:
                 "cost_model": repr(self.cost_model),
             },
         )
-
-        symbol_rows = {symbol: len(df) for symbol, df in data.items()}
-        manifest = build_backtest_manifest(
-            strategies=self.strategies,
-            start_date=trading_dates[0] if trading_dates else None,
-            end_date=trading_dates[-1] if trading_dates else None,
-            symbols=list(data.keys()),
-            symbol_rows=symbol_rows,
-            cost_model=self.cost_model,
-            data_provider={
-                "name": self.run_context.get("provider_name", "unknown"),
-                "metadata": self.run_context.get("provider_metadata", {}),
-            },
-        ).to_dict()
-        result.metadata["run_manifest"] = manifest
-        result.metadata["run_id"] = manifest["run_id"]
-        result.metadata["manifest_hash"] = manifest["manifest_hash"]
-        result.metadata["data_provider"] = manifest["data_provider"]
-        result.metadata["execution_costs"] = manifest["execution_costs"]
 
         log.info(
             "BacktestEngine.run completed: total_return=%.2f%% sharpe=%.3f max_dd=%.2f%%",

@@ -218,8 +218,6 @@ class BacktestReport:
             "symbols": self.result.metadata.get("symbols", []),
             "run_id": self.result.metadata.get("run_id"),
             "manifest_hash": self.result.metadata.get("manifest_hash"),
-            "data_provider": self.result.metadata.get("data_provider"),
-            "execution_costs": self.result.metadata.get("execution_costs"),
         }
 
         return metrics
