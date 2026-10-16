@@ -65,7 +65,7 @@ CLAUDE.md                # This file
 - The backtest engine core logic (`backtest/engine.py`)
 - ML model training pipeline and feature definitions
 - Telegram bot notification logic
-- Database schema (migrations require explicit instruction)
+- Database schema (migrations require explicit instruction). Tables are SQLAlchemy models in `api/models.py`; columns added after launch are patched in at startup by the `ensure_*_columns()` helpers in `api/database.py`
 
 ---
 
@@ -218,6 +218,15 @@ Always run `npm run build` before considering frontend work done — catch type 
 
 - CI (`.github/workflows/ci.yml`) pins the ruff version and `pyproject.toml` selects the rules. Bump them deliberately, never by leaving ruff unpinned.
 - A bug fix comes with a regression test that fails without the fix, so the bug can't quietly return.
+
+### Project skills (`.claude/skills/`)
+Use these instead of improvised checks:
+- `crosscheck`: backtest parity against main. Run it before committing changes to backtest, strategy, risk or execution code.
+- `pandas-ta-executor`: indicator rules, plus the lookahead and fallback-drift checker for `data/features.py`.
+- `never-again`: every bug fix gets a regression test, proven to fail without the fix.
+- `deep-security-check`: secrets, route auth, secrets in workflow inputs, dependency audit.
+- `16-eyes`: merge review against this file's rules. Use it before anything goes to main.
+- `grill-me` (only as `/grill-me`): an interview to pin down a plan before building it.
 
 ---
 
