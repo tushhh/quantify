@@ -46,6 +46,7 @@ CLAUDE.md                # This file
 ### Branches
 - `main` is the only code branch. Pushes to it deploy: Vercel (web) and Heroku (API).
 - `model-cache` and `screener-cache` are data stores, not work branches. `ml_train.yml` (daily) and `screener_cron.yml` (every 20 min) force-push them, and the production `/predict` API reads them. Never merge or delete them.
+- A PreToolUse hook enforces both rules in every permission mode. It's wired up in `.claude/settings.json`, with the rules in `.claude/hooks/branch_guard.py`. It blocks pushes or merges into main, force pushes, and pushes to or deletions of the data branches. Don't work around a block: tell the user what you wanted to run.
 
 ---
 
@@ -226,6 +227,8 @@ Use these instead of improvised checks:
 - `never-again`: every bug fix gets a regression test, proven to fail without the fix.
 - `deep-security-check`: secrets, route auth, secrets in workflow inputs, dependency audit.
 - `16-eyes`: merge review against this file's rules. Use it before anything goes to main.
+- `model-health`: is the live model fresh, matched to the code's feature schema, and better than chance? Also checks screener output and workflow runs.
+- `backtest-doctor`: sanity-check a backtest result for cost-unit errors, dead strategies, lookahead, survivorship bias and cost drag before trusting it.
 - `grill-me` (only as `/grill-me`): an interview to pin down a plan before building it.
 
 ---
