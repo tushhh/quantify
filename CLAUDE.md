@@ -33,12 +33,19 @@ The product's core value proposition: institutional-grade quant tools, made acce
   strategy/              # Six trading strategies including ml_return_predictor.py
   backtest/              # Event-driven backtest engine
   risk/                  # Drawdown, sector caps, position sizing
-/frontend/               # Next.js app
-  app/                   # App Router pages
-  components/            # Shared UI components
-  lib/                   # API client, utils
+/api/                    # FastAPI app (main.py) and routers/ — what Heroku runs
+/web/                    # Next.js app (deployed by Vercel)
+  src/app/               # App Router pages
+  src/components/        # Shared UI components
+  src/lib/               # API client, utils
+/tests/                  # pytest suite (run from the repo root)
+/.github/workflows/      # CI plus the scheduled ML/screener pipelines
 CLAUDE.md                # This file
 ```
+
+### Branches
+- `main` is the only code branch. Pushes to it deploy: Vercel (web) and Heroku (API).
+- `model-cache` and `screener-cache` are data stores, not work branches. `ml_train.yml` (daily) and `screener_cron.yml` (every 20 min) force-push them, and the production `/predict` API reads them. Never merge or delete them.
 
 ---
 
@@ -77,7 +84,7 @@ CLAUDE.md                # This file
 - Empty states: treat as invitations to act, not dead ends
 
 ### API integration
-- All backend calls go through `/frontend/lib/api.ts` — don't fetch directly from components
+- All backend calls go through `web/src/lib/api.ts` — don't fetch directly from components
 - Handle loading, error, and success states explicitly for every API call
 - Don't expose raw backend error messages to the UI
 
@@ -194,19 +201,23 @@ Use green/red semantically and consistently throughout — they carry meaning fo
 
 ```bash
 # Frontend dev server
-cd frontend && npm run dev
+cd web && npm run dev
 
-# Backend dev server
-cd src && uvicorn quantify.main:app --reload
+# Backend dev server (same app as the Procfile)
+PYTHONPATH=src:. uvicorn api.main:app --reload
 
-# Run tests
-pytest src/tests/
+# Lint and tests: exactly what CI runs, from the repo root
+ruff check .
+pytest
 
-# Build check before committing
-cd frontend && npm run build
+# Build check before committing frontend changes
+cd web && npm run build
 ```
 
 Always run `npm run build` before considering frontend work done — catch type errors and missing imports before they hit Vercel.
+
+- CI (`.github/workflows/ci.yml`) pins the ruff version and `pyproject.toml` selects the rules. Bump them deliberately, never by leaving ruff unpinned.
+- A bug fix comes with a regression test that fails without the fix, so the bug can't quietly return.
 
 ---
 
