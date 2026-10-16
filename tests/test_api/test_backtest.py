@@ -11,6 +11,7 @@ os.environ.setdefault("JWT_SECRET", "test-secret")
 from api.main import app
 from api.routers import backtest as backtest_router
 from api.schemas import BacktestRequest, StrategyConfig
+from quantify.data.provider_router import ProviderFetchResult
 
 
 _STRATEGY_NAMES = [
@@ -67,15 +68,25 @@ def test_build_strategy_instances_sets_allocation() -> None:
     assert strategies[0].allocation == pytest.approx(0.35)
 
 
-def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data) -> None:
-    def _fake_fetch_data(tickers, start, end):
-        data = {
-            "AAPL": long_ohlcv_data.copy(),
-            "SPY": long_ohlcv_data.copy(),
-        }
-        return {k: v for k, v in data.items() if k in tickers}
+def _fake_fetch_data(frame):
+    """Stand-in for _fetch_data: AAPL and SPY have data, any other ticker is skipped."""
 
-    monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data)
+    def fetch(tickers, start, end):
+        data = {t: frame.copy() for t in ("AAPL", "SPY") if t in tickers}
+        return ProviderFetchResult(
+            provider_name="YFinanceProvider",
+            data=data,
+            requested_symbols=list(tickers),
+            returned_symbols=sorted(data),
+            failed_symbols={t: "no data returned" for t in tickers if t not in data},
+            min_bars=6,
+        )
+
+    return fetch
+
+
+def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data) -> None:
+    monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data(long_ohlcv_data))
 
     start_date = long_ohlcv_data.index[0].date()
     end_date = long_ohlcv_data.index[-1].date()
@@ -85,26 +96,23 @@ def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data)
         "end_date": str(end_date),
         "initial_capital": 100000.0,
         "benchmark": "SPY",
-        "universe": ["AAPL", "SPY"],
+        "universe": ["AAPL", "SPY", "BADX"],
         "strategies": _strategy_payload(allocation=0.25),
     }
 
     client = TestClient(app)
     res = client.post("/api/backtest?run_sync=true", json=payload)
     assert res.status_code == 200
-    body = res.json()
-    assert "trend_following" in body["metadata"]["strategies_run"]
+    metadata = res.json()["metadata"]
+    assert "trend_following" in metadata["strategies_run"]
+    assert metadata["run_id"].startswith("bt-")
+    assert metadata["skipped_symbols"] == ["BADX"]
+    # Regression: the web "Run metadata" card printed nested objects as "[object Object]".
+    assert [k for k, v in metadata.items() if isinstance(v, dict)] == []
 
 
 def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
-    def _fake_fetch_data(tickers, start, end):
-        data = {
-            "AAPL": long_ohlcv_data.copy(),
-            "SPY": long_ohlcv_data.copy(),
-        }
-        return {k: v for k, v in data.items() if k in tickers}
-
-    monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data)
+    monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data(long_ohlcv_data))
 
     start_date = long_ohlcv_data.index[0].date()
     end_date = long_ohlcv_data.index[-1].date()
@@ -139,4 +147,4 @@ def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
 
     assert body["status"] == "ok"
     assert "trend_following" in body["metadata"]["strategies_run"]
-
+    assert body["metadata"]["run_id"].startswith("bt-")

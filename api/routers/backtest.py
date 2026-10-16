@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from quantify.data.provider_router import ProviderFetchResult
 import collections
 from typing import Union
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -61,10 +63,11 @@ REQUEST_TIMEOUT = 120  # 2 minutes max per request
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
-    """Download OHLCV data from yfinance via YFinanceProvider (which uses ParquetCache and handles retries)."""
-    from quantify.data.providers.yfinance_provider import YFinanceProvider
+def _fetch_data(tickers: list[str], start: date, end: date) -> ProviderFetchResult:
+    """Download OHLCV data through the provider boundary (ParquetCache + retries)."""
     from quantify.data.cache import ParquetCache
+    from quantify.data.provider_router import ProviderBoundaryError, fetch_market_data
+    from quantify.data.providers import create_provider
     from datetime import datetime, timedelta
     
     # Pad the start date to fetch historical lookback data for indicators
@@ -74,30 +77,21 @@ def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.Data
     start_dt = datetime.combine(padded_start, datetime.min.time())
     end_dt = datetime.combine(end, datetime.min.time())
     
-    provider = YFinanceProvider(cache=ParquetCache())
-    result = provider.get_multiple(tickers, start_dt, end_dt)
-    
-    if not result:
+    provider = create_provider("yfinance", cache=ParquetCache())
+    try:
+        return fetch_market_data(
+            provider,
+            tickers,
+            start_dt,
+            end_dt,
+            min_bars=6,
+        )
+    except ProviderBoundaryError as exc:
+        log.warning("No usable market data: %s", exc.metadata.get("failed_symbols"))
         raise HTTPException(
             status_code=502,
-            detail="No valid market data was retrieved for any tickers. Check dates and ticker symbols."
-        )
-        
-    # YFinanceProvider returns standard OHLCV, but we also want to drop any empty dataframes and ensure length > 5
-    filtered_result = {}
-    for sym, df in result.items():
-        if not df.empty and len(df) > 5:
-            filtered_result[sym] = df
-        else:
-            log.warning(f"Insufficient data for {sym}: {len(df) if not df.empty else 0} bars")
-            
-    if not filtered_result:
-        raise HTTPException(
-            status_code=502,
-            detail="No valid market data was retrieved for any tickers (insufficient bars). Check dates and ticker symbols."
-        )
-        
-    return filtered_result
+            detail="No valid market data was retrieved for any tickers. Check dates and ticker symbols.",
+        ) from exc
 
 
 def _build_strategy_instances(req: BacktestRequest) -> list:
@@ -345,8 +339,13 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
 
     # ── Fetch data ────────────────────────────────────────────────────────
     _progress(f"Step 1/5: Downloading market data for {len(tickers)} tickers…")
-    data = _fetch_data(tickers, req.start_date, req.end_date)
-    _progress(f"Successfully fetched data for {len(data)} tickers")
+    provider_result = _fetch_data(tickers, req.start_date, req.end_date)
+    data = provider_result.data
+    skipped_symbols = sorted(provider_result.failed_symbols)
+    _progress(
+        f"Successfully fetched data for {len(data)} of {len(tickers)} tickers"
+        + (f" (skipped: {', '.join(skipped_symbols)})" if skipped_symbols else "")
+    )
 
     try:
         from quantify.data.fundamentals import fetch_fundamentals, add_fundamental_features
@@ -401,6 +400,17 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
         end_date=req.end_date,
         benchmark_symbol=req.benchmark,
     )
+
+    # Fingerprint the run before it starts, while stateful components are
+    # still as configured. Provenance only, so never fail the backtest over it.
+    run_id = None
+    try:
+        from quantify.backtest.manifest import build_backtest_manifest
+        run_id = build_backtest_manifest(
+            engine, data, data_provider=provider_result.to_metadata()
+        )["run_id"]
+    except Exception as exc:
+        log.warning("Could not build backtest run manifest: %s", exc)
 
     # ── Run ───────────────────────────────────────────────────────────────
     _progress("Step 4/5: Running backtest engine (this may take a minute)…")
@@ -484,12 +494,16 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
         drawdown_curve=_serialize_drawdown(result.equity_curve),
         trades=trades_out,
         signals_count=len(result.signals_log),
+        # Keep values scalars or lists: the web "Run metadata" card prints every
+        # non-list value as text, so a nested object shows as "[object Object]".
         metadata={
             **result.metadata,
             "strategies_run": [s.name for s in strategies],
             "start_date": str(req.start_date),
             "end_date": str(req.end_date),
             "initial_capital": req.initial_capital,
+            "skipped_symbols": skipped_symbols,
+            **({"run_id": run_id} if run_id else {}),
             **ml_metadata,
         },
     )

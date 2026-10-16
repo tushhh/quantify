@@ -34,6 +34,8 @@ def test_predict_best_success(monkeypatch) -> None:
     def mock_urlopen(req, timeout=10):
         return MockResponse()
 
+    # The screener cache URL is built from GITHUB_REPOSITORY, which only CI sets.
+    monkeypatch.setenv("GITHUB_REPOSITORY", "tushhh/quantify")
     monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
 
     client = TestClient(app)
@@ -49,6 +51,7 @@ def test_predict_best_not_found(monkeypatch) -> None:
     def mock_urlopen(req, timeout=10):
         raise HTTPError(url=req.full_url, code=404, msg="Not Found", hdrs=None, fp=None)
 
+    monkeypatch.setenv("GITHUB_REPOSITORY", "tushhh/quantify")
     monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
     monkeypatch.setattr(predict_router, "_cache", {"live": {}, "previous_close": {}})
 

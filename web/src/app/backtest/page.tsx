@@ -467,7 +467,8 @@ export default function BacktestPage() {
                   <CardHeader title="Run Metadata" density="compact" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                     {Object.entries(backtestResult.metadata).map(([k, v]) => {
-                      if (Array.isArray(v)) return null;
+                      // Only scalars render as text; skip arrays and nested objects.
+                      if (typeof v === "object" && v !== null) return null;
                       return (
                         <div key={k}>
                           <span className="text-[var(--color-text-secondary)] block capitalize text-[10px] uppercase tracking-wider">{k.replace(/_/g, " ")}</span>
