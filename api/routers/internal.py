@@ -1,6 +1,7 @@
 """
 Internal API endpoints for async GitHub Actions screener workflow.
 """
+import hmac
 import json
 import logging
 import os
@@ -8,7 +9,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
@@ -19,10 +20,17 @@ router = APIRouter(prefix="/internal", tags=["internal"])
 log = logging.getLogger("quantify.api.internal")
 
 _INTERNAL_SECRET = os.getenv("INTERNAL_API_SECRET", "")
+if not _INTERNAL_SECRET:
+    log.warning(
+        "INTERNAL_API_SECRET is not set: /api/internal endpoints accept "
+        "unauthenticated requests. Set it to the same value as the repo secret."
+    )
 
 
-def _verify_secret(x_internal_secret: Optional[str]) -> None:
-    if _INTERNAL_SECRET and x_internal_secret != _INTERNAL_SECRET:
+def _verify_secret(provided: Optional[str]) -> None:
+    if _INTERNAL_SECRET and not hmac.compare_digest(
+        (provided or "").encode(), _INTERNAL_SECRET.encode()
+    ):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
@@ -169,8 +177,16 @@ async def job_complete(
 
 
 @router.get("/gain-scan-status")
-async def gain_scan_status():
-    """Diagnostic: show subscriptions, today's state records, and server time."""
+async def gain_scan_status(
+    x_internal_secret: Optional[str] = Header(None),
+    secret: Optional[str] = Query(None, description="Internal secret, for browser use"),
+):
+    """Diagnostic: show subscriptions, today's state records, and server time.
+
+    Lists subscriber chat IDs, so it needs the internal secret: the
+    X-Internal-Secret header, or ?secret= when opened in a browser.
+    """
+    _verify_secret(x_internal_secret or secret)
     import pytz
     from api.models import GainAlertState, GainAlertSubscription
 
@@ -196,8 +212,16 @@ async def gain_scan_status():
 
 
 @router.get("/clear-gain-state-today")
-async def clear_gain_alert_state_today():
-    """One-time helper: delete today's gain alert dedup records so the next scan sends fresh alerts."""
+async def clear_gain_alert_state_today(
+    x_internal_secret: Optional[str] = Header(None),
+    secret: Optional[str] = Query(None, description="Internal secret, for browser use"),
+):
+    """One-time helper: delete today's gain alert dedup records so the next scan sends fresh alerts.
+
+    Re-sends alerts to every subscriber, so it needs the internal secret: the
+    X-Internal-Secret header, or ?secret= when opened in a browser.
+    """
+    _verify_secret(x_internal_secret or secret)
     import pytz
     from api.models import GainAlertState
 
