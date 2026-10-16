@@ -129,6 +129,11 @@ quantify backtest `
   --capital 100000
 ```
 
+Backtest outputs now include a deterministic run manifest (`run_id`, assumptions, provider provenance, environment versions).  
+If you pass `--output-dir`, Quantify saves both:
+- `summary.json` (metrics + provenance fields)
+- `manifest.json` (durable run manifest for reproducibility/audit)
+
 ### Paper Trade (Dry Run)
 
 ```bash
@@ -187,6 +192,13 @@ Options:
                    strategies from config.
   --dry-run        Generate signals without submitting orders.
 ```
+
+### Safety and execution boundaries
+
+- **Backtest (`quantify backtest`)**: historical simulation only, with execution-cost assumptions from config/request.
+- **Dry run (`quantify paper-trade --dry-run`)**: signal generation only, no orders submitted.
+- **Paper trading (`quantify paper-trade`)**: simulated broker execution and portfolio tracking only.
+- **Live real-money trading**: not enabled by these commands.
 
 ### `report`
 

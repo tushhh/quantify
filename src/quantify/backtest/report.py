@@ -216,6 +216,10 @@ class BacktestReport:
             # Metadata
             "strategies": self.result.metadata.get("strategies", []),
             "symbols": self.result.metadata.get("symbols", []),
+            "run_id": self.result.metadata.get("run_id"),
+            "manifest_hash": self.result.metadata.get("manifest_hash"),
+            "data_provider": self.result.metadata.get("data_provider"),
+            "execution_costs": self.result.metadata.get("execution_costs"),
         }
 
         return metrics
@@ -687,6 +691,13 @@ class BacktestReport:
                 default=_json_serialiser,
             )
         log.info("Saved summary JSON: %s", summary_path)
+
+        manifest = self.result.metadata.get("run_manifest")
+        if isinstance(manifest, dict):
+            manifest_path = save_dir / "manifest.json"
+            with open(manifest_path, "w", encoding="utf-8") as fh:
+                json.dump(manifest, fh, indent=2, default=_json_serialiser)
+            log.info("Saved run manifest JSON: %s", manifest_path)
 
         if not _MPL_AVAILABLE:
             log.warning("save: matplotlib not available — plots not saved")

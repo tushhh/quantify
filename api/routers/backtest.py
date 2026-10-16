@@ -61,10 +61,11 @@ REQUEST_TIMEOUT = 120  # 2 minutes max per request
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.DataFrame]:
-    """Download OHLCV data from yfinance via YFinanceProvider (which uses ParquetCache and handles retries)."""
-    from quantify.data.providers.yfinance_provider import YFinanceProvider
+def _fetch_data(tickers: list[str], start: date, end: date):
+    """Download OHLCV data through the provider boundary."""
     from quantify.data.cache import ParquetCache
+    from quantify.data.provider_router import ProviderBoundaryError, fetch_market_data
+    from quantify.data.providers import create_provider
     from datetime import datetime, timedelta
     
     # Pad the start date to fetch historical lookback data for indicators
@@ -74,30 +75,17 @@ def _fetch_data(tickers: list[str], start: date, end: date) -> Dict[str, pd.Data
     start_dt = datetime.combine(padded_start, datetime.min.time())
     end_dt = datetime.combine(end, datetime.min.time())
     
-    provider = YFinanceProvider(cache=ParquetCache())
-    result = provider.get_multiple(tickers, start_dt, end_dt)
-    
-    if not result:
-        raise HTTPException(
-            status_code=502,
-            detail="No valid market data was retrieved for any tickers. Check dates and ticker symbols."
+    provider = create_provider("yfinance", cache=ParquetCache())
+    try:
+        return fetch_market_data(
+            provider,
+            tickers,
+            start_dt,
+            end_dt,
+            min_bars=6,
         )
-        
-    # YFinanceProvider returns standard OHLCV, but we also want to drop any empty dataframes and ensure length > 5
-    filtered_result = {}
-    for sym, df in result.items():
-        if not df.empty and len(df) > 5:
-            filtered_result[sym] = df
-        else:
-            log.warning(f"Insufficient data for {sym}: {len(df) if not df.empty else 0} bars")
-            
-    if not filtered_result:
-        raise HTTPException(
-            status_code=502,
-            detail="No valid market data was retrieved for any tickers (insufficient bars). Check dates and ticker symbols."
-        )
-        
-    return filtered_result
+    except ProviderBoundaryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 def _build_strategy_instances(req: BacktestRequest) -> list:
@@ -345,8 +333,11 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
 
     # ── Fetch data ────────────────────────────────────────────────────────
     _progress(f"Step 1/5: Downloading market data for {len(tickers)} tickers…")
-    data = _fetch_data(tickers, req.start_date, req.end_date)
-    _progress(f"Successfully fetched data for {len(data)} tickers")
+    provider_result = _fetch_data(tickers, req.start_date, req.end_date)
+    data = provider_result.data
+    _progress(
+        f"Successfully fetched data for {len(data)} tickers via {provider_result.provider_name}"
+    )
 
     try:
         from quantify.data.fundamentals import fetch_fundamentals, add_fundamental_features
@@ -400,6 +391,10 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
         start_date=req.start_date,
         end_date=req.end_date,
         benchmark_symbol=req.benchmark,
+        run_context={
+            "provider_name": provider_result.provider_name,
+            "provider_metadata": provider_result.to_metadata(),
+        },
     )
 
     # ── Run ───────────────────────────────────────────────────────────────
@@ -490,6 +485,7 @@ def _run_backtest_sync(req: BacktestRequest, job_id: str = "default") -> Backtes
             "start_date": str(req.start_date),
             "end_date": str(req.end_date),
             "initial_capital": req.initial_capital,
+            "provider_failures": provider_result.failed_symbols,
             **ml_metadata,
         },
     )

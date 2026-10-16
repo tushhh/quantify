@@ -199,19 +199,19 @@ def backtest(
         f"({start_date} to {end_date})..."
     )
     try:
-        from quantify.data.providers.yfinance_provider import YFinanceProvider
-        provider = YFinanceProvider()
+        from quantify.data.provider_router import fetch_market_data
+        from quantify.data.providers import create_provider
+        provider = create_provider("yfinance")
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
-        data = {}
-        with click.progressbar(universe, label="Downloading") as bar:
-            for symbol in bar:
-                try:
-                    df = provider.get_bars(symbol, start=start_dt, end=end_dt)
-                    if df is not None and not df.empty:
-                        data[symbol] = df
-                except Exception:
-                    pass  # silently skip symbols with no data
+        fetch_result = fetch_market_data(provider, universe, start_dt, end_dt)
+        data = fetch_result.data
+        if fetch_result.failed_symbols:
+            click.echo(
+                f"Warning: provider skipped {len(fetch_result.failed_symbols)} "
+                "symbols; continuing with available data.",
+                err=True,
+            )
     except Exception as exc:
         raise click.ClickException(f"Data download failed: {exc}")
 
@@ -246,6 +246,10 @@ def backtest(
             position_sizer=sizer,
             start_date=start_date,
             end_date=end_date,
+            run_context={
+                "provider_name": fetch_result.provider_name,
+                "provider_metadata": fetch_result.to_metadata(),
+            },
         )
         result = engine.run(data=data)
     except Exception as exc:
@@ -256,6 +260,11 @@ def backtest(
         from quantify.backtest.report import BacktestReport
         report = BacktestReport(result)
         report.print_summary()
+        if result.metadata.get("run_id"):
+            click.echo(
+                f"Run ID: {result.metadata.get('run_id')} "
+                f"({result.metadata.get('manifest_hash', 'no manifest hash')})"
+            )
     except Exception as exc:
         click.echo(f"Warning: could not print report: {exc}", err=True)
         click.echo(repr(result))
@@ -374,11 +383,12 @@ def _run_dry_run(strategy_instances, settings) -> None:
 
     click.echo("Fetching recent market data for signal generation...")
     try:
-        from quantify.data.providers.yfinance_provider import YFinanceProvider
+        from quantify.data.provider_router import fetch_market_data
+        from quantify.data.providers import create_provider
         from quantify.data.features import FeatureEngine
         from quantify.data.universe import get_sp500
 
-        provider = YFinanceProvider()
+        provider = create_provider("yfinance")
         end_dt = datetime.now(timezone.utc)
         from datetime import timedelta
         # Fetch 5 years to ensure enough history for ML training (504 bars)
@@ -395,15 +405,13 @@ def _run_dry_run(strategy_instances, settings) -> None:
         # for meaningful ranking. Cap at 150 to avoid overly long downloads.
         universe = sorted(set(universe))[:150]
 
-        data = {}
-        with click.progressbar(universe, label="Fetching") as bar:
-            for symbol in bar:
-                try:
-                    df = provider.get_bars(symbol, start=start_dt, end=end_dt)
-                    if df is not None and not df.empty:
-                        data[symbol] = df
-                except Exception:
-                    pass
+        fetch_result = fetch_market_data(provider, universe, start_dt, end_dt)
+        data = fetch_result.data
+        if fetch_result.failed_symbols:
+            click.echo(
+                f"Warning: provider skipped {len(fetch_result.failed_symbols)} symbols in dry-run mode.",
+                err=True,
+            )
     except Exception as exc:
         raise click.ClickException(f"Data fetch failed: {exc}")
 

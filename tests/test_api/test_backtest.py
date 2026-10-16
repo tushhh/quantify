@@ -68,12 +68,27 @@ def test_build_strategy_instances_sets_allocation() -> None:
 
 
 def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data) -> None:
+    class _ProviderResult:
+        def __init__(self, data):
+            self.provider_name = "YFinanceProvider"
+            self.data = data
+            self.failed_symbols = {}
+
+        def to_metadata(self):
+            return {
+                "provider": self.provider_name,
+                "requested_symbols": sorted(self.data),
+                "returned_symbols": sorted(self.data),
+                "failed_symbols": {},
+                "min_bars": 6,
+            }
+
     def _fake_fetch_data(tickers, start, end):
         data = {
             "AAPL": long_ohlcv_data.copy(),
             "SPY": long_ohlcv_data.copy(),
         }
-        return {k: v for k, v in data.items() if k in tickers}
+        return _ProviderResult({k: v for k, v in data.items() if k in tickers})
 
     monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data)
 
@@ -94,15 +109,33 @@ def test_backtest_endpoint_instantiates_strategies(monkeypatch, long_ohlcv_data)
     assert res.status_code == 200
     body = res.json()
     assert "trend_following" in body["metadata"]["strategies_run"]
+    assert body["metadata"]["run_id"].startswith("bt-")
+    assert body["metadata"]["manifest_hash"].startswith("sha256:")
+    assert body["metadata"]["data_provider"]["name"] == "YFinanceProvider"
 
 
 def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
+    class _ProviderResult:
+        def __init__(self, data):
+            self.provider_name = "YFinanceProvider"
+            self.data = data
+            self.failed_symbols = {}
+
+        def to_metadata(self):
+            return {
+                "provider": self.provider_name,
+                "requested_symbols": sorted(self.data),
+                "returned_symbols": sorted(self.data),
+                "failed_symbols": {},
+                "min_bars": 6,
+            }
+
     def _fake_fetch_data(tickers, start, end):
         data = {
             "AAPL": long_ohlcv_data.copy(),
             "SPY": long_ohlcv_data.copy(),
         }
-        return {k: v for k, v in data.items() if k in tickers}
+        return _ProviderResult({k: v for k, v in data.items() if k in tickers})
 
     monkeypatch.setattr(backtest_router, "_fetch_data", _fake_fetch_data)
 
@@ -139,4 +172,4 @@ def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
 
     assert body["status"] == "ok"
     assert "trend_following" in body["metadata"]["strategies_run"]
-
+    assert body["metadata"]["run_id"].startswith("bt-")
