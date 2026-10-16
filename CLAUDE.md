@@ -227,7 +227,7 @@ Use these instead of improvised checks:
 - `never-again`: every bug fix gets a regression test, proven to fail without the fix.
 - `deep-security-check`: secrets, route auth, secrets in workflow inputs, dependency audit.
 - `16-eyes`: merge review against this file's rules. Use it before anything goes to main.
-- `model-health`: is the live model fresh, matched to the code's feature schema, and better than chance? Also checks screener output and workflow runs.
+- `model-health`: is the live model fresh, matched to the code's feature schema, and better than chance? Also checks screener output and workflow runs. It runs every weekday in `.github/workflows/model_health.yml`, so check recent runs there first.
 - `backtest-doctor`: sanity-check a backtest result for cost-unit errors, dead strategies, lookahead, survivorship bias and cost drag before trusting it.
 - `grill-me` (only as `/grill-me`): an interview to pin down a plan before building it.
 

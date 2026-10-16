@@ -31,4 +31,4 @@ Exit code 1 on any FAIL. It reads the data branches with `git fetch`, so it need
 
 ## Schedule it
 
-To run it every weekday before the US open, use `/schedule` with a prompt like: "Run the model-health skill and summarise any FAIL or WARN lines."
+It already runs on a schedule: `.github/workflows/model_health.yml` runs it every weekday at 12:30 UTC, and on demand from the Actions tab. Each run puts the report in its job summary, and the job fails (so GitHub emails you) on any FAIL. When the user asks how the model has been doing, read recent runs there before re-running the check locally.

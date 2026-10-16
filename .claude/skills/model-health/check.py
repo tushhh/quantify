@@ -7,7 +7,7 @@ Usage (from the repo root):
     python .claude/skills/model-health/check.py [--code origin/main] [--no-actions]
 
 Exit code 1 if any FAIL. Needs network for git fetch and, unless --no-actions, the public
-GitHub API (unauthenticated: 60 requests/hour; this uses 3).
+GitHub API (3 requests; uses $GITHUB_TOKEN when set, else the anonymous 60/hour limit).
 """
 
 from __future__ import annotations
@@ -192,17 +192,21 @@ def check_screener(meta: dict | None) -> None:
 
 
 def check_actions(slug: str) -> None:
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if token:  # GitHub Actions provides one; shared runner IPs exhaust the anonymous limit
+        headers["Authorization"] = f"Bearer {token}"
     for workflow, expected_gap_h in WORKFLOWS.items():
         url = (f"https://api.github.com/repos/{slug}/actions/workflows/{workflow}"
                "/runs?per_page=10")
         try:
-            with urllib.request.urlopen(urllib.request.Request(
-                    url, headers={"Accept": "application/vnd.github+json"}), timeout=20) as resp:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers),
+                                        timeout=20) as resp:
                 runs = json.load(resp).get("workflow_runs", [])
         except urllib.error.HTTPError as exc:
             if exc.code in (403, 429):
-                report("WARN", "GitHub Actions: skipped, unauthenticated API rate limit hit "
-                               "(60/hour). Re-run later or pass --no-actions")
+                report("WARN", "GitHub Actions: skipped, API rate limit hit. Set GITHUB_TOKEN, "
+                               "re-run later, or pass --no-actions")
                 return
             report("WARN", f"GitHub Actions: {workflow}: HTTP {exc.code}")
             continue
