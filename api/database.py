@@ -12,10 +12,14 @@ if DATABASE_URL.startswith("sqlite"):
     os.makedirs("./data", exist_ok=True)
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    # Cloud PostgreSQL (Render/Supabase)
-    # SQLAlchemy 1.4+ requires 'postgresql://' instead of 'postgres://'
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    # Cloud PostgreSQL (Heroku/Render/Supabase)
+    # SQLAlchemy 1.4+ rejects Heroku's 'postgres://' scheme, and since 2.1 a bare
+    # 'postgresql://' defaults to psycopg v3, which isn't installed. Name the
+    # psycopg2 driver from requirements explicitly; an explicit '+driver' is kept.
+    for scheme in ("postgres://", "postgresql://"):
+        if DATABASE_URL.startswith(scheme):
+            DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len(scheme):]
+            break
     engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
