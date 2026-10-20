@@ -35,14 +35,23 @@ async def lifespan(app: FastAPI):
     
     # Initialize DB tables only if they don't exist. SQLAlchemy's checkfirst=True
     # (default) makes this a no-op on existing schema, so it's safe to call at startup.
-    models.Base.metadata.create_all(bind=engine)
+    # A database outage must not take down the routes that don't need it
+    # (predictions, strategies, backtests), so log it and keep serving.
+    try:
+        models.Base.metadata.create_all(bind=engine)
+    except Exception:
+        log.exception("Database unavailable at startup; DB-backed routes will fail until it recovers")
     ensure_trade_columns()
     ensure_user_columns()
     ensure_gain_alert_columns()
-    
+
     log.info("Starting Telegram bots and scheduler on dyno: %s", os.getenv("DYNO", "local"))
-    await start_telegram_bot()
-    await start_prediction_bot()
+    # The bots are optional: a revoked token or a Telegram outage must not stop the API booting.
+    for bot_name, start_bot in (("trades", start_telegram_bot), ("predictions", start_prediction_bot)):
+        try:
+            await start_bot()
+        except Exception:
+            log.exception("Telegram %s bot failed to start; the API will run without it", bot_name)
 
     scheduler = AsyncIOScheduler()
     # Trade/hold alerts — every 10 min during market hours, every 3 h overnight
@@ -73,8 +82,12 @@ async def lifespan(app: FastAPI):
 
     if scheduler.running:
         scheduler.shutdown()
-    await stop_telegram_bot()
-    await stop_prediction_bot()
+    # A bot that failed to start raises "Updater is not running" here; stop the other one anyway.
+    for bot_name, stop_bot in (("trades", stop_telegram_bot), ("predictions", stop_prediction_bot)):
+        try:
+            await stop_bot()
+        except Exception:
+            log.exception("Telegram %s bot did not stop cleanly", bot_name)
 
 # ---------------------------------------------------------------------------
 # Logging
