@@ -228,6 +228,7 @@ Use these instead of improvised checks:
 - `deep-security-check`: secrets, route auth, secrets in workflow inputs, dependency audit.
 - `16-eyes`: merge review against this file's rules. Use it before anything goes to main.
 - `model-health`: is the live model fresh, matched to the code's feature schema, and better than chance? Also checks screener output and workflow runs. It runs every weekday in `.github/workflows/model_health.yml`, so check recent runs there first.
+- `prod-smoke`: is the deployed app serving? Hits the live API (`/health`, `/api/predict/best`) and site. Use it first when "the app shows nothing", and after a merge to main. It runs every 2 hours in `.github/workflows/prod_smoke.yml`. The `boot-like-heroku` CI job boots the API with fresh dependencies against a real Postgres, because the SQLite tests can't catch driver or boot failures.
 - `backtest-doctor`: sanity-check a backtest result for cost-unit errors, dead strategies, lookahead, survivorship bias and cost drag before trusting it.
 - `grill-me` (only as `/grill-me`): an interview to pin down a plan before building it.
 
