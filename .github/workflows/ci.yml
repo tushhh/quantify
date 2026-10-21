@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Daily, so a breaking dependency release shows up here between deploys, not in prod.
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   test-and-lint:
@@ -31,3 +35,59 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+  boot-like-heroku:
+    # Tests run on SQLite, so they missed the 2026-10-16 outage: SQLAlchemy 2.1 changed the
+    # default Postgres driver and the API crashed at import on Heroku. This boots the API the
+    # way Heroku does: freshly resolved requirements, the Procfile command, and a
+    # Heroku-style postgres:// URL against a real Postgres.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: quantify
+          POSTGRES_PASSWORD: quantify
+          POSTGRES_DB: quantify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://quantify:quantify@localhost:5432/quantify
+      JWT_SECRET: ci-only-not-a-secret
+      PORT: "8000"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version-file: .python-version
+      - name: Install dependencies (latest releases, like a fresh Heroku build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boot with the Procfile command
+        run: |
+          web_cmd="$(sed -n 's/^web: //p' Procfile)"
+          bash -c "$web_cmd" > boot.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8000/health && break
+            sleep 2
+          done
+          if ! curl -fsS http://127.0.0.1:8000/health; then
+            echo "::error::API did not boot"; cat boot.log; exit 1
+          fi
+          # Startup logs DB failures and keeps serving, so /health alone can't prove the
+          # app reached Postgres. Fail on the log line, and check a table was created.
+          if grep -q "Database unavailable" boot.log; then
+            echo "::error::API booted but couldn't reach Postgres"; cat boot.log; exit 1
+          fi
+          python -c "import psycopg2; c = psycopg2.connect('$DATABASE_URL').cursor(); c.execute(\"select to_regclass('public.trades')\"); t = c.fetchone()[0]; print('trades table:', t); raise SystemExit(0 if t else 1)"
+      - name: Show boot log
+        if: always()
+        run: cat boot.log || true
