@@ -605,6 +605,7 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-2">
             {lastPriceUpdate && !loadingPrices && (
               <span className="text-[10px] text-[var(--color-text-secondary)] font-sans">
+                {/* eslint-disable-next-line react-hooks/purity -- an approximate "seconds ago" label; refreshed on each re-render */}
                 Updated {Math.round((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
               </span>
             )}

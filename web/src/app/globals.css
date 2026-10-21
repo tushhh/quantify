@@ -24,6 +24,9 @@
   --color-accent-hover: #1C5C80;
   --color-accent-subtle: #E7F2F8;
   --color-accent-foreground: #FFFFFF;
+  /* Call-to-action / selected-state accent used across pages. It follows the
+     primary accent; green stays reserved for positive returns. */
+  --color-cta: var(--color-accent);
 
   /* Gold — used sparingly: small highlights, premium/live accents */
   --color-gold: #C2942F;
@@ -137,6 +140,7 @@ body {
   --color-accent-hover: #25749B;
   --color-accent-subtle: rgba(47,141,186,0.14);
   --color-accent-foreground: #FFFFFF;
+  --color-cta: var(--color-accent);
 
   /* Gold — dark variant */
   --color-gold: #D9A93E;

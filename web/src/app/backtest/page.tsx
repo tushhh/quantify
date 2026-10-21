@@ -412,7 +412,7 @@ export default function BacktestPage() {
 
                 {/* Strategy breakdown */}
                 {backtestResult.trades.length > 0 && (() => {
-                  const byStrategy = backtestResult.trades.reduce((acc: Record<string, { trades: number; wins: number; pnl: number }>, t: any) => {
+                  const byStrategy = backtestResult.trades.reduce((acc: Record<string, { trades: number; wins: number; pnl: number }>, t) => {
                     const k = t.strategy_name || "unknown";
                     if (!acc[k]) acc[k] = { trades: 0, wins: 0, pnl: 0 };
                     acc[k].trades++;
@@ -420,7 +420,7 @@ export default function BacktestPage() {
                     if (t.pnl > 0) acc[k].wins++;
                     return acc;
                   }, {} as Record<string, { trades: number; wins: number; pnl: number }>);
-                  const rows = Object.entries(byStrategy).sort((a: any, b: any) => b[1].pnl - a[1].pnl);
+                  const rows = Object.entries(byStrategy).sort((a, b) => b[1].pnl - a[1].pnl);
                   return (
                     <Card>
                         <CardHeader className="p-4 pb-0">
@@ -437,7 +437,7 @@ export default function BacktestPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                              {rows.map(([name, s]: [string, any]) => {
+                              {rows.map(([name, s]) => {
                                 const isPos = s.pnl >= 0;
                                 return (
                                   <tr key={name} className="hover:bg-[var(--color-surface-raised)] transition-colors">
