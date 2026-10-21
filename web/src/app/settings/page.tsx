@@ -1,14 +1,24 @@
-"use client";
-
 import Link from "next/link";
+import { UserCircle } from "lucide-react";
 
 export default function SettingsPage() {
   return (
-    <div className="min-h-screen pt-24 pb-24 px-6">
-      <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Settings</h1>
-      <p className="mt-3 text-[var(--color-text-muted)]">Settings UI is a work-in-progress. Account-level preferences are available under <Link href="/account" className="text-[var(--color-accent)] underline">Account</Link>.</p>
-      <div className="mt-6 p-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <p className="text-sm text-[var(--color-text-secondary)]">Tell me which settings (profile, notifications, integrations) you want prioritized and I'll scaffold them here.</p>
+    <div className="max-w-2xl mx-auto pt-8 pb-16">
+      <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Settings</h1>
+      <div className="mt-6 p-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] flex items-start gap-4">
+        <UserCircle className="h-6 w-6 shrink-0 text-[var(--color-text-secondary)]" />
+        <div>
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">Your preferences live on your account page</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            Link your Telegram username for alerts and change your password there. Switch between light and dark mode with the theme button in the top bar.
+          </p>
+          <Link
+            href="/account"
+            className="mt-4 inline-flex items-center rounded-[var(--radius-md)] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent-foreground)] hover:bg-[var(--color-accent-hover)] transition-colors"
+          >
+            Open account
+          </Link>
+        </div>
       </div>
     </div>
   );
