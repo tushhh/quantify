@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, BarChart2, Activity, Layers,
-  LayoutDashboard, UserCircle,
+  LayoutDashboard, UserCircle, Globe,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "@/lib/store";
@@ -24,6 +24,7 @@ const NAV_GROUPS = [
       { href: "/backtest", label: "Backtest", icon: BarChart2 },
       { href: "/predict", label: "Predict", icon: Activity },
       { href: "/strategies", label: "Strategies", icon: Layers },
+      { href: "/universe", label: "Universe", icon: Globe },
     ],
   },
 ];
@@ -31,6 +32,31 @@ const NAV_GROUPS = [
 const BOTTOM_NAV = [
   { href: "/account", label: "Account", icon: UserCircle },
 ];
+
+// Module scope, so it isn't a new component type (and remount) on every Sidebar render.
+function NavItem({
+  href, label, icon: Icon, active, expanded,
+}: { href: string; label: string; icon: React.ElementType; active: boolean; expanded: boolean }) {
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  return (
+    <Link
+      href={href}
+      // Close the overlay drawer on mobile only; on desktop the sidebar stays as the user left it.
+      onClick={() => { if (window.innerWidth < 768) setSidebarOpen(false); }}
+      title={!expanded ? label : undefined}
+      aria-current={active ? "page" : undefined}
+      className={clsx(
+        "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-sm transition-colors duration-150 min-h-11",
+        active
+          ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
+          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)]"
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {expanded && <span>{label}</span>}
+    </Link>
+  );
+}
 
 export default function Sidebar() {
   const path = usePathname() || "/";
@@ -43,26 +69,6 @@ export default function Sidebar() {
     window.addEventListener("resize", syncSidebar);
     return () => window.removeEventListener("resize", syncSidebar);
   }, [setSidebarOpen]);
-
-  function NavItem({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) {
-    const active = path === href;
-    return (
-      <Link
-        href={href}
-        onClick={() => setSidebarOpen(false)}
-        title={!sidebarOpen ? label : undefined}
-        className={clsx(
-          "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-sm transition-colors duration-150 min-h-11",
-          active
-            ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
-            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)]"
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        {sidebarOpen && <span>{label}</span>}
-      </Link>
-    );
-  }
 
   return (
     <>
@@ -107,7 +113,7 @@ export default function Sidebar() {
                 )}
                 <div className="flex flex-col gap-0.5">
                   {group.items.map((item) => (
-                    <NavItem key={item.href} {...item} />
+                    <NavItem key={item.href} {...item} active={path === item.href} expanded={sidebarOpen} />
                   ))}
                 </div>
               </div>
@@ -117,7 +123,7 @@ export default function Sidebar() {
 
         <div className="px-3 py-3 border-t border-[var(--color-border)] shrink-0">
           {BOTTOM_NAV.map((item) => (
-            <NavItem key={item.href} {...item} />
+            <NavItem key={item.href} {...item} active={path === item.href} expanded={sidebarOpen} />
           ))}
         </div>
       </aside>

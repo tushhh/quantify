@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Sun, Moon, Menu } from "lucide-react";
+import { Sun, Moon, Menu, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useThemeStore, useThemeEffect } from "@/lib/themeStore";
@@ -52,10 +52,6 @@ export default function Topbar({ title }: { title?: string }) {
       </Link>
 
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <button className="p-2 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-raised)]">
-          <Bell className="h-5 w-5 text-[var(--color-text-secondary)]" />
-        </button>
-
         <button
           onClick={toggle}
           aria-label="Toggle theme"
@@ -69,7 +65,7 @@ export default function Topbar({ title }: { title?: string }) {
           aria-label="Account"
           className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-[var(--color-surface-raised)] border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-accent)] transition-colors"
         >
-          <span className="text-xs font-semibold text-[var(--color-text-secondary)]">U</span>
+          <UserCircle className="h-5 w-5 text-[var(--color-text-secondary)]" />
         </Link>
       </div>
     </header>
