@@ -456,7 +456,8 @@ export const api = {
       if (sector) params.set("sector", sector);
       if (force) params.set("force", "true");
       params.set("mode", mode);
-      // force=true recomputes on the server, which can outlast the default timeout off Heroku.
+      // force=true skips the server's 5-minute cache and re-downloads the screener
+      // output from GitHub, so give it extra room beyond the default timeout.
       return apiFetch<PredictionResponse>(`/api/predict/best?${params}`, force ? { timeoutMs: 90_000 } : {});
     },
     sectors: () => apiFetch<string[]>("/api/predict/sectors"),
