@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { useEffect } from "react";
+import { safeGetItem, safeSetItem } from "./safeStorage";
 
 type Theme = "light" | "dark";
 
@@ -11,42 +12,46 @@ interface ThemeState {
   toggle: () => void;
 }
 
-const initialTheme: Theme = typeof window !== "undefined" ? ((localStorage.getItem("theme") as Theme) || "dark") : "dark";
+function applyTheme(t: Theme) {
+  if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", t);
+}
 
+// Always start as "dark", the theme the server renders. Reading storage here
+// would make the first client render differ from the server HTML (a hydration
+// error for anyone with a stored light theme). useThemeEffect syncs the stored
+// preference after mount; the inline script in layout.tsx sets data-theme
+// before paint so there's no flash.
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: initialTheme,
+  theme: "dark",
   setTheme: (t: Theme) => {
     set({ theme: t });
-    try { localStorage.setItem("theme", t); } catch {};
-    if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", t);
+    safeSetItem("theme", t);
+    applyTheme(t);
   },
   toggle: () => {
     set((s) => {
-      const next = s.theme === "dark" ? "light" : "dark";
-      try { localStorage.setItem("theme", next); } catch {};
-      if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", next);
+      const next: Theme = s.theme === "dark" ? "light" : "dark";
+      safeSetItem("theme", next);
+      applyTheme(next);
       return { theme: next };
     });
   },
 }));
 
-// Ensure the attribute is set on first render when used in client components
+// Sync the stored preference into the store after mount, and keep data-theme in step.
 export function useThemeEffect() {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   useEffect(() => {
-    if (typeof document !== "undefined") {
-      // initialize from persisted preference if present
-      try {
-        const stored = localStorage.getItem("theme") as Theme | null;
-        if (stored && stored !== theme) {
-          setTheme(stored);
-          return;
-        }
-      } catch {}
-      if (document.documentElement.getAttribute("data-theme") !== theme) {
-        document.documentElement.setAttribute("data-theme", theme);
-      }
+    const stored = safeGetItem("theme");
+    if ((stored === "light" || stored === "dark") && stored !== theme) {
+      setTheme(stored);
+      return;
     }
-  }, [theme, setTheme]);
+    if (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") !== theme) {
+      applyTheme(theme);
+    }
+    // Only on mount: later changes go through setTheme/toggle, which persist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }

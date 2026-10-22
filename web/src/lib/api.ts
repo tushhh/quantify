@@ -3,34 +3,194 @@
  * Falls back to localhost:8000 for local development.
  */
 
+import { safeGetItem } from "./safeStorage";
+
 export const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+
+// ── Errors ───────────────────────────────────────────────────────────────────
+
+export type ApiErrorKind =
+  | "network"      // no response at all (offline, DNS, CORS-less router error)
+  | "timeout"      // no response within the request timeout
+  | "auth"         // 401
+  | "validation"   // 422
+  | "client"       // other 4xx
+  | "unavailable"  // 503, or an HTML/non-JSON body from a proxy or router
+  | "server";      // other 5xx
+
+/**
+ * Every failure apiFetch reports, other than a caller-initiated abort.
+ * `message` is always user-facing copy, never raw backend or browser text.
+ * `status` is the HTTP status, or 0 when no response arrived (network/timeout).
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly kind: ApiErrorKind;
+
+  constructor(message: string, status: number, kind: ApiErrorKind) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.kind = kind;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
+/** The user-facing message for any thrown value: ApiError text, otherwise `fallback`. */
+export function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
+/** True when the error is the caller cancelling the request through its own AbortSignal. */
+export function isAbortError(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { name?: unknown }).name === "AbortError";
+}
+
+const MSG_NETWORK = "Can't reach the Quantify server. It may be restarting, so try again in a minute.";
+const MSG_TIMEOUT = "The Quantify server took too long to respond. Try again in a minute.";
+const MSG_UNAVAILABLE = "The Quantify service is temporarily unavailable. Try again in a minute.";
+const MSG_UNEXPECTED = "The server sent a response we couldn't read. Try again in a minute.";
+
+/** "initial_capital" -> "Initial capital" */
+function humanizeField(field: string): string {
+  const words = field.replace(/[_-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+}
+
+/** Flatten a FastAPI/Pydantic 422 `detail` into one readable sentence. */
+function validationMessage(detail: unknown): string {
+  const fallback = "Some of the values you entered aren't valid. Check them and try again.";
+  if (typeof detail === "string") return cleanDetail(detail) ?? fallback;
+  if (!Array.isArray(detail)) return fallback;
+  const parts = detail
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const { loc, msg } = item as { loc?: unknown; msg?: unknown };
+      if (typeof msg !== "string" || !msg) return null;
+      const field = Array.isArray(loc)
+        ? [...loc].reverse().find((p) => typeof p === "string" && !["body", "query", "path"].includes(p))
+        : undefined;
+      const text = msg.replace(/^Value error, /, "");
+      const sentence = text.charAt(0).toLowerCase() + text.slice(1);
+      return typeof field === "string" ? `${humanizeField(field)}: ${sentence}` : text;
+    })
+    .filter((p): p is string => !!p);
+  return parts.length ? `Check your inputs. ${parts.join("; ")}.` : fallback;
+}
+
+/**
+ * A 4xx `detail` string the API wrote for clients ("Trade not found"), with any
+ * trailing machine code like "(not_us_listed)" removed. Returns null for text
+ * that looks like an internal error rather than a message.
+ */
+function cleanDetail(detail: unknown): string | null {
+  if (typeof detail !== "string") return null;
+  const text = detail.replace(/\s*\([a-z0-9_]+\)\s*$/, "").trim();
+  if (!text || text.length > 160 || /[\r\n<]/.test(text)) return null;
+  if (/error|exception|traceback/i.test(text)) return null;
+  return text;
+}
+
+function clientErrorMessage(status: number, detail: unknown): string {
+  const clean = cleanDetail(detail);
+  if (clean) return clean.charAt(0).toUpperCase() + clean.slice(1);
+  if (status === 403) return "You don't have permission to do that.";
+  if (status === 404) return "We couldn't find what you asked for. It may have been removed or expired.";
+  if (status === 429) return "Too many requests. Wait a moment and try again.";
+  return "The server couldn't process this request. Check your inputs and try again.";
+}
+
+function errorFromResponse(path: string, status: number, text: string): ApiError {
+  let detail: unknown;
+  let isJson = false;
+  try {
+    detail = (JSON.parse(text) as { detail?: unknown } | null)?.detail;
+    isJson = true;
+  } catch {
+    // Non-JSON body: an HTML page from the Heroku router, Vercel or a proxy.
+  }
+
+  if (status === 503 || (!isJson && text.trim() !== "")) {
+    return new ApiError(MSG_UNAVAILABLE, status, "unavailable");
+  }
+  if (status >= 500) {
+    return new ApiError(`The server hit an error (HTTP ${status}). Try again shortly.`, status, "server");
+  }
+  if (status === 401) {
+    const message = path.startsWith("/api/auth/login")
+      ? "Incorrect username or password."
+      : "Your session has expired. Log in again to continue.";
+    return new ApiError(message, status, "auth");
+  }
+  if (status === 422) {
+    return new ApiError(validationMessage(detail), status, "validation");
+  }
+  return new ApiError(clientErrorMessage(status, detail), status, "client");
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+
+/** Default request timeout. Heroku's router cuts any request off at 30s anyway. */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 type FetchOptions = {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+  /** Abort and throw ApiError(kind "timeout") after this long. */
+  timeoutMs?: number;
 };
 
 async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-  const { method = "GET", body, signal } = opts;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+  const { method = "GET", body, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
+  // Only send Content-Type with a body: a bodyless GET without custom headers
+  // is a CORS "simple request" and skips the preflight round trip.
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  const token = safeGetItem("token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  // One controller aborts the request on either the caller's signal or the timeout.
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  const onCallerAbort = () => ctrl.abort(signal?.reason);
+  if (signal) {
+    if (signal.aborted) onCallerAbort();
+    else signal.addEventListener("abort", onCallerAbort, { once: true });
   }
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    signal,
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(detail?.detail ?? `HTTP ${res.status}`);
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+    text = await res.text();
+  } catch (err) {
+    // A caller-initiated abort keeps its AbortError so callers can ignore it.
+    if (signal?.aborted && !timedOut) throw err;
+    if (timedOut) throw new ApiError(MSG_TIMEOUT, 0, "timeout");
+    throw new ApiError(MSG_NETWORK, 0, "network");
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onCallerAbort);
   }
-  return res.json();
+
+  if (!res.ok) throw errorFromResponse(path, res.status, text);
+  if (text.trim() === "") return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError(text.trimStart().startsWith("<") ? MSG_UNAVAILABLE : MSG_UNEXPECTED, res.status, "unavailable");
+  }
 }
 
 // ── Types mirroring the Python schemas ───────────────────────────────────────
@@ -286,7 +446,8 @@ export const api = {
       }),
 
     pollResult: (jobId: string, signal?: AbortSignal) =>
-      apiFetch<any>(`/api/backtest/result/${jobId}`, { signal }),
+      // While the job runs the body is only { status: "running" }; check status before reading results.
+      apiFetch<BacktestResponse>(`/api/backtest/result/${jobId}`, { signal }),
   },
 
   predict: {
@@ -295,7 +456,9 @@ export const api = {
       if (sector) params.set("sector", sector);
       if (force) params.set("force", "true");
       params.set("mode", mode);
-      return apiFetch<PredictionResponse>(`/api/predict/best?${params}`);
+      // force=true skips the server's 5-minute cache and re-downloads the screener
+      // output from GitHub, so give it extra room beyond the default timeout.
+      return apiFetch<PredictionResponse>(`/api/predict/best?${params}`, force ? { timeoutMs: 90_000 } : {});
     },
     sectors: () => apiFetch<string[]>("/api/predict/sectors"),
   },
