@@ -362,6 +362,7 @@ export type TrendBacktest = {
   max_drawdown_pct: number;
   spy_max_drawdown_pct: number;
   months_beat_spy_pct: number;
+  losing_years?: string;
   picks: number;
   liquid_universe: number;
 };

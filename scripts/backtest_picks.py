@@ -29,7 +29,9 @@ import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from quantify.trend_screen import BACKTEST, LIQUID_TOP, N_PICKS, download_prices, score_trend  # noqa: E402
+from quantify.trend_screen import (  # noqa: E402
+    BACKTEST, LIQUID_TOP, MAX_PER_SECTOR, N_PICKS, download_prices, score_trend, select_picks,
+)
 
 # The agreed bar (Oct 2026). Excess figures are annual percentage points over SPY.
 BAR = {
@@ -46,8 +48,8 @@ def month_end_anchors(index: pd.DatetimeIndex, start: str) -> list[pd.Timestamp]
     return [t for t in ends if t >= pd.Timestamp(start)][:-1]  # last month may be incomplete
 
 
-def simulate(close: pd.DataFrame, volume: pd.DataFrame, spy: pd.Series, start: str,
-             n: int = N_PICKS, liquid_top: int = LIQUID_TOP, cost_bps: float = 6.0) -> pd.DataFrame:
+def simulate(close: pd.DataFrame, volume: pd.DataFrame, spy: pd.Series, start: str, sectors: dict[str, str],
+             names: dict[str, str] | None = None, n: int = N_PICKS, liquid_top: int = LIQUID_TOP, cost_bps: float = 6.0) -> pd.DataFrame:
     """Daily net returns of the monthly book and SPY. Trades at the close after each anchor."""
     rets = close.pct_change(fill_method=None)
     spy_r = spy.pct_change(fill_method=None)
@@ -57,7 +59,7 @@ def simulate(close: pd.DataFrame, volume: pd.DataFrame, spy: pd.Series, start: s
         pos = dates.get_loc(anchor) + 1
         if pos < len(dates):
             scores = score_trend(close.loc[:anchor], volume.loc[:anchor], as_of=anchor, liquid_top=liquid_top)["score"]
-            trades[dates[pos]] = list(scores.dropna().nlargest(n).index)
+            trades[dates[pos]] = select_picks(scores, sectors, n, names=names)
     first = min(trades)
     w: dict[str, float] = {}
     rows = []
@@ -115,20 +117,20 @@ def bar_rows(r: dict) -> list[tuple[str, bool]]:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
-    ap.add_argument("--start", default="2021-01-01")
+    ap.add_argument("--start", default="2017-11-01")  # covers pre-AI-boom years
     ap.add_argument("--cost-bps", type=float, default=6.0)
     ap.add_argument("--prices", help="directory with close.parquet and volume.parquet (saved after a download)")
     ap.add_argument("--tolerance", type=float, default=2.0, help="allowed drop in excess %/yr vs the record")
     ap.add_argument("--strict", action="store_true", help="exit 1 if any row of the profit bar fails")
     args = ap.parse_args(argv)
 
+    from quantify.data.universe import Universe
+    universe = Universe.from_wikipedia()
     if args.prices and os.path.exists(os.path.join(args.prices, "close.parquet")):
         close = pd.read_parquet(os.path.join(args.prices, "close.parquet"))
         volume = pd.read_parquet(os.path.join(args.prices, "volume.parquet"))
     else:
-        from quantify.data.universe import Universe
-        tickers = Universe.from_wikipedia().tickers + ["SPY"]
-        close, volume = download_prices(tickers, period="10y")
+        close, volume = download_prices(universe.tickers + ["SPY"], period="10y")
         if args.prices:
             os.makedirs(args.prices, exist_ok=True)
             close.to_parquet(os.path.join(args.prices, "close.parquet"))
@@ -136,8 +138,9 @@ def main(argv=None) -> int:
     spy = close.pop("SPY")
     volume = volume.drop(columns=["SPY"], errors="ignore")
 
-    r = report(simulate(close, volume, spy, args.start, cost_bps=args.cost_bps))
-    print(f"pick-backtest: trend screen, {N_PICKS} picks from the {LIQUID_TOP} most-traded, monthly, "
+    r = report(simulate(close, volume, spy, args.start, universe.sector_map, universe.names, cost_bps=args.cost_bps))
+    cap = "no sector cap" if MAX_PER_SECTOR is None else f"max {MAX_PER_SECTOR} per sector"
+    print(f"pick-backtest: trend screen, {N_PICKS} picks ({cap}) from the {LIQUID_TOP} most-traded, monthly, "
           f"{args.cost_bps:g} bps/side, {r['period']}")
     print(f"  {r['cagr_pct']:.1f} %/yr vs SPY {r['spy_cagr_pct']:.1f} %/yr")
     rows = bar_rows(r)

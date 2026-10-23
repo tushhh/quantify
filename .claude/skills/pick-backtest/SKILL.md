@@ -17,7 +17,7 @@ It scores the list with the production `score_trend` from each month's last clos
 
 ## What a result means
 
-- The Oct 2026 record: +11.4 %/yr vs SPY after costs (2021-01..2026-10), beat SPY in 54-57% of months, but Sharpe about equal to SPY's, -1 %/yr in 2021-2023, and a ~-36% drawdown vs SPY's -24.5%. It passes the profit rows and fails the risk rows. Say that plainly; don't round it up.
+- The Oct 2026 record (no sector cap, Dec 2017..Oct 2026): +12.3 %/yr vs SPY after costs, Sharpe 0.88 vs 0.81, both halves positive, drawdown -37% vs SPY -34%; beat SPY in 54% of months (just under the 55% bar), lost to SPY in 2017, 2019, 2021 and 2023, and 2026 alone was +58.5 pts. 2025-26 lists were 60-67% AI chips/hardware and excluding tech left +1.9 %/yr, so the record leans on that theme. `select_picks(..., max_per_sector=3)` is the tested alternative (higher Sharpe, more in 2017-2025).
 - The universe is today's S&P 500, so absolute returns are optimistic (survivorship). Compare variants against each other on the same data.
 - A variant only counts as better if it improves on the same data AND holds in both halves. Trying many variants and keeping the best is overfitting: report how many you tried.
 - Backtests showing +20 %/yr or more over SPY are a red flag, not a win.

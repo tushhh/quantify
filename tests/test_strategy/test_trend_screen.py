@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from api.schemas import PredictionResponse
-from quantify.trend_screen import monthly_anchor, run_trend_screen, score_trend
+from quantify.trend_screen import monthly_anchor, run_trend_screen, score_trend, select_picks
 
 DAYS = pd.bdate_range("2024-01-02", periods=420)
 
@@ -55,6 +55,23 @@ def test_only_the_most_traded_names_are_eligible() -> None:
     assert set(table["score"].dropna().index) == {"BIG", "MID"}
 
 
+def test_one_pick_per_company_across_share_classes() -> None:
+    scores = pd.Series({"GOOGL": 0.9, "GOOG": 0.89, "MU": 0.8})
+    names = {"GOOGL": "Alphabet Inc. (Class A)", "GOOG": "Alphabet Inc. (Class C)", "MU": "Micron Technology"}
+
+    assert select_picks(scores, {}, n=2, names=names) == ["GOOGL", "MU"]
+
+
+def test_optional_sector_cap() -> None:
+    """Off in production (the user chose uncapped in Oct 2026); kept so pick-backtest can compare."""
+    scores = pd.Series({f"T{i}": 1.0 - i * 0.01 for i in range(10)} | {"E1": 0.5, "E2": 0.4, "H1": 0.3})
+    sectors = {f"T{i}": "Information Technology" for i in range(10)} | {"E1": "Energy", "E2": "Energy", "H1": "Health Care"}
+
+    picks = select_picks(scores, sectors, n=6, max_per_sector=3)
+
+    assert picks == ["T0", "T1", "T2", "E1", "E2", "H1"]
+
+
 def test_scores_use_no_future_data() -> None:
     close, volume = make_panel({f"S{i}": 0.0002 * i for i in range(8)})
     as_of = DAYS[350]
@@ -75,7 +92,7 @@ def test_list_is_fixed_for_the_month() -> None:
 def test_screen_output_matches_the_prediction_api_and_is_long_only() -> None:
     drifts = {f"S{i}": 0.0001 * i - 0.0003 for i in range(30)}
     close, volume = make_panel(drifts)
-    sectors = {s: "Information Technology" for s in drifts}
+    sectors = {s: f"Sector {i % 5}" for i, s in enumerate(drifts)}
     names = {s: f"{s} Corp" for s in drifts}
 
     result = run_trend_screen(close, volume, sectors=sectors, names=names, n_picks=5, liquid_top=100)

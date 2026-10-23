@@ -9,10 +9,14 @@ In October 2026 every candidate was replayed walk-forward on 2021-01 .. 2026-10 
 * ML ensemble (ml_return_predictor): top-10 picks lost to SPY after costs, and its list was
   replaced almost entirely every day.
 * Early June-2026 model (1-day target, 100 names): lost to SPY by 3-6 %/yr after costs.
-* This trend screen, 15 picks from the 100 most-traded S&P 500 names, monthly: 26.5 %/yr vs
-  SPY 14.7 %/yr (+11.8 %/yr, +10.9 % at 16 bps/side), beat SPY in 54 % of months.
-  Caveats: Sharpe 0.85 vs SPY 0.91, max drawdown -37 % vs SPY -24.5 %, it lagged SPY in
-  2021-2023 and won in 2023-2026, and the universe is today's S&P 500 (survivorship bias).
+* This trend screen, 15 picks from the 100 most-traded S&P 500 names (one share class per
+  company, no sector cap), monthly, Dec 2017 .. Oct 2026: 26.8 %/yr vs SPY 14.5 %/yr
+  (+12.3 %/yr, +11.4 % at 16 bps/side), Sharpe 0.88 vs 0.81, max drawdown -37 % vs SPY -34 %.
+  It lost to SPY in 2017, 2019, 2021 and 2023 and beat SPY in 54 % of months; 2026 alone was
+  +58.5 pts (the AI-chip run). The universe is today's S&P 500 (survivorship bias).
+* Concentration: 2025-26 lists were 60-67 % AI chips/hardware, and excluding tech left only
+  +1.9 %/yr. A cap of 3 per sector made more in 2017-2025 with a higher Sharpe (0.96) but
+  trailed in 2026; the user chose uncapped, betting the AI rally continues.
 
 The definition below must stay identical to the backtested one; tests pin it down. Re-run
 the pick-backtest skill before changing any constant.
@@ -20,13 +24,15 @@ the pick-backtest skill before changing any constant.
 Signal (all causal, using closes up to the anchor date):
     score = mean(cross-sectional pct rank of the 126d return, pct rank of the 252d return)
     minus 1 for names closing below their 200-day average, restricted to the `liquid_top`
-    names by 63-day median dollar volume. The top `n_picks` scores are the picks.
+    names by 63-day median dollar volume. The top `n_picks` scores are the picks, one share
+    class per company (and at most `MAX_PER_SECTOR` per GICS sector when that is set).
 Rebalance: monthly. Picks are computed from the last close of the previous calendar month
 and held for the whole month, as in the backtest.
 """
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -34,6 +40,9 @@ import pandas as pd
 
 LIQUID_TOP = 100
 N_PICKS = 15
+# No sector cap: the user chose uncapped in Oct 2026. A cap of 3 had a higher Sharpe and made
+# more in 2017-2025, but trailed in the 2026 AI-chip run. Pass a number to compare.
+MAX_PER_SECTOR: Optional[int] = None
 MA_DAYS = 200
 LIQUIDITY_DAYS = 63
 RET_SHORT = 126
@@ -41,19 +50,20 @@ RET_LONG = 252
 MIN_HISTORY = RET_LONG + 1
 
 # Walk-forward results for this exact configuration (6 bps per side), shown to users.
-# Reproduce with scripts/backtest_picks.py (pick-backtest skill), 2026-10-23 run.
+# Reproduce with scripts/backtest_picks.py (pick-backtest skill), 2026-10-23 run, no sector cap.
 BACKTEST = {
-    "start": "2021-02",
+    "start": "2017-12",
     "end": "2026-10",
-    "cagr_pct": 26.5,
-    "spy_cagr_pct": 14.7,
-    "excess_cagr_pct": 11.8,
-    "excess_cagr_stress_pct": 10.9,  # at 16 bps per side
-    "sharpe": 0.85,
-    "spy_sharpe": 0.91,
+    "cagr_pct": 26.8,
+    "spy_cagr_pct": 14.5,
+    "excess_cagr_pct": 12.3,
+    "excess_cagr_stress_pct": 11.4,  # at 16 bps per side
+    "sharpe": 0.88,
+    "spy_sharpe": 0.81,
     "max_drawdown_pct": -37.0,
-    "spy_max_drawdown_pct": -24.5,
+    "spy_max_drawdown_pct": -33.7,
     "months_beat_spy_pct": 54.0,
+    "losing_years": "2017, 2019, 2021, 2023",
     "picks": N_PICKS,
     "liquid_universe": LIQUID_TOP,
 }
@@ -107,6 +117,37 @@ def score_trend(
     })
 
 
+def _company(sym: str, names: dict[str, str]) -> str:
+    """Company key that merges share classes: 'Alphabet Inc. (Class A)' -> 'alphabet inc.'."""
+    name = names.get(sym)
+    return re.sub(r"\s*\(class [^)]*\)\s*$", "", name.strip().lower()) if name else sym
+
+
+def select_picks(
+    scores: pd.Series,
+    sectors: dict[str, str],
+    n: int = N_PICKS,
+    max_per_sector: Optional[int] = MAX_PER_SECTOR,
+    names: Optional[dict[str, str]] = None,
+) -> list[str]:
+    """Highest scores first, one share class per company, optionally capped per GICS sector."""
+    names = names or {}
+    picks: list[str] = []
+    counts: dict[str, int] = {}
+    companies: set[str] = set()
+    for sym in scores.dropna().sort_values(ascending=False, kind="stable").index:
+        sector = sectors.get(sym) or f"unknown:{sym}"
+        company = _company(sym, names)
+        if company in companies or (max_per_sector is not None and counts.get(sector, 0) >= max_per_sector):
+            continue
+        picks.append(sym)
+        companies.add(company)
+        counts[sector] = counts.get(sector, 0) + 1
+        if len(picks) == n:
+            break
+    return picks
+
+
 def monthly_anchor(dates: pd.DatetimeIndex) -> pd.Timestamp:
     """The last trading day of the month before the latest date in `dates`."""
     dates = pd.DatetimeIndex(dates).sort_values()
@@ -130,7 +171,7 @@ def run_trend_screen(
     now = now or datetime.now(timezone.utc)
     anchor = monthly_anchor(close.index)
     table = score_trend(close, volume, as_of=anchor, liquid_top=liquid_top)
-    picks = table.dropna(subset=["score"]).nlargest(n_picks, "score")
+    picks = table.loc[select_picks(table["score"], sectors, n_picks, names=names)]
     top_score = float(picks["score"].max()) if len(picks) else 1.0
 
     signals = []
@@ -189,4 +230,4 @@ def download_prices(tickers: list[str], period: str = "2y", chunk: int = 100) ->
     return close, volume.reindex(columns=close.columns)
 
 
-__all__ = ["BACKTEST", "N_PICKS", "LIQUID_TOP", "score_trend", "monthly_anchor", "run_trend_screen", "download_prices"]
+__all__ = ["BACKTEST", "N_PICKS", "LIQUID_TOP", "MAX_PER_SECTOR", "score_trend", "select_picks", "monthly_anchor", "run_trend_screen", "download_prices"]
