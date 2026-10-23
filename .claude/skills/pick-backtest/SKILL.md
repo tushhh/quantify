@@ -11,6 +11,7 @@ description: Would Quantify's published stock picks have made money? Replays the
 python scripts/backtest_picks.py --prices <scratch>/pick-prices          # downloads ~10y once, then reuses it
 python scripts/backtest_picks.py --prices <scratch>/pick-prices --cost-bps 16   # cost stress
 python scripts/backtest_picks.py --prices <scratch>/pick-prices --strict        # exit 1 on any failed bar row
+python scripts/backtest_picks.py --prices <scratch>/pick-prices --forecast      # next-month outcomes by rank -> trend_screen.FORECAST
 ```
 
 It scores the list with the production `score_trend` from each month's last close (only data up to that close), buys at the next close, holds a month, and charges costs on every trade. Exit code 1 when excess return falls more than 2 points below `trend_screen.BACKTEST`, i.e. a change made it worse.
@@ -26,5 +27,5 @@ It scores the list with the production `score_trend` from each month's last clos
 
 1. Change `quantify/trend_screen.py` and keep `tests/test_strategy/test_trend_screen.py` passing.
 2. Run this skill before and after; report both tables.
-3. If you adopt the change, update `BACKTEST` in `trend_screen.py` (the page shows it) with the new numbers.
+3. If you adopt the change, update `BACKTEST` and `FORECAST` in `trend_screen.py` (the page and Telegram show both) with the new numbers.
 4. The live record (`track-record` skill) is the final judge; a backtest is a hypothesis.

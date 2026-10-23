@@ -68,6 +68,22 @@ BACKTEST = {
     "liquid_universe": LIQUID_TOP,
 }
 
+# Next-month forecast by rank: what picks at that rank did over the following month in the
+# same backtest (1,590 picks, Dec 2017 .. Sep 2026, bought at the close after the list date).
+# Single stocks are noisy: the range is the 10th..90th percentile. In-sample (same period the
+# rule was chosen on), so treat as optimistic. Regenerate with scripts/backtest_picks.py --forecast.
+FORECAST_HORIZON = "1 month"
+FORECAST = {
+    "1-5": {"mean_pct": 4.1, "median_pct": 1.8, "low_pct": -12.5, "high_pct": 22.6, "beat_spy_pct": 54.5},
+    "6-10": {"mean_pct": 1.4, "median_pct": 0.8, "low_pct": -12.0, "high_pct": 13.6, "beat_spy_pct": 47.9},
+    "11-15": {"mean_pct": 2.3, "median_pct": 1.3, "low_pct": -9.7, "high_pct": 13.8, "beat_spy_pct": 52.5},
+}
+
+
+def forecast_bucket(rank: int) -> str:
+    """Forecast bucket for a 1-based rank in the list."""
+    return "1-5" if rank <= 5 else "6-10" if rank <= 10 else "11-15"
+
 
 def score_trend(
     close: pd.DataFrame,
@@ -175,14 +191,19 @@ def run_trend_screen(
     top_score = float(picks["score"].max()) if len(picks) else 1.0
 
     signals = []
-    for sym, row in picks.iterrows():
+    for rank, (sym, row) in enumerate(picks.iterrows(), 1):
+        fc = FORECAST[forecast_bucket(rank)]
         signals.append({
             "symbol": sym,
             "strength": round(float(row["score"]) / top_score, 4) if top_score > 0 else 0.0,
             "side": "long",
             "sector": sectors.get(sym, "Unknown"),
             "name": names.get(sym) or sym,
-            "predicted_return_pct": 0.0,
+            "predicted_return_pct": fc["mean_pct"],
+            "forecast_median_pct": fc["median_pct"],
+            "forecast_low_pct": fc["low_pct"],
+            "forecast_high_pct": fc["high_pct"],
+            "forecast_beat_spy_pct": fc["beat_spy_pct"],
             "return_6m_pct": round(float(row["return_6m"]) * 100, 2),
             "return_12m_pct": round(float(row["return_12m"]) * 100, 2),
             "pct_above_ma200": round(float(row["pct_above_ma200"]) * 100, 2),
@@ -207,6 +228,7 @@ def run_trend_screen(
         "universe_size": int(table["liquid"].sum()),
         "model_metrics": None,
         "backtest": dict(BACKTEST),
+        "forecast_horizon": FORECAST_HORIZON,
     }
 
 

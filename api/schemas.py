@@ -222,6 +222,12 @@ class PredictionItem(BaseModel):
     return_6m_pct: Optional[float] = None
     return_12m_pct: Optional[float] = None
     pct_above_ma200: Optional[float] = None
+    # Next-month forecast for trend picks (predicted_return_pct holds the expected return):
+    # what picks at this rank did over the following month in the backtest.
+    forecast_median_pct: Optional[float] = None
+    forecast_low_pct: Optional[float] = None
+    forecast_high_pct: Optional[float] = None
+    forecast_beat_spy_pct: Optional[float] = None
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
@@ -240,6 +246,7 @@ class PredictionResponse(BaseModel):
     next_refresh: Optional[str] = None
     generated_at: Optional[str] = None
     backtest: Optional[Dict[str, Any]] = None
+    forecast_horizon: Optional[str] = None
 
 class TradeCreate(BaseModel):
     symbol: str
