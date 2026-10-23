@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse
 from api.schemas import PredictionResponse, PredictionItem
 
 router = APIRouter(prefix="/predict", tags=["predict"])
+
+# Response fields the trend screen adds; passed through untouched from screener-cache.
+_TREND_FIELDS = ("method", "as_of", "next_refresh", "generated_at", "backtest", "forecast_horizon")
 log = logging.getLogger("quantify.api.predict")
 
 # ---------------------------------------------------------------------------
@@ -267,16 +270,16 @@ def _fetch_screener_results_from_github() -> Optional[PredictionResponse]:
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read())
             
+        # Pass every field the screener wrote through (trend forecasts, past returns), and
+        # prefer its company name over the built-in lookup.
         items = [
-            PredictionItem(
-                symbol=sig["symbol"],
-                strength=sig["strength"],
-                side=sig["side"],
-                sector=sig["sector"],
-                name=_get_ticker_name(sig["symbol"]),
-                predicted_return_pct=sig.get("predicted_return_pct", 0.0),
-                explanations=sig.get("explanations", []),
-            )
+            PredictionItem(**{
+                **sig,
+                "sector": sig.get("sector") or "Unknown",
+                "name": sig.get("name") if sig.get("name") not in (None, "", sig["symbol"]) else _get_ticker_name(sig["symbol"]),
+                "predicted_return_pct": sig.get("predicted_return_pct", 0.0),
+                "explanations": sig.get("explanations", []),
+            })
             for sig in data["signals"]
         ]
         
@@ -293,6 +296,7 @@ def _fetch_screener_results_from_github() -> Optional[PredictionResponse]:
             cache_age_minutes=0.0,
             universe_size=data.get("universe_size", len(items)),
             model_metrics=data.get("model_metrics", {}),
+            **{k: data.get(k) for k in _TREND_FIELDS},
         )
     except Exception as e:
         log.warning("Screener: Failed to fetch results from GitHub: %s", e)
@@ -352,6 +356,7 @@ async def get_best_predictions(
         cache_age_minutes=age_minutes,
         universe_size=cached_result.universe_size,
         model_metrics=cached_result.model_metrics,
+        **{k: getattr(cached_result, k) for k in _TREND_FIELDS},
     )
 
 
