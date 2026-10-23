@@ -218,6 +218,10 @@ class PredictionItem(BaseModel):
     predicted_return_pct: float = 0.0
     explanations: List[PredictionExplanation] = Field(default_factory=list)
     news: Optional[NewsItem] = None
+    # Trend-screen picks (method == "trend"): what the stock actually did, in percent.
+    return_6m_pct: Optional[float] = None
+    return_12m_pct: Optional[float] = None
+    pct_above_ma200: Optional[float] = None
 
 class PredictionResponse(BaseModel):
     status: str = "ok"
@@ -229,6 +233,13 @@ class PredictionResponse(BaseModel):
     universe_size: int = 0
     model_metrics: Optional[Dict[str, float]] = None
     message: Optional[str] = None
+    # Trend screen: how the list was made, the close it's based on, when it next changes,
+    # and the walk-forward backtest of the method.
+    method: Optional[str] = None
+    as_of: Optional[str] = None
+    next_refresh: Optional[str] = None
+    generated_at: Optional[str] = None
+    backtest: Optional[Dict[str, Any]] = None
 
 class TradeCreate(BaseModel):
     symbol: str

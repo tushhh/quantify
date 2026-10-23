@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Run the full 500-stock screener and POST results to the Heroku callback URL.
+Run the trend screen over the S&P 500 and POST results to the Heroku callback URL.
 Called by GitHub Actions after model training completes.
 """
 
@@ -13,9 +13,9 @@ import urllib.error
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from quantify.data.universe import Universe, get_russell1000
+from quantify.data.universe import Universe
 from quantify.data.news import fetch_news_sentiment
-from quantify.screener import run_screener
+from quantify.trend_screen import download_prices, run_trend_screen
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s – %(message)s")
 log = logging.getLogger("run_screener")
@@ -31,14 +31,18 @@ def main():
     log.info("Starting full screener for %d stocks (chat_id=%s)", _SCREENER_UNIVERSE_SIZE, chat_id or "none")
 
     try:
-        universe = Universe.from_wikipedia().tickers[:_SCREENER_UNIVERSE_SIZE]
+        uni = Universe.from_wikipedia()
     except Exception as e:
-        log.warning("Failed to fetch from Wikipedia, falling back to Russell 1000: %s", e)
-        universe = get_russell1000()[:_SCREENER_UNIVERSE_SIZE]
+        log.warning("Failed to fetch from Wikipedia, falling back to the built-in S&P list: %s", e)
+        uni = Universe.sp500()
+    universe = uni.tickers[:_SCREENER_UNIVERSE_SIZE]
     cache_dir = os.getenv("PREDICTION_DATA_CACHE_DIR", "./data/cache")
 
+    # The trend screen replaced the ML ensemble for the published picks in Oct 2026: on a
+    # walk-forward backtest the ML picks lost to SPY after costs (see quantify/trend_screen.py).
     try:
-        result = run_screener(universe, cache_dir=cache_dir)
+        close, volume = download_prices(universe)
+        result = run_trend_screen(close, volume, sectors=uni.sector_map, names=uni.names)
     except Exception as exc:
         log.exception("Screener failed: %s", exc)
         _send_callback(callback_url, chat_id, internal_secret, status="failed", error=str(exc))
