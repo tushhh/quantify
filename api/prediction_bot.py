@@ -22,6 +22,39 @@ def _trend_figures(s) -> Optional[str]:
     return f"6m {s.return_6m_pct:+.1f}% | 12m {s.return_12m_pct:+.1f}%"
 
 
+def _scan_text(result, n: int, title: str, news: bool = False) -> str:
+    """Header and pick sections for scan results; trend lists are long-only and dated."""
+    longs = [s for s in result.signals if s.side == "long"]
+    shorts = [s for s in result.signals if s.side == "short"]
+    if getattr(result, "method", None) == "trend":
+        bt = result.backtest or {}
+        msg = (
+            "✅ <b>Trend picks</b>\n"
+            f"📅 List from the {result.as_of} close · next update {result.next_refresh}\n"
+            f"📈 Strongest 6- and 12-month trends among the {result.universe_size} most-traded S&amp;P 500 stocks\n"
+            "───────────────────\n\n"
+        )
+        for i, s in enumerate(longs[:n], 1):
+            msg += _signal_row(s, i) + (_news_line(s) if news else "")
+        if bt:
+            msg += (f"\n<i>Backtest {bt.get('start')} to {bt.get('end')}: {bt.get('cagr_pct')}%/yr vs SPY "
+                    f"{bt.get('spy_cagr_pct')}%/yr after costs; lost to SPY in {bt.get('losing_years')}.</i>\n")
+        return msg
+    msg = (
+        f"✅ <b>{title}</b>\n"
+        f"📅 <b>Date:</b> {result.date}\n"
+        f"📈 <b>Universe:</b> {result.universe_size} stocks\n"
+        "───────────────────\n\n"
+        "🟢 <b>Top Longs</b>\n"
+    )
+    for i, s in enumerate(longs[:n], 1):
+        msg += _signal_row(s, i) + (_news_line(s) if news else "")
+    msg += "\n🔴 <b>Top Shorts</b>\n"
+    for i, s in enumerate(shorts[:n], 1):
+        msg += _signal_row(s, i) + (_news_line(s) if news else "")
+    return msg
+
+
 def _signal_row(s, idx: int) -> str:
     """Format one signal as a numbered list row for /top, /bottom, /fullscan, and broadcast.
 
@@ -555,6 +588,11 @@ async def bottom_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         shorts = [s for s in cache_result.signals if s.side == "short"]
+        if not shorts and getattr(cache_result, "method", None) == "trend":
+            await update.message.reply_text(
+                "ℹ️ The trend list is long-only: it picks the strongest trends and has no short side. Use /top to see it."
+            )
+            return
         if not shorts:
             await update.message.reply_text("ℹ️ No bearish predictions found.")
             return
@@ -846,25 +884,7 @@ async def _send_fullscan_result(chat_id: str, result_json: Optional[str], error:
         await bot.send_message(chat_id=chat_id, text="⚠️ Failed to parse screener results.", parse_mode="HTML")
         return
 
-    longs = [s for s in result.signals if s.side == "long"]
-    shorts = [s for s in result.signals if s.side == "short"]
-
-    msg = (
-        f"✅ <b>Full 500-Stock Scan Complete</b>\n"
-        f"📅 <b>Date:</b> {result.date}\n"
-        f"📈 <b>Universe:</b> {result.universe_size} stocks\n"
-        "───────────────────\n\n"
-        "🟢 <b>Top Longs</b>\n"
-    )
-    for i, s in enumerate(longs[:8], 1):
-        msg += _signal_row(s, i)
-        msg += _news_line(s)
-
-    msg += "\n🔴 <b>Top Shorts</b>\n"
-    for i, s in enumerate(shorts[:8], 1):
-        msg += _signal_row(s, i)
-        msg += _news_line(s)
-
+    msg = _scan_text(result, n=8, title="Full 500-Stock Scan Complete", news=True)
     msg += "\n<i>Use /predict &lt;SYMBOL&gt; for detailed analysis on any stock.</i>"
 
     await _send_html_chunks(bot, chat_id, msg)
@@ -999,21 +1019,8 @@ async def _send_results_to_pending_chats(result) -> None:
     chats_to_notify = _pending_result_chats.copy()
     _pending_result_chats.clear()
 
-    longs = [s for s in result.signals if s.side == "long"]
-    shorts = [s for s in result.signals if s.side == "short"]
-
-    msg = (
-        f"✅ <b>Predictions are ready!</b>\n"
-        f"📅 <b>Date:</b> {result.date} · {result.universe_size} stocks\n"
-        "───────────────────\n\n"
-        "🟢 <b>Top Longs</b>\n"
-    )
-    for i, s in enumerate(longs[:5], 1):
-        msg += _signal_row(s, i)
-    msg += "\n🔴 <b>Top Shorts</b>\n"
-    for i, s in enumerate(shorts[:5], 1):
-        msg += _signal_row(s, i)
-    msg += "\n<i>Use /top and /bottom for the full list, or /predict &lt;SYMBOL&gt; for details.</i>"
+    msg = _scan_text(result, n=5, title="Predictions are ready!")
+    msg += "\n<i>Use /top for the full list, or /predict &lt;SYMBOL&gt; for details.</i>"
 
     bot = Bot(token=BOT_TOKEN)
     for chat_id in chats_to_notify:
