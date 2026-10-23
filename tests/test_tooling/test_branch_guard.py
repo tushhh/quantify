@@ -53,6 +53,8 @@ BLOCKED = [
     "git push origin --delete model-cache",
     "git push -d origin screener-cache",
     "git push origin feature:model-cache",
+    "git push origin --delete pick-history",
+    "git push origin feature:pick-history",
     'bash -c "git push origin main"',
     'powershell -Command "git push origin main; Write-Host done"',
     "git status\ngit push origin main",

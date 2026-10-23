@@ -190,6 +190,13 @@ export default function PredictPage() {
   const topSignals = signals.slice(0, 3);
   const longs = signals.filter(s => s.side === "long").length;
   const shorts = signals.filter(s => s.side === "short").length;
+  // The trend screen (monthly, long-only) replaced the ML ensemble; older cache files are still ML.
+  const isTrend = result?.method === "trend";
+  const bt = result?.backtest;
+  const pct = (v?: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
+  const tableHeaders = isTrend
+    ? ["Stock", "Sector", "Signal", "Trend score", "6m / 12m return", "Vs 200-day average"]
+    : TABLE_HEADERS;
 
   return (
     <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in relative overflow-hidden prediction-aurora">
@@ -210,13 +217,18 @@ export default function PredictPage() {
               <div className="w-10 h-10 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-[var(--color-cta)]/30">
                 <Sparkles size={18} className="text-[var(--color-text-inverse)]" />
               </div>
-              <h1 className="text-4xl md:text-5xl font-black text-[var(--color-text-primary)] tracking-tight">ML Stock Screener</h1>
+              <h1 className="text-4xl md:text-5xl font-black text-[var(--color-text-primary)] tracking-tight">{isTrend ? "Trend picks" : "ML stock screener"}</h1>
             </div>
             <p className="text-[var(--color-text-secondary)] text-base mt-3 max-w-2xl leading-relaxed">
-              Ranked S&P 500 signals for the next trading day, with drivers pulled from the top ML features.
+              {isTrend
+                ? "The strongest-trending of the 100 most-traded S&P 500 stocks. The list is set from the last close of each month and held for the month."
+                : "Ranked S&P 500 signals, with drivers pulled from the top ML features."}
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
-              {["3Y history", "Top/Bottom decile", "21D horizon", "S&P 500 only"].map((chip) => (
+              {(isTrend
+                ? ["Monthly list", "100 most-traded S&P 500", "Long only", "Backtested 2017-2026"]
+                : ["3Y history", "Top/Bottom decile", "21D horizon", "S&P 500 only"]
+              ).map((chip) => (
                 <span key={chip} className="text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
                   {chip}
                 </span>
@@ -226,7 +238,15 @@ export default function PredictPage() {
 
           {/* Controls */}
           <div className="flex items-center gap-3 ml-0 flex-wrap xl:justify-end">
-            {result && (
+            {result && isTrend && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-muted)]">
+                <Clock size={11} className="text-[var(--color-accent)]" />
+                <span>List from the <span className="font-mono text-[var(--color-text-secondary)]">{result.as_of}</span> close</span>
+                <span className="mx-1 text-[var(--color-text-muted)]">|</span>
+                <span>Next update <span className="font-mono text-[var(--color-text-secondary)]">{result.next_refresh}</span></span>
+              </div>
+            )}
+            {result && !isTrend && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-muted)]">
                 {result.cached ? (
                   <>
@@ -246,6 +266,7 @@ export default function PredictPage() {
                 <span>{result.universe_size} stocks scanned</span>
               </div>
             )}
+            {!isTrend && (<>
             <div className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <button
                 type="button"
@@ -279,8 +300,9 @@ export default function PredictPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-[var(--color-text-inverse)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-[var(--color-cta)]/30"
             >
               <RefreshCw size={13} className={forcing || isComputing ? "animate-spin" : ""} />
-              {forcing || isComputing ? "Recomputing…" : "Re-run Predictions"}
+              {forcing || isComputing ? "Recomputing…" : "Re-run predictions"}
             </button>
+            </>)}
           </div>
         </div>
 
@@ -382,20 +404,43 @@ export default function PredictPage() {
                     <span className="text-[var(--color-text-muted)] flex items-center gap-1.5"><TrendingUp size={11} className="text-[var(--color-success)]" /> Bullish picks</span>
                     <span className="text-[var(--color-success)] font-semibold">{longs}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[var(--color-text-muted)] flex items-center gap-1.5"><TrendingDown size={11} className="text-[var(--color-danger)]" /> Bearish picks</span>
-                    <span className="text-[var(--color-danger)] font-semibold">{shorts}</span>
-                  </div>
+                  {!isTrend && (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[var(--color-text-muted)] flex items-center gap-1.5"><TrendingDown size={11} className="text-[var(--color-danger)]" /> Bearish picks</span>
+                      <span className="text-[var(--color-danger)] font-semibold">{shorts}</span>
+                    </div>
+                  )}
                   <div className="h-px bg-[var(--border)] my-1" />
                   <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-text-muted)]">Universe scanned</span>
+                    <span className="text-[var(--color-text-muted)]">{isTrend ? "Stocks considered" : "Universe scanned"}</span>
                     <span className="text-[var(--color-text-secondary)] font-mono">{result.universe_size}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-text-muted)]">Model date</span>
-                    <span className="text-[var(--color-text-secondary)] font-mono">{result.date}</span>
+                    <span className="text-[var(--color-text-muted)]">{isTrend ? "Based on close of" : "Model date"}</span>
+                    <span className="text-[var(--color-text-secondary)] font-mono">{isTrend ? result.as_of : result.date}</span>
                   </div>
-                  {result.model_metrics && (
+                  {isTrend && bt && (
+                    <>
+                      <div className="h-px bg-[var(--border)] my-1" />
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">Backtest {bt.start} to {bt.end}, after costs</div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--color-text-muted)]">Return per year</span>
+                        <span className="font-mono"><span className="text-[var(--color-success)]">{bt.cagr_pct.toFixed(1)}%</span> <span className="text-[var(--color-text-muted)]">vs SPY {bt.spy_cagr_pct.toFixed(1)}%</span></span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--color-text-muted)]">Months beating SPY</span>
+                        <span className="text-[var(--color-text-secondary)] font-mono">{bt.months_beat_spy_pct.toFixed(0)}%</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--color-text-muted)]">Worst drawdown</span>
+                        <span className="font-mono"><span className="text-[var(--color-danger)]">{bt.max_drawdown_pct.toFixed(1)}%</span> <span className="text-[var(--color-text-muted)]">vs SPY {bt.spy_max_drawdown_pct.toFixed(1)}%</span></span>
+                      </div>
+                      <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                        It still lost to SPY in {bt.losing_years ?? "some years"}, so expect losing stretches.
+                      </p>
+                    </>
+                  )}
+                  {!isTrend && result.model_metrics && (
                     <>
                       <div className="h-px bg-[var(--border)] my-1" />
                       <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">Validation</div>
@@ -420,10 +465,20 @@ export default function PredictPage() {
             <Card variant="compact">
               <CardHeader title="How it works" density="compact" />
               <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
-                <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500, then predicts each stock&apos;s 21-day forward return.</p>
-                <p>Stocks are ranked by predicted return, and the <strong className="text-[var(--color-text-secondary)]">top decile → Long</strong>, <strong className="text-[var(--color-text-secondary)]">bottom decile → Short</strong>.</p>
-                <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
-                <p>Results are <strong className="text-[var(--color-text-secondary)]">cached daily</strong>. Use Re-run to get fresh signals.</p>
+                {isTrend ? (
+                  <>
+                    <p>Takes the <strong className="text-[var(--color-text-secondary)]">100 most-traded S&P 500 stocks</strong> and ranks them by their 6- and 12-month returns.</p>
+                    <p>Stocks trading below their 200-day average are skipped. The top 15 make the list.</p>
+                    <p>The list is set from the <strong className="text-[var(--color-text-secondary)]">last close of each month</strong> and held for the month, which is how it was backtested.</p>
+                    <p>We switched to this in October 2026 because, tested on past data, the previous ML picks lost to SPY after trading costs.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500 and ranks each stock&apos;s expected 21-day performance.</p>
+                    <p>The <strong className="text-[var(--color-text-secondary)]">top decile → long</strong>, <strong className="text-[var(--color-text-secondary)]">bottom decile → short</strong>.</p>
+                    <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
+                  </>
+                )}
                 <div className="h-px bg-[var(--border)] my-1" />
                 <Link
                   href="/backtest"
@@ -456,25 +511,36 @@ export default function PredictPage() {
                       {s.symbol}
                     </div>
                     <div className="text-sm text-[var(--color-text-muted)] mt-1 truncate">{s.name || s.symbol}</div>
-                    <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className={`font-mono font-semibold ${
-                        s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
-                      }`}>
-                        {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}% 21d
-                      </span>
-                      <span className="text-[var(--color-text-muted)]">Strength {Math.abs(s.strength).toFixed(2)}</span>
-                    </div>
-                    <div className="mt-3">
-                      <ExplanationPills items={s.explanations} />
-                    </div>
+                    {isTrend ? (
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        {([["6m", s.return_6m_pct], ["12m", s.return_12m_pct], ["vs 200d", s.pct_above_ma200]] as const).map(([label, v]) => (
+                          <div key={label}>
+                            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">{label}</div>
+                            <div className={`font-mono font-semibold ${(v ?? 0) >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(v)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mt-3 flex items-center justify-between text-sm">
+                          <span className="font-mono font-semibold text-[var(--color-text-secondary)]">
+                            Rank score {s.predicted_return_pct.toFixed(2)}
+                          </span>
+                          <span className="text-[var(--color-text-muted)]">Strength {Math.abs(s.strength).toFixed(2)}</span>
+                        </div>
+                        <div className="mt-3">
+                          <ExplanationPills items={s.explanations} />
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
             )}
             <Card variant="compact">
               <CardHeader
-                title="Top Predictions"
-                subtitle={`ML-ranked stocks for the week · ${result?.date ?? "Loading…"}`}
+                title={isTrend ? "This month's picks" : "Top predictions"}
+                subtitle={isTrend ? `Ranked by trend strength · list from the ${result?.as_of} close` : `ML-ranked stocks · ${result?.date ?? "Loading…"}`}
                 density="compact"
               />
 
@@ -490,10 +556,10 @@ export default function PredictPage() {
                 <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--color-surface)]">
                   <div className="min-w-[1120px]">
                     <div className="grid grid-cols-[18rem_8rem_8rem_11rem_9rem_1fr] gap-x-4 px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)] border-b border-[var(--border)] bg-[var(--color-surface-raised)]">
-                      {TABLE_HEADERS.map((h) => (
+                      {tableHeaders.map((h) => (
                         <div
                           key={h}
-                          className={`whitespace-nowrap ${h === "Return 21d" ? "text-center justify-self-center" : ""}`}
+                          className={`whitespace-nowrap ${h === "Return 21d" || h === "6m / 12m return" ? "text-center justify-self-center" : ""}`}
                         >
                           {h}
                         </div>
@@ -539,15 +605,23 @@ export default function PredictPage() {
                           </div>
 
                           <div className="pr-2 flex items-center justify-center h-full text-center">
-                            <span className={`font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap ${
-                              s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
-                            }`}>
-                              {s.predicted_return_pct >= 0 ? "+" : ""}{s.predicted_return_pct.toFixed(2)}%
-                            </span>
+                            {isTrend ? (
+                              <span className="font-mono font-semibold tabular-nums text-[13px] leading-none whitespace-nowrap text-[var(--color-success)]">
+                                {pct(s.return_6m_pct)} <span className="text-[var(--color-text-muted)]">/</span> {pct(s.return_12m_pct)}
+                              </span>
+                            ) : (
+                              <span className="font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap text-[var(--color-text-secondary)]">
+                                {s.predicted_return_pct.toFixed(2)}
+                              </span>
+                            )}
                           </div>
 
                           <div className="pl-1">
-                            <ExplanationPills items={s.explanations} />
+                            {isTrend ? (
+                              <span className="font-mono text-[13px] text-[var(--color-text-secondary)]">{pct(s.pct_above_ma200)} above</span>
+                            ) : (
+                              <ExplanationPills items={s.explanations} />
+                            )}
                           </div>
                         </div>
                       ))}
@@ -556,7 +630,7 @@ export default function PredictPage() {
                 </div>
               )}
 
-              {(!loading || hasLoaded) && signals.length > 0 && <DriverLegend />}
+              {(!loading || hasLoaded) && signals.length > 0 && !isTrend && <DriverLegend />}
 
               {(!loading || hasLoaded) && signals.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -583,7 +657,10 @@ export default function PredictPage() {
             <div className="mt-4 flex items-start gap-2 px-1 text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
               <Info size={11} className="mt-0.5 shrink-0" />
               <p>
-                These predictions are generated by a machine learning model trained on historical price data and are for <strong className="text-[var(--color-text-muted)]">informational purposes only</strong>. Past model performance does not guarantee future results. Always conduct your own research before making any investment decisions.
+                {isTrend
+                  ? "These picks come from a trend rule tested on 2017-2026 data. The list can be concentrated in one theme (lately AI chips), trend stocks can fall fast when a trend breaks, and the list only changes once a month. "
+                  : "These predictions are generated by a machine learning model trained on historical price data. "}
+                They are for <strong className="text-[var(--color-text-muted)]">informational purposes only</strong>. Past performance does not guarantee future results. Always do your own research before making any investment decision.
               </p>
             </div>
           </div>

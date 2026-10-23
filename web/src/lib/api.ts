@@ -344,6 +344,27 @@ export type PredictionItem = {
   predicted_return_pct: number;
   explanations?: PredictionExplanation[];
   news?: NewsItem | null;
+  // Trend-screen picks: the stock's actual trailing performance, in percent.
+  return_6m_pct?: number | null;
+  return_12m_pct?: number | null;
+  pct_above_ma200?: number | null;
+};
+
+export type TrendBacktest = {
+  start: string;
+  end: string;
+  cagr_pct: number;
+  spy_cagr_pct: number;
+  excess_cagr_pct: number;
+  excess_cagr_stress_pct: number;
+  sharpe: number;
+  spy_sharpe: number;
+  max_drawdown_pct: number;
+  spy_max_drawdown_pct: number;
+  months_beat_spy_pct: number;
+  losing_years?: string;
+  picks: number;
+  liquid_universe: number;
 };
 
 export type PredictionExplanation = {
@@ -365,6 +386,12 @@ export type PredictionResponse = {
   universe_size: number;
   model_metrics?: Record<string, number> | null;
   message?: string; // e.g. "Model training started..."
+  // Trend screen (method === "trend"): the close the list is based on and when it changes.
+  method?: string | null;
+  as_of?: string | null;
+  next_refresh?: string | null;
+  generated_at?: string | null;
+  backtest?: TrendBacktest | null;
 };
 
 export type TradeCreate = {

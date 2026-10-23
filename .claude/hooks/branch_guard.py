@@ -9,7 +9,7 @@ For Bash and PowerShell tool calls this blocks:
     out, an implicit push from main, or --all / --branches / --mirror
   * force pushes (--force, -f, --force-with-lease, --force-if-includes, +refspec) and
     --prune, which deletes remote branches
-  * any push to, or deletion of, model-cache or screener-cache
+  * any push to, or deletion of, model-cache, screener-cache or pick-history
   * merging into main from the command line: gh pr merge, or a GitHub API call that merges
     or rewrites one of those refs
 
@@ -27,7 +27,7 @@ import subprocess
 import sys
 
 DEPLOY_BRANCHES = {"main", "master"}
-DATA_BRANCHES = {"model-cache", "screener-cache"}
+DATA_BRANCHES = {"model-cache", "screener-cache", "pick-history"}
 PROTECTED = DEPLOY_BRANCHES | DATA_BRANCHES
 
 FORCE_FLAGS = {"--force", "--force-with-lease", "--force-if-includes"}
@@ -42,15 +42,15 @@ SEPARATORS = {"&&", "||", ";", "|", "&", "\n", "(", ")", ";;", "|&"}
 
 MERGE_API = re.compile(
     r"repos/[^/\s'\"]+/[^/\s'\"]+/(?:pulls/\d+/merge\b|merges\b|git/refs/heads/"
-    r"(?:main|master|model-cache|screener-cache)\b)"
+    r"(?:main|master|model-cache|screener-cache|pick-history)\b)"
 )
 WRITE_FLAGS = {"-X", "--request", "--method", "-d", "--data", "--data-raw", "-f", "-F",
                "--field", "--raw-field", "--input"}
 
 WHY_DEPLOY = ("main deploys to production on every push (Vercel + Heroku). Push a branch "
               "and let the user merge the PR")
-WHY_DATA = ("model-cache and screener-cache are written only by GitHub Actions and read by "
-            "the live /predict API")
+WHY_DATA = ("model-cache, screener-cache and pick-history are written only by GitHub Actions; "
+            "the live /predict API reads them and pick-history is the picks' track record")
 WHY_FORCE = "force pushes rewrite shared history"
 
 

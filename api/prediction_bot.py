@@ -15,6 +15,13 @@ from api.schemas import PredictionItem
 from api.driver_explain import humanize_driver, build_plain_summary
 
 
+def _trend_figures(s) -> Optional[str]:
+    """'6m +X% | 12m +Y%' for trend-screen picks, which carry no predicted return."""
+    if getattr(s, "return_6m_pct", None) is None:
+        return None
+    return f"6m {s.return_6m_pct:+.1f}% | 12m {s.return_12m_pct:+.1f}%"
+
+
 def _signal_row(s, idx: int) -> str:
     """Format one signal as a numbered list row for /top, /bottom, /fullscan, and broadcast.
 
@@ -24,6 +31,9 @@ def _signal_row(s, idx: int) -> str:
       so longs with negative returns don't say "positive".
     - Longs with negative predicted returns get a ⚠️ prefix.
     """
+    trend = _trend_figures(s)
+    if trend:
+        return f"{idx}. <b>{s.symbol}</b> | {trend}\n"
     ret = s.predicted_return_pct
     conflict = (s.side == "long" and ret < 0) or (s.side == "short" and ret > 0)
     prefix = "⚠️ " if conflict else ""
@@ -37,6 +47,9 @@ def _signal_row(s, idx: int) -> str:
 
 def _signal_row_named(s, idx: int) -> str:
     """Like _signal_row but includes company name — used in /top and /bottom."""
+    trend = _trend_figures(s)
+    if trend:
+        return f"{idx}. <b>{s.symbol}</b> ({s.name})\n   • {trend}\n"
     ret = s.predicted_return_pct
     conflict = (s.side == "long" and ret < 0) or (s.side == "short" and ret > 0)
     prefix = "⚠️ " if conflict else ""

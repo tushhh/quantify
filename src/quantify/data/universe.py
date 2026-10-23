@@ -599,6 +599,7 @@ class Universe:
     sector_map: dict[str, str] = field(default_factory=get_sector_map)
     market_cap: dict[str, float] = field(default_factory=dict)
     avg_dollar_volume: dict[str, float] = field(default_factory=dict)
+    names: dict[str, str] = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # Factory constructors
@@ -673,15 +674,20 @@ class Universe:
             None,
         )
 
+        name_col = next((c for c in df.columns if c.lower() in ("security", "company")), None)
+
         tickers = [s.replace(".", "-") for s in df[symbol_col].tolist()]
         sector_map: dict[str, str] = {}
-        if sector_col:
-            for _, row in df.iterrows():
-                ticker = str(row[symbol_col]).replace(".", "-")
+        names: dict[str, str] = {}
+        for _, row in df.iterrows():
+            ticker = str(row[symbol_col]).replace(".", "-")
+            if sector_col:
                 sector_map[ticker] = str(row[sector_col])
+            if name_col:
+                names[ticker] = str(row[name_col])
 
         logger.info("Loaded %d S&P 500 tickers from Wikipedia.", len(tickers))
-        return cls(tickers=sorted(set(tickers)), sector_map=sector_map)
+        return cls(tickers=sorted(set(tickers)), sector_map=sector_map, names=names)
 
     # ------------------------------------------------------------------
     # Filtering methods (all return a new Universe instance)
