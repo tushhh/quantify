@@ -195,7 +195,7 @@ export default function PredictPage() {
   const bt = result?.backtest;
   const pct = (v?: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
   const tableHeaders = isTrend
-    ? ["Stock", "Sector", "Signal", "Trend score", "6m / 12m return", "Vs 200-day average"]
+    ? ["Stock", "Sector", "Signal", "Next-month forecast", "Chance to beat SPY", "Why it was picked"]
     : TABLE_HEADERS;
 
   return (
@@ -469,6 +469,7 @@ export default function PredictPage() {
                   <>
                     <p>Takes the <strong className="text-[var(--color-text-secondary)]">100 most-traded S&P 500 stocks</strong> and ranks them by their 6- and 12-month returns.</p>
                     <p>Stocks trading below their 200-day average are skipped. The top 15 make the list.</p>
+                    <p>Each pick&apos;s <strong className="text-[var(--color-text-secondary)]">next-month forecast</strong> is what stocks at that rank actually did over the following month from 2017 to 2026: the average, the chance of beating SPY, and the range that covered 80% of outcomes. Single stocks are noisy; the edge comes from holding the list.</p>
                     <p>The list is set from the <strong className="text-[var(--color-text-secondary)]">last close of each month</strong> and held for the month, which is how it was backtested.</p>
                     <p>We switched to this in October 2026 because, tested on past data, the previous ML picks lost to SPY after trading costs.</p>
                   </>
@@ -512,13 +513,14 @@ export default function PredictPage() {
                     </div>
                     <div className="text-sm text-[var(--color-text-muted)] mt-1 truncate">{s.name || s.symbol}</div>
                     {isTrend ? (
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                        {([["6m", s.return_6m_pct], ["12m", s.return_12m_pct], ["vs 200d", s.pct_above_ma200]] as const).map(([label, v]) => (
-                          <div key={label}>
-                            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">{label}</div>
-                            <div className={`font-mono font-semibold ${(v ?? 0) >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(v)}</div>
-                          </div>
-                        ))}
+                      <div className="mt-3 flex flex-col gap-1.5 text-xs">
+                        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Next-month forecast</div>
+                        <div className="flex items-baseline justify-between">
+                          <span className={`font-mono text-xl font-bold ${s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(s.predicted_return_pct)}</span>
+                          <span className="font-mono text-[var(--color-text-secondary)]">{s.forecast_beat_spy_pct?.toFixed(1)}% chance to beat SPY</span>
+                        </div>
+                        <div className="font-mono text-[var(--color-text-muted)]">Likely range {pct(s.forecast_low_pct)} to {pct(s.forecast_high_pct)}</div>
+                        <div className="text-[var(--color-text-muted)]">Picked for its trend: past 6m {pct(s.return_6m_pct)}, past 12m {pct(s.return_12m_pct)}</div>
                       </div>
                     ) : (
                       <>
@@ -559,7 +561,7 @@ export default function PredictPage() {
                       {tableHeaders.map((h) => (
                         <div
                           key={h}
-                          className={`whitespace-nowrap ${h === "Return 21d" || h === "6m / 12m return" ? "text-center justify-self-center" : ""}`}
+                          className={`whitespace-nowrap ${h === "Return 21d" || h === "Chance to beat SPY" ? "text-center justify-self-center" : ""}`}
                         >
                           {h}
                         </div>
@@ -601,13 +603,20 @@ export default function PredictPage() {
                           </div>
 
                           <div className="pr-2">
-                            <StrengthBar value={s.strength} side={s.side} />
+                            {isTrend ? (
+                              <div className="flex flex-col gap-0.5 font-mono tabular-nums">
+                                <span className={`text-[14px] font-semibold ${s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(s.predicted_return_pct)}</span>
+                                <span className="text-[11px] text-[var(--color-text-muted)] whitespace-nowrap">{pct(s.forecast_low_pct)} to {pct(s.forecast_high_pct)}</span>
+                              </div>
+                            ) : (
+                              <StrengthBar value={s.strength} side={s.side} />
+                            )}
                           </div>
 
                           <div className="pr-2 flex items-center justify-center h-full text-center">
                             {isTrend ? (
-                              <span className="font-mono font-semibold tabular-nums text-[13px] leading-none whitespace-nowrap text-[var(--color-success)]">
-                                {pct(s.return_6m_pct)} <span className="text-[var(--color-text-muted)]">/</span> {pct(s.return_12m_pct)}
+                              <span className="font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap text-[var(--color-text-secondary)]">
+                                {s.forecast_beat_spy_pct?.toFixed(1)}%
                               </span>
                             ) : (
                               <span className="font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap text-[var(--color-text-secondary)]">
@@ -618,7 +627,7 @@ export default function PredictPage() {
 
                           <div className="pl-1">
                             {isTrend ? (
-                              <span className="font-mono text-[13px] text-[var(--color-text-secondary)]">{pct(s.pct_above_ma200)} above</span>
+                              <span className="font-mono text-[12px] text-[var(--color-text-muted)]">Past 6m {pct(s.return_6m_pct)} · 12m {pct(s.return_12m_pct)} · {pct(s.pct_above_ma200)} over 200-day avg</span>
                             ) : (
                               <ExplanationPills items={s.explanations} />
                             )}

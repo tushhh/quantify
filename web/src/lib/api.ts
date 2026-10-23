@@ -348,6 +348,12 @@ export type PredictionItem = {
   return_6m_pct?: number | null;
   return_12m_pct?: number | null;
   pct_above_ma200?: number | null;
+  // Next-month forecast (predicted_return_pct is the expected return): what picks at this
+  // rank did over the following month in the backtest.
+  forecast_median_pct?: number | null;
+  forecast_low_pct?: number | null;
+  forecast_high_pct?: number | null;
+  forecast_beat_spy_pct?: number | null;
 };
 
 export type TrendBacktest = {
@@ -392,6 +398,7 @@ export type PredictionResponse = {
   next_refresh?: string | null;
   generated_at?: string | null;
   backtest?: TrendBacktest | null;
+  forecast_horizon?: string | null;
 };
 
 export type TradeCreate = {

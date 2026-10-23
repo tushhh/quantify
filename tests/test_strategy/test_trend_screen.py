@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from api.schemas import PredictionResponse
-from quantify.trend_screen import monthly_anchor, run_trend_screen, score_trend, select_picks
+from quantify.trend_screen import FORECAST, monthly_anchor, run_trend_screen, score_trend, select_picks
 
 DAYS = pd.bdate_range("2024-01-02", periods=420)
 
@@ -107,6 +107,22 @@ def test_screen_output_matches_the_prediction_api_and_is_long_only() -> None:
     assert top.pct_above_ma200 is not None and top.pct_above_ma200 > 0
     assert response.as_of == str(monthly_anchor(close.index).date())
     assert response.backtest is not None and "excess_cagr_pct" in response.backtest
+
+
+def test_each_pick_carries_a_next_month_forecast_for_its_rank() -> None:
+    """Forecasts are what picks at that rank did over the following month in the backtest."""
+    drifts = {f"S{i}": 0.0001 * i - 0.0003 for i in range(30)}
+    close, volume = make_panel(drifts)
+
+    result = run_trend_screen(close, volume, sectors={}, names={}, n_picks=8)
+
+    first, sixth = result["signals"][0], result["signals"][5]
+    assert first["predicted_return_pct"] == FORECAST["1-5"]["mean_pct"]
+    assert first["forecast_beat_spy_pct"] == FORECAST["1-5"]["beat_spy_pct"]
+    assert first["forecast_low_pct"] < 0 < first["forecast_high_pct"]
+    assert sixth["predicted_return_pct"] == FORECAST["6-10"]["mean_pct"]
+    assert result["forecast_horizon"] == "1 month"
+    PredictionResponse(**result)
 
 
 def test_screen_needs_a_year_of_history() -> None:

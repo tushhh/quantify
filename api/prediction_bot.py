@@ -16,10 +16,14 @@ from api.driver_explain import humanize_driver, build_plain_summary
 
 
 def _trend_figures(s) -> Optional[str]:
-    """'6m +X% | 12m +Y%' for trend-screen picks, which carry no predicted return."""
+    """Trailing returns for trend-screen picks (why they were picked), not a forecast."""
     if getattr(s, "return_6m_pct", None) is None:
         return None
-    return f"6m {s.return_6m_pct:+.1f}% | 12m {s.return_12m_pct:+.1f}%"
+    past = f"past 6m {s.return_6m_pct:+.1f}% | past 12m {s.return_12m_pct:+.1f}%"
+    if getattr(s, "forecast_beat_spy_pct", None) is None:
+        return past
+    return (f"next month {s.predicted_return_pct:+.1f}% expected, {s.forecast_beat_spy_pct:.1f}% chance to beat SPY "
+            f"(range {s.forecast_low_pct:+.0f}% to {s.forecast_high_pct:+.0f}%) | {past}")
 
 
 def _scan_text(result, n: int, title: str, news: bool = False) -> str:

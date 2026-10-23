@@ -12,14 +12,16 @@ from api.schemas import PredictionItem  # noqa: E402
 
 def trend_pick() -> PredictionItem:
     return PredictionItem(symbol="AMD", name="Advanced Micro Devices", side="long", strength=0.98,
-                          predicted_return_pct=0.0, return_6m_pct=200.7, return_12m_pct=279.1,
-                          pct_above_ma200=65.1)
+                          predicted_return_pct=4.1, return_6m_pct=200.7, return_12m_pct=279.1,
+                          pct_above_ma200=65.1, forecast_beat_spy_pct=54.5, forecast_low_pct=-12.5,
+                          forecast_high_pct=22.6)
 
 
 def test_trend_rows_show_trailing_returns_not_a_zero_prediction() -> None:
     for row in (_signal_row(trend_pick(), 1), _signal_row_named(trend_pick(), 1)):
         assert "+0.00%" not in row
-        assert "6m +200.7%" in row and "12m +279.1%" in row
+        assert "past 6m +200.7%" in row and "past 12m +279.1%" in row
+        assert "next month +4.1% expected, 54.5% chance to beat SPY" in row
 
 
 def test_ml_rows_are_unchanged() -> None:

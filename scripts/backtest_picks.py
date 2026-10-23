@@ -30,7 +30,8 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from quantify.trend_screen import (  # noqa: E402
-    BACKTEST, LIQUID_TOP, MAX_PER_SECTOR, N_PICKS, download_prices, score_trend, select_picks,
+    BACKTEST, LIQUID_TOP, MAX_PER_SECTOR, N_PICKS, download_prices, forecast_bucket, score_trend,
+    select_picks,
 )
 
 # The agreed bar (Oct 2026). Excess figures are annual percentage points over SPY.
@@ -78,6 +79,25 @@ def simulate(close: pd.DataFrame, volume: pd.DataFrame, spy: pd.Series, start: s
     return pd.DataFrame(rows, columns=["date", "port", "spy"]).set_index("date")
 
 
+def forecast_by_rank(close, volume, spy, start, sectors, names=None, n=N_PICKS) -> dict:
+    """Next-month return of each pick by rank bucket: the basis of trend_screen.FORECAST."""
+    dates = close.index
+    anchors = month_end_anchors(dates, start)
+    rows = []
+    for a, nxt in zip(anchors, anchors[1:]):
+        buy, sell = dates[dates.get_loc(a) + 1], dates[dates.get_loc(nxt) + 1]
+        scores = score_trend(close.loc[:a], volume.loc[:a], as_of=a)["score"]
+        spy_r = spy[sell] / spy[buy] - 1
+        for rank, s in enumerate(select_picks(scores, sectors, n, names=names), 1):
+            r = close.at[sell, s] / close.at[buy, s] - 1
+            rows.append((forecast_bucket(rank), r * 100, (r - spy_r) * 100))
+    d = pd.DataFrame(rows, columns=["bucket", "ret", "exc"])
+    return {b: {"mean_pct": round(float(g.ret.mean()), 1), "median_pct": round(float(g.ret.median()), 1),
+                "low_pct": round(float(g.ret.quantile(0.1)), 1), "high_pct": round(float(g.ret.quantile(0.9)), 1),
+                "beat_spy_pct": round(float((g.exc > 0).mean() * 100), 1)}
+            for b, g in d.groupby("bucket", sort=False)}
+
+
 def report(D: pd.DataFrame) -> dict:
     yrs = len(D) / 252
     eq, es = (1 + D.port).cumprod(), (1 + D.spy).cumprod()
@@ -122,6 +142,7 @@ def main(argv=None) -> int:
     ap.add_argument("--prices", help="directory with close.parquet and volume.parquet (saved after a download)")
     ap.add_argument("--tolerance", type=float, default=2.0, help="allowed drop in excess %/yr vs the record")
     ap.add_argument("--strict", action="store_true", help="exit 1 if any row of the profit bar fails")
+    ap.add_argument("--forecast", action="store_true", help="print next-month outcomes by rank (trend_screen.FORECAST)")
     args = ap.parse_args(argv)
 
     from quantify.data.universe import Universe
@@ -138,6 +159,9 @@ def main(argv=None) -> int:
     spy = close.pop("SPY")
     volume = volume.drop(columns=["SPY"], errors="ignore")
 
+    if args.forecast:
+        print("FORECAST =", forecast_by_rank(close, volume, spy, args.start, universe.sector_map, universe.names))
+        return 0
     r = report(simulate(close, volume, spy, args.start, universe.sector_map, universe.names, cost_bps=args.cost_bps))
     cap = "no sector cap" if MAX_PER_SECTOR is None else f"max {MAX_PER_SECTOR} per sector"
     print(f"pick-backtest: trend screen, {N_PICKS} picks ({cap}) from the {LIQUID_TOP} most-traded, monthly, "
