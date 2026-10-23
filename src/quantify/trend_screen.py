@@ -18,6 +18,14 @@ In October 2026 every candidate was replayed walk-forward on 2021-01 .. 2026-10 
   +1.9 %/yr. A cap of 3 per sector made more in 2017-2025 with a higher Sharpe (0.96) but
   trailed in 2026; the user chose uncapped, betting the AI rally continues.
 
+Tested and rejected (Oct 2026, walk-forward, same liquid universe, after costs):
+* ML overlay (LightGBM on the 30 FeatureEngine features + trend score, monthly retrain,
+  68 unseen months 2021-2026): ML alone +10.4 %/yr vs SPY, blend +9.9, trend +15.1; ML rank IC
+  0.001 (no skill). A 96 %-in-sample classifier scored 50.0 % on 2023-2026.
+* SEC EDGAR fundamentals (XBRL frames, assumed public 60 days after quarter end, 90 months
+  2019-2026) as a filter on the trend top 30: earnings growth +14.7 %/yr, value +10.0, quality
+  (ROA) +6.7, composite +5.8, vs trend alone +15.4. Rank ICs -0.003 .. 0.011.
+
 The definition below must stay identical to the backtested one; tests pin it down. Re-run
 the pick-backtest skill before changing any constant.
 
