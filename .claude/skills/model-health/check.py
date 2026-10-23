@@ -183,7 +183,9 @@ def check_screener(meta: dict | None) -> None:
         report(status, f"screener: {len(signals)} signals for {screener.get('date')} "
                        f"({screener.get('mode')}, universe {screener.get('universe_size')}), "
                        f"updated {age:.1f}h ago")
-    if (screener.get("universe_size") or 0) < 400:
+    # The trend screen ranks only the 100 most-traded names by design; ML files scan ~500.
+    expected = 100 if screener.get("method") == "trend" else 400
+    if (screener.get("universe_size") or 0) < expected:
         report("WARN", f"screener universe is only {screener.get('universe_size')} symbols "
                        "(expected ~500)")
     if meta and screener.get("model_metrics") not in (None, meta.get("model_metrics")):
