@@ -22,7 +22,7 @@ function HeaderCell({
   return (
     <th
       onClick={onClick}
-      className="align-middle text-left px-3 py-3 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--color-text-primary)] transition-colors select-none"
+      className="align-middle text-left px-3 py-3 text-[10px] font-semibold text-[var(--color-text-muted)] cursor-pointer hover:text-[var(--color-text-primary)] transition-colors select-none"
     >
       <span className="flex items-center gap-1">
         {label}
@@ -91,7 +91,7 @@ export function TradeLogTable({ trades }: { trades: TradeRecord[] }) {
         </div>
       </CardHeader>
 
-      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-xs)]">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
         <table className="w-full text-sm min-w-[600px] border-collapse">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">

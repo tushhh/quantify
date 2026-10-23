@@ -3,7 +3,7 @@ import { UserCircle } from "lucide-react";
 
 export default function SettingsPage() {
   return (
-    <div className="max-w-2xl mx-auto pt-8 pb-16">
+    <div className="max-w-2xl pt-8 pb-16">
       <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Settings</h1>
       <div className="mt-6 p-6 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] flex items-start gap-4">
         <UserCircle className="h-6 w-6 shrink-0 text-[var(--color-text-secondary)]" />

@@ -114,6 +114,7 @@ Quantify targets traders who take themselves seriously. The aesthetic should com
 Use green/red semantically and consistently throughout — they carry meaning for traders.
 
 ### Typography
+- In use: `Inter` (interface) and `IBM Plex Mono` (numbers and tickers only, never labels), loaded in `web/src/app/layout.tsx`. Page titles use `components/layout/page-header.tsx`.
 - **Display/headings**: `Inter` or `DM Sans` — clean, neutral, professional
 - **Data/numbers**: `JetBrains Mono` or `IBM Plex Mono` — monospace for all numeric values, tickers, percentages, prices. This is non-negotiable for a trading product.
 - **Body**: `Inter` — readable at small sizes
@@ -175,15 +176,13 @@ Use green/red semantically and consistently throughout — they carry meaning fo
 ## Page-specific notes
 
 ### `/` (Homepage)
-- Current issue: visual hierarchy is weak, copy doesn't differentiate from generic quant platforms
-- Goal: the hero should communicate the ML ensemble + backtest combination as the key differentiator
-- Don't use the generic "big number + gradient" hero pattern
+- Opens on what Quantify does in one plain statement, beside the top of this month's trend list. No marketing hero, badges or icon grids.
+- Then the backtest record as plain numbers, losing years included, then the tools (backtest, portfolio, strategies) as short descriptions.
 
-### `/predict`
-- Core product page — the ML output is the most differentiated feature
-- Should surface: direction (bull/bear), confidence, top feature drivers, prediction horizon
-- Driver explanations should be human-readable labels, not raw feature names
-- This page should feel like a signal dashboard, not a form output
+### `/predict` (shown as "Picks")
+- The monthly trend list as a ledger: picks grouped into rank bands (1-5, 6-10, 11-15). Each band row states its next-month forecast once (expected return, chance to beat SPY) with a range bar on a shared axis; stock rows show only stock-specific facts (past 6m/12m return, distance above the 200-day average, sector).
+- The range bars are the page's one bold element. Keep everything around them quiet.
+- Side column: the backtest record and the live track record. Never blend backtest and live numbers.
 
 ### `/backtest`
 - Advanced controls (strategy params, position sizer, risk settings) must be collapsed by default

@@ -2,219 +2,148 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Activity, BrainCircuit, Bot, ChartCandlestick, ChevronRight, ShieldCheck, Sparkles } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, errorMessage, type PredictionItem, type PredictionResponse } from "@/lib/api";
 
-const FEATURES = [
+const pct = (v?: number | null, digits = 1) =>
+  v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}%`;
+
+const monthOfList = (asOf?: string | null) => {
+  if (!asOf) return "";
+  const d = new Date(`${asOf}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 5);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+};
+
+const TOOLS = [
   {
-    icon: BrainCircuit,
-    title: "ML ensemble predictions",
-    desc: "LightGBM, XGBoost and CatBoost vote on each stock's next move. Each pick shows its direction, confidence and the drivers behind it.",
+    href: "/backtest",
+    name: "Backtest",
+    text: "Run any of the six strategies over past data with commissions, spread and slippage, and compare it with SPY before risking money.",
   },
   {
-    icon: ChartCandlestick,
-    title: "Backtest before you trade",
-    desc: "Run the same strategies through an event-driven backtest with trading costs. Advanced controls stay collapsed until you need them.",
+    href: "/portfolio",
+    name: "Portfolio",
+    text: "Log the trades you actually make, see live P&L, and get a Telegram message when a holding drops past your threshold.",
   },
   {
-    icon: Activity,
-    title: "Six strategies, one engine",
-    desc: "Momentum, mean reversion, quality/value and the ML return model share one execution path, so backtests match how signals are made.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Risk limits built in",
-    desc: "Drawdown limits, sector caps, leverage and position sizing apply to every run, with presets for conservative to aggressive.",
-  },
-  {
-    icon: Bot,
-    title: "Telegram alerts",
-    desc: "Link your Telegram username to get prediction and portfolio alerts without keeping the app open.",
+    href: "/strategies",
+    name: "Strategies",
+    text: "Read what each strategy does and which settings it uses, then change them in a backtest.",
   },
 ];
 
-const METRICS = [
-  { label: "Strategies", value: "6" },
-  { label: "Models in the ensemble", value: "3" },
-  { label: "Risk presets", value: "3" },
-  { label: "Model retraining", value: "Daily" },
-];
-
-const ENSEMBLE = ["LightGBM", "XGBoost", "CatBoost"];
-
-type ApiStatus = "checking" | "online" | "offline";
-
-/** Live API status from /health, so the page never claims "live" during an outage. */
-function ApiStatusPill() {
-  const [status, setStatus] = useState<ApiStatus>("checking");
+export default function OverviewPage() {
+  const [result, setResult] = useState<PredictionResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-    api.health()
-      .then((res) => { if (active) setStatus(res?.status === "ok" ? "online" : "offline"); })
-      .catch(() => { if (active) setStatus("offline"); });
-    return () => { active = false; };
+    api.predict.best(15)
+      .then(setResult)
+      .catch((err) => setError(errorMessage(err, "This month's list couldn't be loaded.")));
   }, []);
 
-  if (status === "checking") {
-    return <span className="h-4 w-24 rounded-full bg-[var(--color-surface-raised)] animate-pulse" aria-label="Checking API status" />;
-  }
-  return status === "online" ? (
-    <span className="inline-flex items-center gap-1.5 text-[var(--color-success)]">
-      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" /> API online
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 text-[var(--color-warning)]">
-      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)]" /> API unreachable, try again shortly
-    </span>
-  );
-}
+  const top = (result?.signals ?? []).filter((s) => s.side === "long").slice(0, 5);
+  const band = top[0];
+  const bt = result?.backtest;
 
-export default function LandingPage() {
   return (
-    <div className="min-h-screen pt-12 sm:pt-16 pb-12 sm:pb-16 md:pb-10 animate-fade-in text-[var(--color-text-primary)] selection:bg-[var(--color-accent)]/20 relative">
+    <div className="max-w-[1180px]">
+      <section className="grid gap-10 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16 pt-4 lg:pt-10">
+        <div>
+          <h1 className="text-[31px] leading-[1.15] font-semibold tracking-tight text-[var(--color-text-primary)] max-w-[22ch]">
+            Fifteen trend picks a month, each with a forecast and a public record.
+          </h1>
+          <p className="mt-5 text-[15px] leading-relaxed text-[var(--color-text-secondary)] max-w-[60ch]">
+            After each month&apos;s last close, Quantify ranks the 100 most-traded S&amp;P 500 stocks by the strength of
+            their 6- and 12-month trends and publishes the top fifteen. Every pick shows what stocks at its rank did the
+            following month, bad months included, and every list is scored against SPY once it&apos;s replaced.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/predict" className="inline-flex h-10 items-center px-4 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)]">
+              See this month&apos;s list
+            </Link>
+            <Link href="/backtest" className="inline-flex h-10 items-center px-4 rounded-[var(--radius-sm)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm font-medium hover:border-[var(--border-bright)]">
+              Run a backtest
+            </Link>
+          </div>
+        </div>
 
-      <main className="pt-0 pb-0">
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-10 items-center">
-          <div className="space-y-6 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 text-xs text-[var(--color-accent)]">
-              <BrainCircuit size={14} />
-              ML ensemble + event-driven backtests
-            </div>
-
-            <div className="space-y-4">
-              <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
-                ML stock picks you can
-                <span className="block text-[var(--color-accent)]">
-                  backtest before you trade.
-                </span>
-              </h1>
-              <p className="max-w-xl text-[var(--color-text-secondary)] text-lg md:text-xl leading-relaxed mt-2">
-                Quantify ranks stocks with a three-model ensemble retrained every day, shows why each pick was made, and lets you test the strategy behind it with real trading costs before any capital is at risk.
+        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="px-4 pt-4 pb-3 border-b border-[var(--color-border)]">
+            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+              {result?.as_of ? `Top of the ${monthOfList(result.as_of)} list` : "Top of this month's list"}
+            </h3>
+            {band?.forecast_beat_spy_pct != null && (
+              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                Each of these five: <span className="font-mono text-[var(--color-text-primary)]">{pct(band.predicted_return_pct)}</span> expected
+                next month, <span className="font-mono text-[var(--color-text-primary)]">{band.forecast_beat_spy_pct.toFixed(1)}%</span> chance to beat SPY.
               </p>
-            </div>
+            )}
+          </div>
+          {error ? (
+            <p className="px-4 py-6 text-sm text-[var(--color-text-secondary)]">{error}</p>
+          ) : (
+            <ol>
+              {(top.length ? top : Array.from<PredictionItem | null>({ length: 5 }).fill(null)).map((s, i) => (
+                <li key={s ? s.symbol : i} className="flex items-center justify-between gap-4 px-4 py-2.5 border-t border-[var(--color-border)]/60 first:border-t-0">
+                  {s ? (
+                    <>
+                      <span className="flex items-baseline gap-3 min-w-0">
+                        <span className="font-mono text-xs text-[var(--color-text-muted)] w-3">{i + 1}</span>
+                        <span className="font-mono text-sm font-medium text-[var(--color-text-primary)]">{s.symbol}</span>
+                        <span className="text-xs text-[var(--color-text-secondary)] truncate">{s.name}</span>
+                      </span>
+                      <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap"><span className="font-mono text-[var(--color-success)]">{pct(s.return_6m_pct, 0)}</span> in 6 months</span>
+                    </>
+                  ) : (
+                    <div className="skeleton h-4 w-full rounded-[var(--radius-sm)]" />
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="px-4 py-3 border-t border-[var(--color-border)]">
+            <Link href="/predict" className="text-xs font-medium text-[var(--color-accent)] hover:underline">See all fifteen with their forecasts</Link>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/predict" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent)] text-[var(--color-accent-foreground)] font-semibold shadow-sm hover:bg-[var(--color-accent-hover)] transition-colors">
-                <Sparkles size={18} /> See today&apos;s picks
+      <section aria-labelledby="record-heading" className="mt-16 border-t border-[var(--color-border)] pt-8">
+        <h3 id="record-heading" className="text-base font-medium text-[var(--color-text-primary)]">How the rule has done</h3>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          Walk-forward backtest{bt ? `, ${bt.start} to ${bt.end}` : ""}, after trading costs. Each month&apos;s list used only data available at that close.
+        </p>
+        <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
+          {[
+            { label: "Return per year", value: bt ? `${bt.cagr_pct.toFixed(1)}%` : null, sub: bt ? `SPY ${bt.spy_cagr_pct.toFixed(1)}%` : "", tone: "text-[var(--color-success)]" },
+            { label: "Worst drop", value: bt ? `${bt.max_drawdown_pct.toFixed(0)}%` : null, sub: bt ? `SPY ${bt.spy_max_drawdown_pct.toFixed(0)}%` : "", tone: "text-[var(--color-danger)]" },
+            { label: "Months beating SPY", value: bt ? `${bt.months_beat_spy_pct.toFixed(0)}%` : null, sub: "of every month tested", tone: "text-[var(--color-text-primary)]" },
+            { label: "Years it lost to SPY", value: bt?.losing_years ?? null, sub: "expect losing stretches", tone: "text-[var(--color-text-primary)]" },
+          ].map((m) => (
+            <div key={m.label}>
+              <dt className="text-xs text-[var(--color-text-secondary)]">{m.label}</dt>
+              <dd className={`mt-1 font-mono text-xl ${m.tone}`}>
+                {m.value ?? <span className="skeleton inline-block h-6 w-20 rounded-[var(--radius-sm)]" />}
+              </dd>
+              <dd className="mt-0.5 text-xs text-[var(--color-text-muted)]">{m.sub}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section aria-labelledby="tools-heading" className="mt-16 border-t border-[var(--color-border)] pt-8 pb-8">
+        <h3 id="tools-heading" className="text-base font-medium text-[var(--color-text-primary)]">Check anything before you trust it</h3>
+        <ul className="mt-4 grid gap-x-10 gap-y-6 md:grid-cols-3">
+          {TOOLS.map((tool) => (
+            <li key={tool.href}>
+              <Link href={tool.href} className="text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)]">
+                {tool.name}
               </Link>
-              <Link href="/backtest" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors">
-                Run a backtest <ChevronRight size={18} />
-              </Link>
-            </div>
-
-            <div className="pt-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 border border-[var(--color-border)] rounded-2xl p-1 bg-[var(--color-surface-raised)]/80">
-                {METRICS.map((item, i) => (
-                  <div
-                    key={item.label}
-                    className={`text-center px-3 py-4 sm:px-4 stat-card ${i < METRICS.length - 1 ? 'sm:border-r border-[var(--color-border)]' : ''}`}
-                  >
-                    <div className="stat-value font-mono text-[var(--color-text-primary)] text-lg sm:text-xl font-semibold">{item.value}</div>
-                    <div className="stat-label mt-1 text-[var(--color-text-muted)] text-[11px] sm:text-xs">{item.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="relative animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div className="relative bg-[var(--color-surface)]/90 rounded-[28px] p-4 sm:p-6 md:p-8 border border-[var(--color-border)] shadow-xl overflow-hidden">
-              <div className="flex items-center justify-between mb-4 text-xs text-[var(--color-text-muted)]">
-                <span>How a pick is made</span>
-                <ApiStatusPill />
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-5 min-h-36">
-                <div className="text-xs text-[var(--color-text-muted)]">1. Three models vote</div>
-                <div className="mt-3 space-y-2">
-                  {ENSEMBLE.map((model) => (
-                    <div key={model} className="flex items-center gap-3 text-sm text-[var(--color-text-secondary)]">
-                      <BrainCircuit size={16} className="text-[var(--color-accent)]" />
-                      <span className="font-mono">{model}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-5 min-h-36">
-                <div className="text-xs text-[var(--color-text-muted)]">2. You see the reasoning</div>
-                <div className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">Direction, confidence, drivers</div>
-                <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                  Each pick lists the factors that moved the prediction, in plain language.
-                </p>
-              </div>
-
-              <div className="sm:col-span-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-raised)]/80 p-6">
-                <div className="mb-4">
-                  <div className="text-xs text-[var(--color-text-muted)]">3. Test it, then track it</div>
-                  <div className="text-lg font-semibold text-[var(--color-text-primary)]">Backtest, paper track, get alerts</div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    "Backtest with costs",
-                    "Track positions",
-                    "Telegram alerts",
-                  ].map((item) => (
-                    <div key={item} className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 md:gap-6 mb-8">
-            <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">What&apos;s inside</p>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 text-[var(--color-text-primary)]">Research, test and track in one place.</h2>
-          </div>
-          <p className="hidden md:block max-w-xl text-sm text-[var(--color-text-secondary)]">
-              Predictions, strategies, risk controls and backtests share the same engine, so what you test is what generates the signal.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {FEATURES.map((feature) => (
-              <div key={feature.title} className="border border-[var(--color-border)] bg-[var(--color-surface)]/90 rounded-2xl p-5">
-                <div className="w-11 h-11 rounded-xl gradient-accent flex items-center justify-center mb-4">
-                  <feature.icon size={20} className="text-[var(--color-accent-foreground)]" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-[var(--color-text-primary)]">{feature.title}</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-4 md:px-6 mt-16 md:mt-24">
-          <div className="bg-[var(--color-surface)]/90 rounded-[32px] p-8 md:p-12 border border-[var(--color-border)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 ">
-            <div className="max-w-2xl relative z-10">
-              <p className="text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">Get started</p>
-              <h2 className="text-3xl md:text-4xl font-bold mt-3 leading-tight text-[var(--color-text-primary)]">
-                Check today&apos;s picks, then backtest the strategy before you commit capital.
-              </h2>
-              <p className="mt-4 text-[var(--color-text-secondary)] text-base md:text-lg leading-relaxed">
-                Create an account to track positions on your portfolio page and get alerts in Telegram.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto relative z-10">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[var(--color-accent)] text-[var(--color-accent-foreground)] font-semibold hover:bg-[var(--color-accent-hover)] transition-colors w-full sm:w-auto">
-                Create account <ArrowRight size={18} />
-              </Link>
-              <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-raised)] transition-colors w-full sm:w-auto">
-                Log in
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
+              <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-text-secondary)] max-w-[44ch]">{tool.text}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

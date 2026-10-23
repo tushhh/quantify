@@ -43,8 +43,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-[100svh] flex items-start justify-center px-4 pt-16 pb-16">
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--color-cta)]/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[100svh] flex items-start justify-center px-4 pt-6 pb-16">
 
       <div className="relative w-full max-w-md mt-2">
         {/* Back to home */}
@@ -53,40 +52,40 @@ export default function SignUpPage() {
           Back to home
         </Link>
 
-        <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--border)] p-8 shadow-2xl shadow-[var(--color-bg)]/20">
+        <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--border)] p-8">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--color-cta)] flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/30">
+            <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-[var(--color-cta)] flex items-center justify-center">
               <TrendingUp size={28} className="text-[var(--color-text-inverse)]" />
             </div>
           </div>
 
-          <h1 className="text-2xl font-black text-center text-[var(--color-text-inverse)] mb-1">Create Your Account</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-center text-[var(--color-text-inverse)] mb-1">Create your account</h1>
           <p className="text-center text-[var(--color-text-muted)] text-sm mb-8">Start trading with ML-powered predictions</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Username</label>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Username</label>
               <input
                 required
                 type="text"
                 autoComplete="username"
                 placeholder="Choose a username"
-                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
+                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-[var(--radius-lg)] px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Password</label>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)]">Password</label>
               <div className="relative mt-1.5">
                 <input
                   required
                   type={showPw ? "text" : "password"}
                   autoComplete="new-password"
                   placeholder="Create a password"
-                  className="w-full bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all pr-12"
+                  className="w-full bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-[var(--radius-lg)] px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all pr-12"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
@@ -101,14 +100,14 @@ export default function SignUpPage() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider flex items-center gap-2">
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)] flex items-center gap-2">
                 <Send size={10} className="text-[var(--color-cta)]" /> Telegram Username
                 <span className="text-[var(--color-text-muted)] normal-case font-normal">(optional)</span>
               </label>
               <input
                 type="text"
                 placeholder="@yourusername"
-                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
+                className="w-full mt-1.5 bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-[var(--radius-lg)] px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]/50 focus:ring-1 focus:ring-[var(--color-accent)]/25 transition-all"
                 value={form.telegram}
                 onChange={(e) => setForm({ ...form, telegram: e.target.value })}
               />
@@ -116,7 +115,7 @@ export default function SignUpPage() {
             </div>
 
             {error && (
-              <div className="text-[var(--color-danger)] text-sm bg-[var(--color-danger)]/10 p-3 rounded-xl border border-[var(--color-danger)]/20">
+              <div className="text-[var(--color-danger)] text-sm bg-[var(--color-danger)]/10 p-3 rounded-[var(--radius-lg)] border border-[var(--color-danger)]/20">
                 {error}
               </div>
             )}
@@ -124,7 +123,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:hover:shadow-none"
+              className="w-full bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-[var(--radius-lg)] transition-colors disabled:opacity-50 disabled:hover:shadow-none"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
@@ -141,8 +140,8 @@ export default function SignUpPage() {
 
       {/* Telegram Activation Popup */}
       {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-bg)]/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-[var(--color-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-8 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-bg)]/80 animate-fade-in">
+          <div className="w-full max-w-md bg-[var(--color-surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-8 relative">
             <div className="w-16 h-16 bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Send size={28} className="text-[var(--color-cta)]" />
             </div>
@@ -153,7 +152,7 @@ export default function SignUpPage() {
               Your account is created! To receive instant buy/sell alerts, connect your Telegram account to the Quantify bot.
             </p>
 
-            <div className="bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-xl p-4 mb-6">
+            <div className="bg-[var(--color-surface-raised)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 mb-6">
               <ol className="list-decimal list-inside text-sm text-[var(--color-text-primary)] space-y-2 font-medium">
                 <li>Open Telegram using the button below.</li>
                 <li>Tap <span className="text-[var(--color-cta)] font-mono text-xs bg-[var(--color-cta)]/10 px-1.5 py-0.5 rounded">START</span> in the bot chat.</li>
@@ -166,7 +165,7 @@ export default function SignUpPage() {
                 href="https://t.me/QuantifyAlertbot?start=start" 
                 target="_blank" 
                 rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-xl transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 bg-[var(--color-cta)] hover:bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-semibold py-3.5 rounded-[var(--radius-lg)] transition-colors"
               >
                 <Send size={18} /> Open @QuantifyAlertbot
               </a>
