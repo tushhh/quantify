@@ -1,679 +1,293 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Sparkles, RefreshCw, TrendingUp, TrendingDown, Clock, Database,
-  AlertTriangle, Info, ArrowUpRight,
-} from "lucide-react";
-import { api, PredictionExplanation, PredictionResponse } from "@/lib/api";
-import { Card, CardHeader, Alert } from "@/components/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { api, errorMessage, type PredictionItem, type PredictionResponse } from "@/lib/api";
 
-const TABLE_HEADERS = ["Stock", "Sector", "Signal", "Strength", "Return 21d", "Drivers"];
+// Shared axis for every range bar, so ranges can be compared down the list (percent).
+const AXIS_MIN = -20;
+const AXIS_MAX = 30;
 
-function StrengthBar({ value, side }: { value: number; side: string }) {
-  const pct = Math.abs(value) * 100;
-  const isLong = side === "long";
+const pct = (v?: number | null, digits = 1) =>
+  v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}%`;
+
+const toAxis = (v: number) => ((Math.min(Math.max(v, AXIS_MIN), AXIS_MAX) - AXIS_MIN) / (AXIS_MAX - AXIS_MIN)) * 100;
+
+const longDate = (iso?: string | null) =>
+  iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
+
+// The list made from a month's last close is held through the following month.
+const heldMonth = (asOf?: string | null) => {
+  if (!asOf) return "";
+  const d = new Date(`${asOf}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 5);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+};
+
+const SECTOR_SHORT: Record<string, string> = {
+  "Information Technology": "Tech",
+  "Communication Services": "Communications",
+  "Consumer Discretionary": "Consumer disc.",
+  "Consumer Staples": "Consumer staples",
+  "Health Care": "Health care",
+  "Real Estate": "Real estate",
+};
+
+function RangeBar({ low, high, expected, index }: { low: number; high: number; expected: number; index: number }) {
+  const left = toAxis(low);
+  const right = toAxis(high);
   return (
-    <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-raised)] overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${isLong ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`}
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-      </div>
-      <span className={`text-[10px] font-mono tabular-nums w-8 text-right ${isLong ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
-        {pct.toFixed(0)}%
-      </span>
+    <div className="relative h-9" role="img" aria-label={`Likely range ${pct(low, 0)} to ${pct(high, 0)}, expected ${pct(expected)}`}>
+      <div className="absolute inset-x-0 top-3 h-px bg-[var(--color-border)]" />
+      <div className="absolute top-1 h-4 w-px bg-[var(--color-text-muted)]" style={{ left: `${toAxis(0)}%` }} />
+      <div
+        className="range-draw absolute top-3 h-1.5 -translate-y-1/2 rounded-full bg-[var(--color-accent)]/50"
+        style={{ left: `${left}%`, width: `${right - left}%`, animationDelay: `${index * 60}ms` }}
+      />
+      <div className="absolute top-3 h-3.5 w-0.5 -translate-y-1/2 rounded-full bg-[var(--color-text-primary)]" style={{ left: `calc(${toAxis(expected)}% - 1px)` }} />
+      <span className="absolute top-5 -translate-x-1/2 font-mono text-[11px] text-[var(--color-danger)]" style={{ left: `${left}%` }}>{pct(low, 0)}</span>
+      <span className="absolute top-5 -translate-x-1/2 font-mono text-[11px] text-[var(--color-success)]" style={{ left: `${right}%` }}>{pct(high, 0)}</span>
     </div>
   );
 }
 
-function SectorBadge({ sector }: { sector: string }) {
-  const colors: Record<string, string> = {
-    "Information Technology": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Health Care": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Financials": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Consumer Discretionary": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Consumer Staples": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Industrials": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Energy": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Materials": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Real Estate": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Utilities": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-    "Communication Services": "text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] border-[var(--border)]",
-  };
-  const cls = colors[sector] ?? "text-[var(--color-text-muted)] bg-[var(--color-surface-raised)] border-[var(--color-border)]";
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-semibold tracking-wide ${cls}`}>
-      {sector.replace("Information Technology", "Tech").replace("Communication Services", "Comms").replace("Consumer ", "Cons. ")}
-    </span>
-  );
-}
+const BANDS = [
+  { label: "Ranks 1 to 5", from: 1, to: 5 },
+  { label: "Ranks 6 to 10", from: 6, to: 10 },
+  { label: "Ranks 11 to 15", from: 11, to: 15 },
+];
 
-function ExplanationPills({ items }: { items?: PredictionExplanation[] }) {
-  if (!items || items.length === 0) {
-    return <span className="text-[10px] text-[var(--color-text-muted)]">No drivers</span>;
-  }
+function BandRow({ label, first, index }: { label: string; first: PredictionItem; index: number }) {
+  const hasForecast = first.forecast_low_pct != null && first.forecast_high_pct != null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {items.slice(0, 3).map((item) => (
-        <span
-          key={`${item.feature}-${item.zscore}`}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] text-[var(--color-text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        >
-          <span className={item.direction === "higher" ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
-            {item.direction === "higher" ? "▲" : "▼"}
-          </span>
-          <span className="font-mono">{item.feature}</span>
-          <span className="text-[var(--color-text-muted)]">z={item.zscore.toFixed(2)}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function DriverLegend() {
-  const items = [
-    { label: "sma_crossover", desc: "Short MA vs long MA. Bullish when shorter averages are above longer ones.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-    { label: "rsi_14", desc: "14-day Relative Strength Index. Higher values show stronger momentum; extremes can signal overbought/oversold conditions.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-    { label: "macd_histogram", desc: "MACD momentum spread. Positive values often mean momentum is improving; negative values mean it is weakening.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-    { label: "return_63d / return_126d", desc: "Medium-term price trend over roughly 3 to 6 months.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-    { label: "volatility_*", desc: "How much the stock has been moving. Higher volatility means larger swings and less stability.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-    { label: "amihud_illiquidity", desc: "Liquidity proxy. Higher values mean the stock is harder to trade without moving price.", tone: "text-[var(--color-text-secondary)]", bg: "bg-[var(--color-surface-raised)]", border: "border-[var(--border)]" },
-  ];
-
-  return (
-    <div className="mt-4 pt-4 border-t border-[var(--border)]/70 flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-text-muted)] font-semibold">
-          Feature guide
-        </p>
-        <p className="text-[12px] md:text-[13px] text-[var(--color-text-muted)] max-w-2xl leading-relaxed">
-          The pills show the top features that pushed the model toward a long or short signal. The z-score tells you how unusual the value is versus the recent history.
-        </p>
-      </div>
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className={`rounded-2xl border px-3 py-2 text-[11px] md:text-[12px] ${item.bg} ${item.border} ${item.tone}`}
-          >
-            <div className="font-semibold uppercase tracking-[0.18em] text-[10px]">{item.label}</div>
-            <div className="mt-1 text-[var(--color-text-secondary)] leading-relaxed">{item.desc}</div>
+    <tr className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+      <td colSpan={6} className="px-4 py-3">
+        <div className="grid gap-x-6 gap-y-2 grid-cols-[1fr_auto_auto] sm:grid-cols-[minmax(0,1.3fr)_auto_minmax(12rem,2fr)_auto] items-start">
+          <div>
+            <div className="text-sm font-medium text-[var(--color-text-primary)]">{label}</div>
+            <div className="mt-0.5 text-xs text-[var(--color-text-secondary)]">Next-month forecast per stock</div>
           </div>
-        ))}
-      </div>
-    </div>
+          <div className="text-right">
+            <div className="font-mono text-base text-[var(--color-text-primary)]">{pct(first.predicted_return_pct)}</div>
+            <div className="text-xs text-[var(--color-text-secondary)]">expected</div>
+          </div>
+          <div className="col-span-3 row-start-2 sm:col-span-1 sm:row-start-auto">
+            {hasForecast && <RangeBar low={first.forecast_low_pct!} high={first.forecast_high_pct!} expected={first.predicted_return_pct} index={index} />}
+          </div>
+          <div className="text-right">
+            <div className="font-mono text-base text-[var(--color-text-primary)]">
+              {first.forecast_beat_spy_pct != null ? `${first.forecast_beat_spy_pct.toFixed(1)}%` : "–"}
+            </div>
+            <div className="text-xs text-[var(--color-text-secondary)]">chance to beat SPY</div>
+          </div>
+        </div>
+      </td>
+    </tr>
   );
 }
 
-export default function PredictPage() {
+function PickRow({ s, rank }: { s: PredictionItem; rank: number }) {
+  return (
+    <tr className="border-t border-[var(--color-border)]/60">
+      <td className="py-2 pl-4 pr-2 w-10 font-mono text-xs text-[var(--color-text-muted)]">{rank}</td>
+      <td className="py-2 pr-4">
+        <span className="font-mono text-sm font-medium text-[var(--color-text-primary)]">{s.symbol}</span>
+        <span className="block sm:inline sm:ml-2 text-xs text-[var(--color-text-secondary)]">{s.name || s.symbol}</span>
+      </td>
+      <td className="py-2 pr-4 text-right font-mono text-sm text-[var(--color-success)]">{pct(s.return_6m_pct, 0)}</td>
+      <td className="hidden sm:table-cell py-2 pr-4 text-right font-mono text-sm text-[var(--color-success)]">{pct(s.return_12m_pct, 0)}</td>
+      <td className="hidden sm:table-cell py-2 pr-6 text-right font-mono text-sm text-[var(--color-text-secondary)]">{pct(s.pct_above_ma200, 0)}</td>
+      <td className="hidden md:table-cell py-2 pr-4 text-right text-xs text-[var(--color-text-secondary)] whitespace-nowrap">
+        {SECTOR_SHORT[s.sector] ?? s.sector}
+      </td>
+    </tr>
+  );
+}
+
+function SkeletonRows() {
+  return (
+    <tbody>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <tr key={i} className="border-t border-[var(--color-border)]">
+          <td colSpan={6} className="py-3 px-4"><div className="skeleton h-5 rounded-[var(--radius-sm)]" /></td>
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+export default function PicksPage() {
   const [result, setResult] = useState<PredictionResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [forcing, setForcing] = useState(false);
-  const [isComputing, setIsComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [topN, setTopN] = useState(10);
-  const [sectorFilter, setSectorFilter] = useState<string>("");
-  const [directionFilter, setDirectionFilter] = useState<"all" | "long" | "short">("all");
-  const [sectors, setSectors] = useState<string[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [predictionMode, setPredictionMode] = useState<"live" | "previous_close">("previous_close");
+  const [loading, setLoading] = useState(true);
+  const [sector, setSector] = useState("");
 
-  // Use a ref to track computing state inside callbacks without causing
-  // dependency changes that would re-trigger useEffect and create an
-  // infinite render loop.
-  const isComputingRef = useRef(false);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchPredictions = useCallback(async function fetchPredictions(force = false, mode: "live" | "previous_close" = predictionMode) {
+  const load = useCallback(async () => {
+    setLoading(true);
     setError(null);
-    if (force) setForcing(true);
-    else if (!isComputingRef.current) setLoading(true);
-
     try {
-      const data = await api.predict.best(50, sectorFilter || undefined, force, mode);
-      if (data.status === "computing") {
-        isComputingRef.current = true;
-        setIsComputing(true);
-        // Clear any existing poll timer before setting a new one
-        if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-        pollTimerRef.current = setTimeout(() => fetchPredictions(false, mode), 10000);
-      } else {
-        isComputingRef.current = false;
-        setIsComputing(false);
-        setResult(data);
-        setHasLoaded(true);
-        setLoading(false);
-        setForcing(false);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load predictions. Please try again.");
-      isComputingRef.current = false;
-      setIsComputing(false);
+      setResult(await api.predict.best(15));
+    } catch (err) {
+      setError(errorMessage(err, "The picks couldn't be loaded. Try again in a minute."));
+    } finally {
       setLoading(false);
-      setForcing(false);
     }
-  }, [predictionMode, sectorFilter]);
-
-  const handleModeChange = useCallback((nextMode: "live" | "previous_close") => {
-    if (nextMode === predictionMode) return;
-    // Clear any pending poll when switching modes
-    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    isComputingRef.current = false;
-    setIsComputing(false);
-    setPredictionMode(nextMode);
-    fetchPredictions(false, nextMode);
-  }, [fetchPredictions, predictionMode]);
-
-  // Initial load — only runs when predictionMode or sectorFilter changes,
-  // NOT when isComputing toggles (which was the source of the infinite loop).
-  useEffect(() => {
-    fetchPredictions(false);
-    return () => {
-      // Cleanup poll timer on unmount or dependency change
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    };
-  }, [fetchPredictions]);
-
-  useEffect(() => {
-    api.predict.sectors().then(setSectors).catch(() => {});
   }, []);
 
-  const signals = (result?.signals ?? []).filter(s => {
-    if (directionFilter !== "all" && s.side !== directionFilter) return false;
-    if (sectorFilter && s.sector.toLowerCase() !== sectorFilter.toLowerCase()) return false;
-    return true;
-  }).slice(0, topN);
+  useEffect(() => { load(); }, [load]);
 
-  const topSignals = signals.slice(0, 3);
-  const longs = signals.filter(s => s.side === "long").length;
-  const shorts = signals.filter(s => s.side === "short").length;
-  // The trend screen (monthly, long-only) replaced the ML ensemble; older cache files are still ML.
-  const isTrend = result?.method === "trend";
+  const picks = useMemo(() => (result?.signals ?? []).filter((s) => s.side === "long"), [result]);
+  const sectors = useMemo(() => Array.from(new Set(picks.map((s) => s.sector))).sort(), [picks]);
+  const shown = sector ? picks.filter((s) => s.sector === sector) : picks;
   const bt = result?.backtest;
-  const pct = (v?: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`);
-  const tableHeaders = isTrend
-    ? ["Stock", "Sector", "Signal", "Next-month forecast", "Chance to beat SPY", "Why it was picked"]
-    : TABLE_HEADERS;
+  const isTrend = result?.method === "trend";
 
   return (
-    <div className="min-h-screen pt-16 pb-16 md:pb-10 animate-fade-in relative overflow-hidden prediction-aurora">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 right-[-8%] h-72 w-72 rounded-full bg-[var(--color-cta)]/10 blur-3xl animate-float-slow" />
-        <div className="absolute top-24 left-[-6%] h-64 w-64 rounded-full bg-[var(--color-success)]/10 blur-3xl animate-float-slower" />
-        <div className="absolute bottom-[-20%] right-1/3 h-80 w-80 rounded-full bg-[var(--color-danger)]/10 blur-[120px] animate-float-slow" />
-      </div>
-      <div className="max-w-[1800px] mx-auto px-3 lg:px-5 flex flex-col gap-3 relative z-10">
+    <div className="max-w-[1320px]">
+      <header className="max-w-3xl">
+        <h1 className="text-[25px] leading-tight font-semibold tracking-tight text-[var(--color-text-primary)]">
+          {isTrend ? `Trend picks for ${heldMonth(result?.as_of)}` : "This month's picks"}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+          {isTrend ? (
+            <>
+              The fifteen strongest 6- and 12-month trends among the 100 most-traded S&amp;P 500 stocks, set from the{" "}
+              {longDate(result?.as_of)} close and held until the next list on {longDate(result?.next_refresh)}.
+              Each forecast is what stocks at that rank did over the following month, from 2017 to 2026.
+            </>
+          ) : (
+            "The fifteen strongest trends among the 100 most-traded S&P 500 stocks, updated after each month's last close."
+          )}
+        </p>
+      </header>
 
-        {/* Page Header */}
-        <div className="animate-fade-in-up flex flex-col xl:flex-row xl:items-end xl:justify-between gap-3">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--color-surface)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-secondary)]">
-              Prediction Lab
-            </div>
-            <div className="flex items-center gap-3 mt-3">
-              <div className="w-10 h-10 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-[var(--color-cta)]/30">
-                <Sparkles size={18} className="text-[var(--color-text-inverse)]" />
-              </div>
-              <h1 className="text-4xl md:text-5xl font-black text-[var(--color-text-primary)] tracking-tight">{isTrend ? "Trend picks" : "ML stock screener"}</h1>
-            </div>
-            <p className="text-[var(--color-text-secondary)] text-base mt-3 max-w-2xl leading-relaxed">
-              {isTrend
-                ? "The strongest-trending of the 100 most-traded S&P 500 stocks. The list is set from the last close of each month and held for the month."
-                : "Ranked S&P 500 signals, with drivers pulled from the top ML features."}
-            </p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {(isTrend
-                ? ["Monthly list", "100 most-traded S&P 500", "Long only", "Backtested 2017-2026"]
-                : ["3Y history", "Top/Bottom decile", "21D horizon", "S&P 500 only"]
-              ).map((chip) => (
-                <span key={chip} className="text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
-                  {chip}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center gap-3 ml-0 flex-wrap xl:justify-end">
-            {result && isTrend && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-muted)]">
-                <Clock size={11} className="text-[var(--color-accent)]" />
-                <span>List from the <span className="font-mono text-[var(--color-text-secondary)]">{result.as_of}</span> close</span>
-                <span className="mx-1 text-[var(--color-text-muted)]">|</span>
-                <span>Next update <span className="font-mono text-[var(--color-text-secondary)]">{result.next_refresh}</span></span>
-              </div>
-            )}
-            {result && !isTrend && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-muted)]">
-                {result.cached ? (
-                  <>
-                    <Clock size={11} className="text-[var(--color-accent)]" />
-                    <span className="text-[var(--color-accent)]">Cached</span>
-                    <span>· {result.cache_age_minutes.toFixed(0)}m ago</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
-                    <span className="text-[var(--color-success)]">Fresh</span>
-                    <span>· {result.date}</span>
-                  </>
-                )}
-                <span className="mx-1 text-[var(--color-text-muted)]">|</span>
-                <Database size={11} />
-                <span>{result.universe_size} stocks scanned</span>
-              </div>
-            )}
-            {!isTrend && (<>
-            <div className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <button
-                type="button"
-                onClick={() => handleModeChange("previous_close")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all ${
-                  predictionMode === "previous_close"
-                    ? "bg-[var(--color-surface)]/25 text-[var(--color-text-primary)] shadow-sm"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-                }`}
-              >
-                <Clock size={11} className={predictionMode === "previous_close" ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"} />
-                Previous Close
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModeChange("live")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all ${
-                  predictionMode === "live"
-                    ? "bg-[var(--color-surface)]/25 text-[var(--color-text-primary)] shadow-sm"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-                }`}
-              >
-                <ArrowUpRight size={11} className={predictionMode === "live" ? "text-[var(--color-success)]" : "text-[var(--color-text-muted)]"} />
-                Live
-              </button>
-            </div>
-            <button
-              id="screener-rerun-btn"
-              onClick={() => fetchPredictions(true, predictionMode)}
-              disabled={forcing || isComputing || loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-[var(--color-text-inverse)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-[var(--color-cta)]/30"
-            >
-              <RefreshCw size={13} className={forcing || isComputing ? "animate-spin" : ""} />
-              {forcing || isComputing ? "Recomputing…" : "Re-run predictions"}
-            </button>
-            </>)}
-          </div>
-        </div>
-
-        {(forcing || isComputing) && (
-          <Alert variant="warning">
-            <strong>Training Models in Background</strong> — the ML ensemble is training on ~100 stocks. This will take ~2–3 minutes. You can safely close this page, it will auto-refresh when ready.
-          </Alert>
-        )}
-
-        {error && (
-          <Alert variant="danger">
-            <div className="flex items-start gap-2">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <div>
-                <strong>Prediction failed</strong>
-                <p className="text-xs mt-0.5 opacity-80">{error}</p>
-              </div>
-            </div>
-          </Alert>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
-
-          <div className="flex flex-col gap-4 animate-slide-in-left">
-            <Card variant="compact">
-              <CardHeader title="Filters" subtitle="Narrow your results" density="compact" />
-              <div className="flex flex-col gap-4">
-
-                <div>
-                  <label className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold block mb-1.5">
-                    Show Top N
-                  </label>
-                  <select
-                    id="screener-top-n"
-                    className="input-field"
-                    value={topN}
-                    onChange={e => setTopN(Number(e.target.value))}
-                  >
-                    {[5, 10, 20, 50].map(n => (
-                      <option key={n} value={n}>Top {n} stocks</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold block mb-1.5">
-                    Sector
-                  </label>
-                  <select
-                    id="screener-sector-filter"
-                    className="input-field"
-                    value={sectorFilter}
-                    onChange={e => setSectorFilter(e.target.value)}
-                  >
-                    <option value="">All Sectors</option>
-                    {sectors.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold block mb-1.5">
-                    Direction
-                  </label>
-                  <div className="grid grid-cols-3 gap-1">
-                    {(["all", "long", "short"] as const).map(d => (
-                      <button
-                        key={d}
-                        id={`screener-dir-${d}`}
-                        onClick={() => setDirectionFilter(d)}
-                        className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                          directionFilter === d
-                            ? d === "long"
-                              ? "bg-[var(--color-success)]/15 border-[var(--color-success)] text-[var(--color-success)]"
-                              : d === "short"
-                              ? "bg-[var(--color-danger)]/15 border-[var(--color-danger)] text-[var(--color-danger)]"
-                              : "bg-[var(--color-accent)]/15 border-[var(--color-accent)] text-[var(--color-accent)]"
-                            : "border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)]"
-                        }`}
-                      >
-                        {d.charAt(0).toUpperCase() + d.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {result && !loading && (
-              <Card variant="compact">
-                <CardHeader title="Summary" density="compact" />
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-text-muted)]">Showing</span>
-                    <span className="text-[var(--color-text-inverse)] font-semibold">{signals.length} stocks</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[var(--color-text-muted)] flex items-center gap-1.5"><TrendingUp size={11} className="text-[var(--color-success)]" /> Bullish picks</span>
-                    <span className="text-[var(--color-success)] font-semibold">{longs}</span>
-                  </div>
-                  {!isTrend && (
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-[var(--color-text-muted)] flex items-center gap-1.5"><TrendingDown size={11} className="text-[var(--color-danger)]" /> Bearish picks</span>
-                      <span className="text-[var(--color-danger)] font-semibold">{shorts}</span>
-                    </div>
-                  )}
-                  <div className="h-px bg-[var(--border)] my-1" />
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-text-muted)]">{isTrend ? "Stocks considered" : "Universe scanned"}</span>
-                    <span className="text-[var(--color-text-secondary)] font-mono">{result.universe_size}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-text-muted)]">{isTrend ? "Based on close of" : "Model date"}</span>
-                    <span className="text-[var(--color-text-secondary)] font-mono">{isTrend ? result.as_of : result.date}</span>
-                  </div>
-                  {isTrend && bt && (
-                    <>
-                      <div className="h-px bg-[var(--border)] my-1" />
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">Backtest {bt.start} to {bt.end}, after costs</div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">Return per year</span>
-                        <span className="font-mono"><span className="text-[var(--color-success)]">{bt.cagr_pct.toFixed(1)}%</span> <span className="text-[var(--color-text-muted)]">vs SPY {bt.spy_cagr_pct.toFixed(1)}%</span></span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">Months beating SPY</span>
-                        <span className="text-[var(--color-text-secondary)] font-mono">{bt.months_beat_spy_pct.toFixed(0)}%</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">Worst drawdown</span>
-                        <span className="font-mono"><span className="text-[var(--color-danger)]">{bt.max_drawdown_pct.toFixed(1)}%</span> <span className="text-[var(--color-text-muted)]">vs SPY {bt.spy_max_drawdown_pct.toFixed(1)}%</span></span>
-                      </div>
-                      <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-                        It still lost to SPY in {bt.losing_years ?? "some years"}, so expect losing stretches.
-                      </p>
-                    </>
-                  )}
-                  {!isTrend && result.model_metrics && (
-                    <>
-                      <div className="h-px bg-[var(--border)] my-1" />
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">Validation</div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">Hit rate</span>
-                        <span className="text-[var(--color-text-secondary)] font-mono">{((result.model_metrics.hit_rate ?? 0) * 100).toFixed(0)}%</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">Spearman IC</span>
-                        <span className="text-[var(--color-text-secondary)] font-mono">{(result.model_metrics.spearman_ic ?? 0).toFixed(3)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--color-text-muted)]">RMSE</span>
-                        <span className="text-[var(--color-text-secondary)] font-mono">{(result.model_metrics.rmse ?? 0).toFixed(4)}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </Card>
-            )}
-
-            <Card variant="compact">
-              <CardHeader title="How it works" density="compact" />
-              <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
-                {isTrend ? (
-                  <>
-                    <p>Takes the <strong className="text-[var(--color-text-secondary)]">100 most-traded S&P 500 stocks</strong> and ranks them by their 6- and 12-month returns.</p>
-                    <p>Stocks trading below their 200-day average are skipped. The top 15 make the list.</p>
-                    <p>Each pick&apos;s <strong className="text-[var(--color-text-secondary)]">next-month forecast</strong> is what stocks at that rank actually did over the following month from 2017 to 2026: the average, the chance of beating SPY, and the range that covered 80% of outcomes. Single stocks are noisy; the edge comes from holding the list.</p>
-                    <p>The list is set from the <strong className="text-[var(--color-text-secondary)]">last close of each month</strong> and held for the month, which is how it was backtested.</p>
-                    <p>We switched to this in October 2026 because, tested on past data, the previous ML picks lost to SPY after trading costs.</p>
-                  </>
-                ) : (
-                  <>
-                    <p>The ML ensemble trains on <strong className="text-[var(--color-text-secondary)]">3 years of price & feature data</strong> from the S&P 500 and ranks each stock&apos;s expected 21-day performance.</p>
-                    <p>The <strong className="text-[var(--color-text-secondary)]">top decile → long</strong>, <strong className="text-[var(--color-text-secondary)]">bottom decile → short</strong>.</p>
-                    <p>Drivers highlight the most extreme features (z-scores) behind each rank.</p>
-                  </>
-                )}
-                <div className="h-px bg-[var(--border)] my-1" />
-                <Link
-                  href="/backtest"
-                  className="flex items-center gap-1.5 text-[var(--color-accent)] hover:opacity-80 transition-opacity font-semibold"
+      <div className="mt-8 grid gap-8 grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section aria-labelledby="picks-heading" className="min-w-0">
+          <div className="flex items-end justify-between gap-4 mb-3">
+            <h3 id="picks-heading" className="text-base font-medium text-[var(--color-text-primary)]">
+              {sector ? `${shown.length} of ${picks.length} picks in ${sector}` : `${picks.length || 15} picks, ranked by trend strength`}
+            </h3>
+            {sectors.length > 1 && (
+              <label className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                Sector
+                <select
+                  value={sector}
+                  onChange={(e) => setSector(e.target.value)}
+                  className="h-8 px-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] text-xs"
                 >
-                  Validate model in Backtest
-                  <ArrowUpRight size={12} />
+                  <option value="">All sectors</option>
+                  {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
+
+          {error && (
+            <div role="alert" className="mb-4 flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--color-danger)]/40 bg-[var(--color-danger-subtle)] px-4 py-3">
+              <p className="text-sm text-[var(--color-text-primary)]">{error}</p>
+              <button onClick={load} className="h-8 px-3 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white text-xs font-medium shrink-0">
+                Try again
+              </button>
+            </div>
+          )}
+
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="text-xs text-[var(--color-text-secondary)]">
+                <tr>
+                  <th scope="col" className="py-2.5 pl-4 pr-2 font-normal text-left">Rank</th>
+                  <th scope="col" className="py-2.5 pr-4 font-normal text-left">Stock</th>
+                  <th scope="col" className="py-2.5 pr-4 font-normal text-right">Past 6 months</th>
+                  <th scope="col" className="hidden sm:table-cell py-2.5 pr-4 font-normal text-right">Past 12 months</th>
+                  <th scope="col" className="hidden sm:table-cell py-2.5 pr-6 font-normal text-right">Above 200-day average</th>
+                  <th scope="col" className="hidden md:table-cell py-2.5 pr-4 font-normal text-right">Sector</th>
+                </tr>
+              </thead>
+              {loading && !result ? (
+                <SkeletonRows />
+              ) : (
+                <tbody>
+                  {BANDS.map((band, bi) => {
+                    const members = shown.filter((s) => {
+                      const r = picks.indexOf(s) + 1;
+                      return r >= band.from && r <= band.to;
+                    });
+                    if (!members.length) return null;
+                    return [
+                      <BandRow key={band.label} label={band.label} first={members[0]} index={bi} />,
+                      ...members.map((s) => <PickRow key={s.symbol} s={s} rank={picks.indexOf(s) + 1} />),
+                    ];
+                  })}
+                </tbody>
+              )}
+            </table>
+            {!loading && !error && picks.length === 0 && (
+              <div className="px-4 py-10 text-center">
+                <p className="text-sm text-[var(--color-text-primary)]">No list has been published yet.</p>
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  A new list is made after each month&apos;s last close. Meanwhile, you can test the rule in a backtest.
+                </p>
+                <Link href="/backtest" className="mt-4 inline-flex h-8 items-center px-3 rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-white text-xs font-medium">
+                  Run a backtest
                 </Link>
               </div>
-            </Card>
+            )}
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)] max-w-3xl">
+            Each band&apos;s bar spans the 10th to 90th percentile of next-month returns for past picks at those ranks (8 in 10
+            outcomes fell inside it); the white tick is the average and the grey line is zero. Single stocks swing widely: the
+            edge has come from holding the whole list.
+          </p>
+        </section>
 
-          <div className="animate-fade-in-up min-w-0">
-            {topSignals.length > 0 && (
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
-                {topSignals.map((s, i) => (
-                  <div
-                    key={s.symbol}
-                    className={`relative overflow-hidden rounded-3xl border bg-[var(--color-surface)]/60 p-6 shadow-xl animate-fade-in-up ${
-                      i === 0 ? "border-[var(--color-cta)]/40" : "border-[var(--border)]"
-                    }`}
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  >
-                    <div className="absolute -top-16 -right-12 h-32 w-32 rounded-full bg-[var(--color-cta)]/10 blur-2xl" />
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                      <span>Rank {String(i + 1).padStart(2, "0")}</span>
-                      <span className={s.side === "long" ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>{s.side}</span>
-                    </div>
-                    <div className="mt-3 text-[2.15rem] font-black text-[var(--color-text-inverse)] tracking-tight leading-none">
-                      {s.symbol}
-                    </div>
-                    <div className="text-sm text-[var(--color-text-muted)] mt-1 truncate">{s.name || s.symbol}</div>
-                    {isTrend ? (
-                      <div className="mt-3 flex flex-col gap-1.5 text-xs">
-                        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Next-month forecast</div>
-                        <div className="flex items-baseline justify-between">
-                          <span className={`font-mono text-xl font-bold ${s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(s.predicted_return_pct)}</span>
-                          <span className="font-mono text-[var(--color-text-secondary)]">{s.forecast_beat_spy_pct?.toFixed(1)}% chance to beat SPY</span>
-                        </div>
-                        <div className="font-mono text-[var(--color-text-muted)]">Likely range {pct(s.forecast_low_pct)} to {pct(s.forecast_high_pct)}</div>
-                        <div className="text-[var(--color-text-muted)]">Picked for its trend: past 6m {pct(s.return_6m_pct)}, past 12m {pct(s.return_12m_pct)}</div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="mt-3 flex items-center justify-between text-sm">
-                          <span className="font-mono font-semibold text-[var(--color-text-secondary)]">
-                            Rank score {s.predicted_return_pct.toFixed(2)}
-                          </span>
-                          <span className="text-[var(--color-text-muted)]">Strength {Math.abs(s.strength).toFixed(2)}</span>
-                        </div>
-                        <div className="mt-3">
-                          <ExplanationPills items={s.explanations} />
-                        </div>
-                      </>
-                    )}
+        <aside aria-label="Track record" className="flex flex-col gap-6 text-sm">
+          <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <h3 className="font-medium text-[var(--color-text-primary)]">How this rule has done</h3>
+            {bt ? (
+              <>
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Backtest, {bt.start} to {bt.end}, after trading costs</p>
+                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <dt className="text-xs text-[var(--color-text-secondary)]">Return per year</dt>
+                    <dd className="font-mono text-lg text-[var(--color-success)]">{bt.cagr_pct.toFixed(1)}%</dd>
                   </div>
-                ))}
+                  <div>
+                    <dt className="text-xs text-[var(--color-text-secondary)]">SPY per year</dt>
+                    <dd className="font-mono text-lg text-[var(--color-text-primary)]">{bt.spy_cagr_pct.toFixed(1)}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-[var(--color-text-secondary)]">Worst drop</dt>
+                    <dd className="font-mono text-lg text-[var(--color-danger)]">{bt.max_drawdown_pct.toFixed(0)}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-[var(--color-text-secondary)]">SPY worst drop</dt>
+                    <dd className="font-mono text-lg text-[var(--color-text-primary)]">{bt.spy_max_drawdown_pct.toFixed(0)}%</dd>
+                  </div>
+                </dl>
+                <p className="mt-4 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                  Beat SPY in {bt.months_beat_spy_pct.toFixed(0)}% of months and lost to it in {bt.losing_years}.
+                  The forecasts come from the same history the rule was chosen on, so treat them as optimistic.
+                </p>
+              </>
+            ) : (
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="skeleton h-4 rounded-[var(--radius-sm)]" />
+                <div className="skeleton h-4 w-2/3 rounded-[var(--radius-sm)]" />
               </div>
             )}
-            <Card variant="compact">
-              <CardHeader
-                title={isTrend ? "This month's picks" : "Top predictions"}
-                subtitle={isTrend ? `Ranked by trend strength · list from the ${result?.as_of} close` : `ML-ranked stocks · ${result?.date ?? "Loading…"}`}
-                density="compact"
-              />
+          </section>
 
-              {(loading && !hasLoaded) && (
-                <div className="flex flex-col gap-2">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="skeleton h-12 rounded-xl" style={{ animationDelay: `${i * 40}ms` }} />
-                  ))}
-                </div>
-              )}
-
-              {(!loading || hasLoaded) && signals.length > 0 && (
-                <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--color-surface)]">
-                  <div className="min-w-[1120px]">
-                    <div className="grid grid-cols-[18rem_8rem_8rem_11rem_9rem_1fr] gap-x-4 px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)] border-b border-[var(--border)] bg-[var(--color-surface-raised)]">
-                      {tableHeaders.map((h) => (
-                        <div
-                          key={h}
-                          className={`whitespace-nowrap ${h === "Return 21d" || h === "Chance to beat SPY" ? "text-center justify-self-center" : ""}`}
-                        >
-                          {h}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-col gap-4 py-3">
-                      {signals.map((s, i) => (
-                        <div
-                          key={s.symbol}
-                          className={`grid grid-cols-[18rem_8rem_8rem_11rem_9rem_1fr] gap-x-4 px-5 py-4.5 items-center rounded-2xl border border-[var(--border)]/50 animate-fade-in-up ${
-                            i % 2 === 0 ? "bg-[var(--color-surface-raised)]" : "bg-[var(--color-surface)]"
-                          } hover:bg-[var(--color-surface-raised)] transition-colors`}
-                          style={{ animationDelay: `${i * 40}ms` }}
-                        >
-                          <div className="min-w-0">
-                            <div className="flex flex-col gap-1 min-w-0">
-                              <span className="text-[11px] font-mono text-[var(--color-text-muted)]">#{String(i + 1).padStart(2, "0")}</span>
-                              <div className="flex items-baseline gap-2 min-w-0">
-                                <span className="font-mono font-bold text-[var(--color-text-inverse)] text-[15px] tracking-[0.06em]">{s.symbol}</span>
-                                <span className="text-[var(--color-text-secondary)] text-[13px] truncate">{s.name || s.symbol}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="pr-2">
-                            <SectorBadge sector={s.sector} />
-                          </div>
-
-                          <div className="pr-2">
-                            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-bold border ${
-                              s.side === "long"
-                                ? "text-[var(--color-success)] bg-[var(--color-success)]/10 border-[var(--color-success)]/50"
-                                : "text-[var(--color-danger)] bg-[var(--color-danger)]/10 border-[var(--color-danger)]/50"
-                            }`}>
-                              {s.side === "long" ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                              {s.side.toUpperCase()}
-                            </span>
-                          </div>
-
-                          <div className="pr-2">
-                            {isTrend ? (
-                              <div className="flex flex-col gap-0.5 font-mono tabular-nums">
-                                <span className={`text-[14px] font-semibold ${s.predicted_return_pct >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>{pct(s.predicted_return_pct)}</span>
-                                <span className="text-[11px] text-[var(--color-text-muted)] whitespace-nowrap">{pct(s.forecast_low_pct)} to {pct(s.forecast_high_pct)}</span>
-                              </div>
-                            ) : (
-                              <StrengthBar value={s.strength} side={s.side} />
-                            )}
-                          </div>
-
-                          <div className="pr-2 flex items-center justify-center h-full text-center">
-                            {isTrend ? (
-                              <span className="font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap text-[var(--color-text-secondary)]">
-                                {s.forecast_beat_spy_pct?.toFixed(1)}%
-                              </span>
-                            ) : (
-                              <span className="font-mono font-semibold tabular-nums text-[14px] leading-none whitespace-nowrap text-[var(--color-text-secondary)]">
-                                {s.predicted_return_pct.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="pl-1">
-                            {isTrend ? (
-                              <span className="font-mono text-[12px] text-[var(--color-text-muted)]">Past 6m {pct(s.return_6m_pct)} · 12m {pct(s.return_12m_pct)} · {pct(s.pct_above_ma200)} over 200-day avg</span>
-                            ) : (
-                              <ExplanationPills items={s.explanations} />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(!loading || hasLoaded) && signals.length > 0 && !isTrend && <DriverLegend />}
-
-              {(!loading || hasLoaded) && signals.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center py-16 gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-[var(--color-surface)] border border-[var(--border)] flex items-center justify-center">
-                    <Sparkles size={24} className="text-[var(--color-text-muted)]" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[var(--color-text-muted)] text-sm font-semibold">No predictions yet</p>
-                    <p className="text-[var(--color-text-secondary)] text-xs mt-1">
-                      {hasLoaded ? "Try clearing filters or re-running the model." : "Click Re-run Predictions to generate ML signals."}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => fetchPredictions(false)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold gradient-accent text-[var(--color-text-inverse)] hover:opacity-90 transition-opacity"
-                  >
-                    <Sparkles size={13} />
-                    Load Predictions
-                  </button>
-                </div>
-              )}
-            </Card>
-
-            <div className="mt-4 flex items-start gap-2 px-1 text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
-              <Info size={11} className="mt-0.5 shrink-0" />
-              <p>
-                {isTrend
-                  ? "These picks come from a trend rule tested on 2017-2026 data. The list can be concentrated in one theme (lately AI chips), trend stocks can fall fast when a trend breaks, and the list only changes once a month. "
-                  : "These predictions are generated by a machine learning model trained on historical price data. "}
-                They are for <strong className="text-[var(--color-text-muted)]">informational purposes only</strong>. Past performance does not guarantee future results. Always do your own research before making any investment decision.
-              </p>
-            </div>
-          </div>
-        </div>
+          <section className="px-1">
+            <h3 className="font-medium text-[var(--color-text-primary)]">Live record</h3>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+              Every list is saved when it&apos;s published and scored against SPY with what the stocks actually did.
+              {result?.next_refresh ? ` This list is scored when it's replaced on ${longDate(result.next_refresh)}.` : ""}
+            </p>
+            <Link href="/backtest" className="mt-3 inline-block text-xs font-medium text-[var(--color-accent)] hover:underline">
+              Test the rule yourself in Backtest
+            </Link>
+          </section>
+        </aside>
       </div>
     </div>
   );

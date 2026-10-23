@@ -29,8 +29,8 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Portfolio value</p>
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] text-[var(--color-text-muted)] font-bold">Portfolio value</p>
         <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
           {fmt$(summary.total_value)}
         </p>
@@ -39,8 +39,8 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Total invested</p>
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-3">
+        <p className="text-[10px] text-[var(--color-text-muted)] font-bold">Total invested</p>
         <p className="mt-1 text-base font-black tabular-nums text-[var(--color-text-inverse)]">
           {fmt$(summary.total_invested)}
         </p>
@@ -48,7 +48,7 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
       </div>
 
       <div className={`rounded-2xl border p-3 ${isUnrealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
-        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Unrealized P&L</p>
+        <p className="text-[10px] text-[var(--color-text-muted)] font-bold">Unrealized P&L</p>
         <p className={`mt-1 text-base font-black tabular-nums ${isUnrealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
           {isUnrealGain ? "+" : "−"}{fmt$(Math.abs(unreal))}
         </p>
@@ -58,7 +58,7 @@ function PortfolioSummaryCard({ summary }: { summary: PortfolioSummary }) {
       </div>
 
       <div className={`rounded-2xl border p-3 ${real === 0 ? "border-[var(--border)] bg-[var(--color-surface-raised)]" : isRealGain ? "border-[var(--color-success)]/20 bg-[var(--color-success)]/5" : "border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5"}`}>
-        <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold">Realized P&L</p>
+        <p className="text-[10px] text-[var(--color-text-muted)] font-bold">Realized P&L</p>
         <p className={`mt-1 text-base font-black tabular-nums ${real === 0 ? "text-[var(--color-text-secondary)]" : isRealGain ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
           {real === 0 ? "$0.00" : `${isRealGain ? "+" : "−"}${fmt$(Math.abs(real))}`}
         </p>
@@ -186,7 +186,7 @@ function TradeCard({
   const alertText = dipAlert ? (t.alert ? `${dipAlert}\n${t.alert}` : dipAlert) : t.alert;
 
   return (
-    <Card variant="compact" className="shadow-lg relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
+    <Card variant="compact" className="relative overflow-hidden hover:border-[var(--border-bright)] transition-all group">
       {alertText && <div className="absolute top-0 left-0 w-full h-0.5 bg-[var(--color-danger)] animate-pulse" />}
       {!t.alert && hasPrice && (
         <div className={`absolute top-0 left-0 w-full h-0.5 ${isGain ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`} />
@@ -208,27 +208,27 @@ function TradeCard({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
+                <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
                 <input
                   type="number" step="0.01" min="0.01"
-                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-[var(--radius-lg)] w-full"
                   value={editShares}
                   onChange={(e) => setEditShares(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy price $</label>
+                <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">Buy price $</label>
                 <input
                   type="number" step="0.01" min="0.01"
-                  className="input-field text-sm py-1.5 px-2.5 rounded-2xl w-full"
+                  className="input-field text-sm py-1.5 px-2.5 rounded-[var(--radius-lg)] w-full"
                   value={editPrice}
                   onChange={(e) => setEditPrice(e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5 flex flex-col gap-2">
-              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Hold duration</p>
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5 flex flex-col gap-2">
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)]">Hold duration</p>
               <div className="flex gap-1.5">
                 {(["days", "months", "years"] as const).map((unit) => (
                   <label
@@ -247,7 +247,7 @@ function TradeCard({
               <div className="flex items-center gap-2">
                 <input
                   type="number" min="1"
-                  className="input-field max-w-[100px] text-sm py-1 px-2.5 rounded-xl"
+                  className="input-field max-w-[100px] text-sm py-1 px-2.5 rounded-[var(--radius-lg)]"
                   value={editHoldValue}
                   onChange={(e) => setEditHoldValue(e.target.value)}
                 />
@@ -262,7 +262,7 @@ function TradeCard({
                 type="button"
                 onClick={handleSaveEdit}
                 disabled={editSaving}
-                className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl bg-[var(--color-cta)]/15 border border-[var(--color-cta)]/30 text-[var(--color-cta)] hover:bg-[var(--color-cta)]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold py-2 rounded-[var(--radius-lg)] bg-[var(--color-cta)]/15 border border-[var(--color-cta)]/30 text-[var(--color-cta)] hover:bg-[var(--color-cta)]/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 {editSaving ? (
                   <div className="w-3 h-3 border border-[var(--color-cta)]/30 border-t-[var(--color-cta)] rounded-full animate-spin" />
@@ -274,7 +274,7 @@ function TradeCard({
               <button
                 type="button"
                 onClick={() => { setIsEditing(false); setEditError(null); }}
-                className="px-3 text-[10px] font-bold uppercase tracking-wider py-2 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] transition-all"
+                className="px-3 text-[10px] font-bold py-2 rounded-[var(--radius-lg)] border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] transition-all"
               >
                 Cancel
               </button>
@@ -312,13 +312,13 @@ function TradeCard({
                     type="button"
                     onClick={() => setIsEditing(true)}
                     title="Edit position"
-                    className="text-[var(--color-text-muted)] hover:text-[var(--color-cta)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-cta)]/30 hover:bg-[var(--color-cta)]/10 p-1.5 rounded-2xl transition-all"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-cta)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-cta)]/30 hover:bg-[var(--color-cta)]/10 p-1.5 rounded-[var(--radius-lg)] transition-all"
                   >
                     <Pencil size={11} />
                   </button>
                   <button
                     onClick={() => onClose(t.id)}
-                    className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] bg-[var(--color-surface-raised)] border border-[var(--border)] hover:border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 px-2.5 py-1 rounded-[var(--radius-lg)] text-[10px] font-bold transition-all"
                   >
                     Close
                   </button>
@@ -327,21 +327,21 @@ function TradeCard({
             </div>
 
             {alertText && (
-              <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-2xl p-2.5 flex gap-2 items-start">
+              <div className="mt-3 bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 rounded-[var(--radius-lg)] p-2.5 flex gap-2 items-start">
                 <AlertTriangle className="text-[var(--color-danger)] shrink-0 mt-0.5" size={14} />
                 <p className="text-xs text-[var(--color-danger)]/80 font-medium leading-relaxed whitespace-pre-line">{alertText}</p>
               </div>
             )}
 
-            <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
+            <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-2.5">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Dip Alert</p>
+                <p className="text-[10px] font-bold text-[var(--color-text-muted)]">Dip Alert</p>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">0 disables</span>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <input
                   type="number" min="0" max="90" step="0.5"
-                  className="input-field text-xs py-1.5 px-2.5 rounded-2xl max-w-[110px]"
+                  className="input-field text-xs py-1.5 px-2.5 rounded-[var(--radius-lg)] max-w-[110px]"
                   value={dipDraft}
                   onChange={(e) => setDipDraft(e.target.value)}
                 />
@@ -350,7 +350,7 @@ function TradeCard({
                   type="button"
                   onClick={handleSaveDip}
                   disabled={!dipDirty || dipSaving}
-                  className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-2xl border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="ml-auto text-[10px] font-bold px-2.5 py-1.5 rounded-[var(--radius-lg)] border border-[var(--border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] hover:border-[var(--border-bright)] hover:bg-[var(--color-surface-raised)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {dipSaving ? "Saving" : "Save"}
                 </button>
@@ -358,7 +358,7 @@ function TradeCard({
               {dipError && <p className="text-[10px] text-[var(--color-danger)] mt-1">{dipError}</p>}
             </div>
 
-            <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)] uppercase tracking-wider">
+            <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-4 gap-1 text-[10px] font-sans text-[var(--color-text-secondary)]">
               <span>In: {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
               <span className="text-center">Hold: {t.hold_value ?? t.hold_days}{t.hold_unit ? t.hold_unit[0] : "d"}</span>
               <span className="text-center">Dip: {dipThreshold ? `${(dipThreshold * 100).toFixed(1)}%` : "—"}</span>
@@ -560,12 +560,12 @@ export default function PortfolioPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-16 pb-16 md:pb-10 animate-fade-in">
+    <div className="max-w-5xl pb-12">
 
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--border)]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--border)]">
         <div className="flex items-center gap-4">
-          <div className="w-11 h-11 gradient-accent rounded-3xl flex items-center justify-center shadow-lg shadow-[var(--color-cta)]/20 shrink-0">
+          <div className="w-11 h-11 gradient-accent rounded-[var(--radius-lg)] flex items-center justify-center shrink-0">
             <UserCircle className="text-[var(--color-text-inverse)]" size={22} />
           </div>
           <div>
@@ -579,12 +579,12 @@ export default function PortfolioPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/account" className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors px-3 py-1.5 rounded-2xl hover:bg-[var(--color-surface-raised)]/50 border border-[var(--border)] hover:border-[var(--border-bright)]">
+          <Link href="/account" className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-inverse)] transition-colors px-3 py-1.5 rounded-[var(--radius-lg)] hover:bg-[var(--color-surface-raised)]/50 border border-[var(--border)] hover:border-[var(--border-bright)]">
             Settings
           </Link>
           <button
             onClick={logout}
-            className="text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-danger)] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-2xl hover:bg-[var(--color-danger)]/10"
+            className="text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-danger)] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-lg)] hover:bg-[var(--color-danger)]/10"
           >
             <LogOut size={13} /> Logout
           </button>
@@ -612,7 +612,7 @@ export default function PortfolioPage() {
             <button
               onClick={loadPrices}
               disabled={loadingPrices}
-              className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-2xl hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-cta)] transition-colors py-1.5 px-2.5 rounded-[var(--radius-lg)] hover:bg-[var(--color-cta)]/10 disabled:opacity-50"
             >
               <RefreshCw size={12} className={loadingPrices ? "animate-spin" : ""} />
               {loadingPrices ? "Refreshing…" : "Refresh"}
@@ -630,20 +630,20 @@ export default function PortfolioPage() {
 
       {/* ── Log a new trade ───────────────────────────────────────── */}
       <Card variant="compact" className="p-4 mb-4">
-        <h3 className="text-xs font-bold text-[var(--color-cta)] mb-4 flex items-center gap-2 uppercase tracking-wider">
+        <h3 className="text-xs font-bold text-[var(--color-cta)] mb-4 flex items-center gap-2">
           <Plus size={14} /> Log a new trade
         </h3>
         <form onSubmit={handleCreateTrade} className="flex flex-col gap-3">
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Symbol</label>
+              <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">Symbol</label>
               <div className="relative">
                 <input
                   required
                   type="text"
                   placeholder="AAPL"
-                  className="input-field uppercase text-sm py-2 px-3 rounded-2xl"
+                  className="input-field text-sm py-2 px-3 rounded-[var(--radius-lg)]"
                   value={newTrade.symbol}
                   onFocus={() => setSymbolOpen(true)}
                   onBlur={() => setTimeout(() => setSymbolOpen(false), 120)}
@@ -666,7 +666,7 @@ export default function PortfolioPage() {
                   }}
                 />
                 {symbolOpen && (
-                  <div className="absolute z-20 mt-1 w-full rounded-3xl bg-[var(--color-surface-raised)] border border-[var(--border)] shadow-2xl overflow-hidden animate-fade-in">
+                  <div className="absolute z-20 mt-1 w-full rounded-[var(--radius-lg)] bg-[var(--color-surface-raised)] border border-[var(--border)] overflow-hidden animate-fade-in">
                     {filteredSymbols.length > 0 ? (
                       filteredSymbols.map((t, i) => (
                         <button
@@ -694,28 +694,28 @@ export default function PortfolioPage() {
             </div>
 
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
+              <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">Shares</label>
               <input
                 required type="number" step="0.01" min="0.01" placeholder="10"
-                className="input-field text-sm py-2 px-3 rounded-2xl"
+                className="input-field text-sm py-2 px-3 rounded-[var(--radius-lg)]"
                 value={newTrade.shares}
                 onChange={(e) => setNewTrade({ ...newTrade, shares: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-bold block mb-1">Buy $</label>
+              <label className="text-[10px] text-[var(--color-text-muted)] font-bold block mb-1">Buy $</label>
               <input
                 required type="number" step="0.01" min="0.01" placeholder="150.00"
-                className="input-field text-sm py-2 px-3 rounded-2xl"
+                className="input-field text-sm py-2 px-3 rounded-[var(--radius-lg)]"
                 value={newTrade.buy_price}
                 onChange={(e) => setNewTrade({ ...newTrade, buy_price: e.target.value })}
               />
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
-            <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Holding Duration</p>
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)]">Holding Duration</p>
             <div className="flex gap-1.5 flex-wrap">
               {(["days", "months", "years"] as const).map((unit) => (
                 <label
@@ -734,7 +734,7 @@ export default function PortfolioPage() {
             <div className="flex items-center gap-2">
               <input
                 type="number" min="1"
-                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
+                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-[var(--radius-lg)]"
                 value={holdValue}
                 onChange={(e) => setHoldValue(e.target.value)}
               />
@@ -742,15 +742,15 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-surface-raised)] p-3 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Dip Alert Threshold</p>
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)]">Dip Alert Threshold</p>
               <span className="text-[10px] text-[var(--color-text-secondary)]">Optional</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="number" min="0" max="90" step="0.5"
-                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-2xl"
+                className="input-field max-w-[120px] text-sm py-1.5 px-3 rounded-[var(--radius-lg)]"
                 value={dipThresholdPct}
                 onChange={(e) => setDipThresholdPct(e.target.value)}
               />
@@ -774,7 +774,7 @@ export default function PortfolioPage() {
           <button
             type="submit"
             disabled={!canSubmitTrade || submitting}
-            className="w-full gradient-accent text-[var(--color-text-inverse)] font-bold py-2.5 rounded-3xl transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-sm shadow-[var(--color-cta)]/20"
+            className="w-full gradient-accent text-[var(--color-text-inverse)] font-bold py-2.5 rounded-[var(--radius-lg)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
           >
             {submitting ? (
               <><div className="w-4 h-4 border-2 border-[var(--color-border)]/30 border-t-[var(--color-text-inverse)] rounded-full animate-spin" /> Validating…</>
@@ -788,7 +788,7 @@ export default function PortfolioPage() {
       {/* ── Active positions ──────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
         {trades.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 rounded-2xl border border-dashed border-[var(--border)]/20 text-[var(--color-text-secondary)] gap-3">
+          <div className="flex flex-col items-center justify-center py-10 rounded-[var(--radius-lg)] border border-dashed border-[var(--border)]/20 text-[var(--color-text-secondary)] gap-3">
             <Shield size={28} className="opacity-20" />
             <p className="text-sm">No active positions being tracked.</p>
           </div>

@@ -14,7 +14,7 @@ interface StatCardProps {
 export function StatCard({ title, value, change, changeLabel, icon: Icon, className }: StatCardProps) {
   const isPositive = change !== undefined && change >= 0;
   return (
-    <Card className={clsx("hover:shadow-[var(--shadow-md)] transition-shadow duration-200", className)}>
+    <Card className={clsx("hover: transition-shadow duration-200", className)}>
       <CardContent className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-sm text-[var(--color-text-muted)] font-medium">{title}</p>

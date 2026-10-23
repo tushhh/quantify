@@ -23,7 +23,7 @@ function EquityTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm shadow-[var(--shadow-md)]">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
       <p className="text-sm text-[var(--color-text-muted)] mb-1 font-mono">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color }} className="font-mono font-semibold text-[var(--color-text-primary)]">
@@ -41,7 +41,7 @@ function DrawdownTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm shadow-[var(--shadow-md)]">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
       <p className="text-sm text-[var(--color-text-muted)] mb-1 font-mono">{label}</p>
       <p className="font-mono font-semibold text-[var(--color-danger)]">Drawdown: {payload[0].value.toFixed(2)}%</p>
     </div>
@@ -52,7 +52,7 @@ export function EquityCurveChart({ data }: { data: EquityPoint[] }) {
   const hasBenchmark = data.some((d) => d.benchmark_pct !== undefined);
 
   return (
-    <Card className="shadow-[var(--shadow-sm)]">
+    <Card className="">
       <CardHeader className="flex items-start justify-between p-5 pb-0">
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text-primary)] tracking-tight">Equity Curve</h3>
@@ -134,7 +134,7 @@ export function DrawdownChart({ data }: { data: DrawdownPoint[] }) {
   }));
 
   return (
-    <Card className="shadow-[var(--shadow-sm)]">
+    <Card className="">
       <CardHeader className="flex items-start justify-between p-5 pb-0">
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text-primary)] tracking-tight">Drawdown</h3>

@@ -1,5 +1,6 @@
 "use client";
 
+import PageHeader from "@/components/layout/page-header";
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, AlertCircle, Info, ChevronDown, ChevronUp, Zap, TrendingUp, Cloud } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -131,26 +132,11 @@ export default function BacktestPage() {
   const m = backtestResult?.metrics;
 
   return (
-    <div className="min-h-screen pt-12 sm:pt-16 pb-12 sm:pb-16 md:pb-10 animate-fade-in">
-      {/* Subtle bg gradient */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
-        <div className="absolute inset-0 bg-[var(--color-bg)]" />
-        <div className="absolute top-0 left-1/3 w-80 h-80 bg-[var(--color-cta)]/10 rounded-full blur-3xl" />
-      </div>
+    <div className="pb-12">
+      <div className="max-w-7xl flex flex-col gap-3">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-4 flex flex-col gap-3">
-
-        {/* ── Page header ─────────────────────────────────────────────── */}
-        <div className="animate-fade-in-up">
-          <div className="flex items-center gap-3 mb-0.5">
-            <div className="w-9 h-9 rounded-xl gradient-accent flex items-center justify-center shadow-sm shadow-[var(--color-cta)]/30">
-              <Zap size={17} className="text-[var(--color-text-inverse)]" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">Backtest engine</h1>
-          </div>
-          <p className="text-[var(--color-text-muted)] text-xs ml-12 pr-2">
-            Simulate strategies on historical data and analyze risk-adjusted performance metrics
-          </p>
+        <div>
+          <PageHeader title="Backtest" description="Test strategies on past prices with trading costs included, and compare the result with SPY before you risk money." />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -160,11 +146,11 @@ export default function BacktestPage() {
 
             {/* Basic parameters */}
             <Card variant="compact">
-              <CardHeader title="Configuration" subtitle="Simulation parameters" density="compact" />
+              <CardHeader title="Period and capital" density="compact" />
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Start Date</label>
+                    <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Start date</label>
                     <input
                       type="date"
                       value={startDate}
@@ -173,7 +159,7 @@ export default function BacktestPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">End Date</label>
+                    <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">End date</label>
                     <input
                       type="date"
                       value={endDate}
@@ -184,7 +170,7 @@ export default function BacktestPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Initial Capital ($)</label>
+                  <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Starting capital ($)</label>
                   <input
                     type="number"
                     value={initialCapital}
@@ -197,7 +183,7 @@ export default function BacktestPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Benchmark</label>
+                  <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Benchmark</label>
                   <select
                     value={benchmark}
                     onChange={(e) => setBenchmark(e.target.value)}
@@ -213,7 +199,7 @@ export default function BacktestPage() {
 
             {/* Risk profile */}
             <Card variant="compact">
-              <CardHeader title="Risk Profile" subtitle="Portfolio limits & position sizing" density="compact" />
+              <CardHeader title="Risk" subtitle="Pick a preset, or open the limits to set your own." density="compact" />
               {presets.length > 0 ? (
                 <RiskProfileSelector presets={presets} />
               ) : (
@@ -227,11 +213,11 @@ export default function BacktestPage() {
             {/* Advanced toggle */}
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--color-surface)] border border-[var(--border)] hover:border-[var(--border-bright)] text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-all"
+              className="flex items-center justify-between px-4 py-3 rounded-[var(--radius-lg)] bg-[var(--color-surface)] border border-[var(--border)] hover:border-[var(--border-bright)] text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-inverse)] transition-all"
             >
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+              <span className="flex items-center gap-2 text-xs font-semibold">
                 {showAdvanced ? <ChevronUp size={14} className="text-[var(--color-cta)]" /> : <ChevronDown size={14} />}
-                Advanced Settings
+                Strategies and trading costs
               </span>
               {showAdvanced && <span className="text-[10px] bg-[var(--color-cta)]/15 text-[var(--color-cta)] px-2 py-0.5 rounded-md border border-[var(--color-cta)]/20">Open</span>}
             </button>
@@ -242,7 +228,7 @@ export default function BacktestPage() {
                   <CardHeader title="Trading Costs" subtitle="Slippage, spread, and commission" density="compact" />
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Comm. ($/sh)</label>
+                      <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Comm. ($/sh)</label>
                       <input
                         type="number"
                         step={0.001}
@@ -253,7 +239,7 @@ export default function BacktestPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Spread (bps)</label>
+                      <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Spread (bps)</label>
                       <input
                         type="number"
                         step={1}
@@ -264,7 +250,7 @@ export default function BacktestPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold block mb-1.5">Slippage (bps)</label>
+                      <label className="text-xs text-[var(--color-text-secondary)] block mb-1.5">Slippage (bps)</label>
                       <input
                         type="number"
                         step={1}
@@ -314,7 +300,7 @@ export default function BacktestPage() {
                 {isRunning ? (
                   <><Square size={14} fill="currentColor" /> Stop Backtest</>
                 ) : (
-                  <><Play size={15} fill="currentColor" /> Run Backtest</>
+                  <><Play size={14} fill="currentColor" /> Run backtest</>
                 )}
               </button>
               {isRunning && !isCloudRun && progressMsg && (
@@ -354,7 +340,7 @@ export default function BacktestPage() {
               <div className="flex flex-col gap-4 animate-fade-in-up">
                 {isCloudRun ? (
                   /* Cloud run — no SSE progress, just a status card */
-                  <div className="flex flex-col gap-2 px-4 py-4 rounded-xl bg-[var(--color-cta)]/8 border border-[var(--color-cta)]/25">
+                  <div className="flex flex-col gap-2 px-4 py-4 rounded-[var(--radius-lg)] bg-[var(--color-cta)]/8 border border-[var(--color-cta)]/25">
                     <div className="flex items-center gap-3">
                       <Cloud size={16} className="text-[var(--color-cta)] shrink-0 animate-pulse" />
                       <span className="text-xs text-[var(--color-cta)] font-semibold">Running on cloud runner</span>
@@ -366,7 +352,7 @@ export default function BacktestPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20">
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-lg)] bg-[var(--color-cta)]/10 border border-[var(--color-cta)]/20">
                     <div className="w-3.5 h-3.5 border-2 border-[var(--color-cta)]/40 border-t-[var(--color-cta)] rounded-full animate-spin shrink-0" />
                     <span className="text-xs text-[var(--color-cta)] font-medium">Running simulation…</span>
                   </div>
@@ -376,8 +362,8 @@ export default function BacktestPage() {
                     <Skeleton key={i} className="h-20 w-full" />
                   ))}
                 </div>
-                <Skeleton className="h-72 w-full rounded-xl" />
-                <Skeleton className="h-52 w-full rounded-xl" />
+                <Skeleton className="h-72 w-full rounded-[var(--radius-lg)]" />
+                <Skeleton className="h-52 w-full rounded-[var(--radius-lg)]" />
               </div>
             )}
 
@@ -385,14 +371,14 @@ export default function BacktestPage() {
             {backtestResult && m && !isRunning && (
               <div className="flex flex-col gap-5 animate-fade-in-up">
                 {/* Success banner */}
-                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
+                <div className="flex items-center gap-2.5 px-4 py-3 rounded-[var(--radius-lg)] bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
                   <div className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse shrink-0" />
                   <span className="text-xs text-[var(--color-success)] font-semibold">Backtest completed successfully</span>
                 </div>
 
                 {/* Key metrics */}
                 <div>
-                  <p className="text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest font-semibold mb-2">Performance Metrics</p>
+                  <p className="text-[10px] text-[var(--color-text-secondary)] font-semibold mb-2">Performance Metrics</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <MetricCard label="Total Return"   value={pct(m.total_return)}      positive={m.total_return > 0} size="lg" />
                     <MetricCard label="Ann. Return"    value={pct(m.annualized_return)} positive={m.annualized_return > 0} />
@@ -432,7 +418,7 @@ export default function BacktestPage() {
                             <thead>
                               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
                                 {["Strategy", "Trades", "Win Rate", "Total P&L"].map(h => (
-                                  <th key={h} className="align-middle text-left px-3 py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{h}</th>
+                                  <th key={h} className="align-middle text-left px-3 py-3 text-[11px] font-semibold text-[var(--color-text-muted)]">{h}</th>
                                 ))}
                               </tr>
                             </thead>
@@ -471,13 +457,13 @@ export default function BacktestPage() {
                       if (typeof v === "object" && v !== null) return null;
                       return (
                         <div key={k}>
-                          <span className="text-[var(--color-text-secondary)] block capitalize text-[10px] uppercase tracking-wider">{k.replace(/_/g, " ")}</span>
+                          <span className="text-[var(--color-text-secondary)] block capitalize text-[10px]">{k.replace(/_/g, " ")}</span>
                           <span className="font-mono text-[var(--color-text-primary)] text-sm">{String(v)}</span>
                         </div>
                       );
                     })}
                     <div>
-                      <span className="text-[var(--color-text-secondary)] block text-[10px] uppercase tracking-wider">Signals generated</span>
+                      <span className="text-[var(--color-text-secondary)] block text-[10px]">Signals generated</span>
                       <span className="font-mono text-[var(--color-text-primary)] text-sm">{backtestResult.signals_count}</span>
                     </div>
                   </div>
@@ -487,22 +473,12 @@ export default function BacktestPage() {
 
             {/* Empty state */}
             {!backtestResult && !isRunning && !error && (
-              <div className="flex flex-col items-center justify-center h-96 gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-[var(--color-surface)] border border-[var(--border)] flex items-center justify-center">
-                  <TrendingUp size={36} className="text-[var(--color-cta)]/40" />
-                </div>
-                <div className="text-center">
-                  <p className="text-[var(--color-text-secondary)] text-sm font-semibold">Ready to run</p>
-                  <p className="text-[var(--color-text-muted)] text-xs mt-1.5 max-w-xs">
-                    Configure parameters on the left, then click{" "}
-                    <span className="text-[var(--color-cta)] font-semibold">Run Backtest</span>
-                  </p>
-                </div>
-                <div className="flex gap-3 text-[10px] text-[var(--color-text-secondary)]">
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">Up to 3 years of data</span>
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">6 strategies</span>
-                  <span className="px-2.5 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]">Full risk controls</span>
-                </div>
+              <div className="h-full min-h-72 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] flex flex-col justify-center px-8 py-10">
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">Results appear here</p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)] max-w-md">
+                  Choose a period and starting capital, pick a risk preset, then run the backtest. You&apos;ll get the equity
+                  curve against SPY, drawdowns, every trade, and the return after trading costs.
+                </p>
               </div>
             )}
           </div>

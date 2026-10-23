@@ -3,34 +3,17 @@
 import { useLayoutEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home, BarChart2, Activity, Layers,
-  LayoutDashboard, UserCircle, Globe,
-} from "lucide-react";
+import { ListOrdered, LineChart, Wallet, Layers, Globe, UserCircle } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "@/lib/store";
 
-const NAV_GROUPS = [
-  {
-    label: "Main",
-    items: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/portfolio", label: "Portfolio", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Research",
-    items: [
-      { href: "/backtest", label: "Backtest", icon: BarChart2 },
-      { href: "/predict", label: "Predict", icon: Activity },
-      { href: "/strategies", label: "Strategies", icon: Layers },
-      { href: "/universe", label: "Universe", icon: Globe },
-    ],
-  },
-];
-
-const BOTTOM_NAV = [
-  { href: "/account", label: "Account", icon: UserCircle },
+// Ordered by how often a trader needs them: this month's picks first.
+const NAV = [
+  { href: "/predict", label: "Picks", icon: ListOrdered },
+  { href: "/backtest", label: "Backtest", icon: LineChart },
+  { href: "/portfolio", label: "Portfolio", icon: Wallet },
+  { href: "/strategies", label: "Strategies", icon: Layers },
+  { href: "/universe", label: "Universe", icon: Globe },
 ];
 
 // Module scope, so it isn't a new component type (and remount) on every Sidebar render.
@@ -46,13 +29,14 @@ function NavItem({
       title={!expanded ? label : undefined}
       aria-current={active ? "page" : undefined}
       className={clsx(
-        "flex items-center gap-3 px-3 py-2 rounded-[var(--radius-md)] text-sm transition-colors duration-150 min-h-11",
+        "relative flex items-center gap-3 h-9 pl-4 pr-3 text-[13px] transition-colors",
         active
-          ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
-          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)]"
+          ? "text-[var(--color-text-primary)] font-medium"
+          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      {active && <span aria-hidden className="absolute left-0 top-2 bottom-2 w-0.5 bg-[var(--color-accent)]" />}
+      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
       {expanded && <span>{label}</span>}
     </Link>
   );
@@ -75,56 +59,31 @@ export default function Sidebar() {
       {sidebarOpen && (
         <button
           type="button"
-          aria-label="Close sidebar"
+          aria-label="Close navigation"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
         />
       )}
 
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col justify-between shadow-xl transition-transform duration-200 md:sticky md:top-0 md:shadow-none md:transition-[width] md:translate-x-0",
-          sidebarOpen ? "translate-x-0 md:w-60 w-64" : "-translate-x-full md:w-16"
+          "fixed inset-y-0 left-0 z-40 bg-[var(--color-bg)] border-r border-[var(--color-border)] flex flex-col transition-transform duration-200 md:sticky md:top-0 md:h-screen md:transition-[width] md:translate-x-0",
+          sidebarOpen ? "translate-x-0 w-56" : "-translate-x-full md:w-14"
         )}
       >
-        <div className="flex flex-col flex-1 min-h-0">
-          <div className="px-4 py-4 md:px-5 shrink-0">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="relative h-9 w-9 shrink-0 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-[var(--color-accent)] opacity-20 blur-sm" />
-                <img src="/logo-emblem.png" alt="Quantify" className="h-8 w-8 object-contain relative" />
-              </div>
-              {sidebarOpen && (
-                <div>
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">Quantify</div>
-                  <div className="text-xs text-[var(--color-text-muted)]">ML Trading</div>
-                </div>
-              )}
-            </Link>
-          </div>
+        <Link href="/" className="h-12 flex items-center gap-2.5 px-4 border-b border-[var(--color-border)] shrink-0">
+          <img src="/logo-emblem.png" alt="" className="h-5 w-5 object-contain shrink-0" />
+          {sidebarOpen && <span className="text-sm font-semibold tracking-tight text-[var(--color-text-primary)]">Quantify</span>}
+        </Link>
 
-          <nav className="flex-1 px-3 py-2 flex flex-col gap-4 overflow-y-auto">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.label}>
-                {sidebarOpen && (
-                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                    {group.label}
-                  </p>
-                )}
-                <div className="flex flex-col gap-0.5">
-                  {group.items.map((item) => (
-                    <NavItem key={item.href} {...item} active={path === item.href} expanded={sidebarOpen} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
-        </div>
-
-        <div className="px-3 py-3 border-t border-[var(--color-border)] shrink-0">
-          {BOTTOM_NAV.map((item) => (
+        <nav aria-label="Main" className="flex-1 py-3 flex flex-col overflow-y-auto">
+          {NAV.map((item) => (
             <NavItem key={item.href} {...item} active={path === item.href} expanded={sidebarOpen} />
           ))}
+        </nav>
+
+        <div className="py-3 border-t border-[var(--color-border)] shrink-0">
+          <NavItem href="/account" label="Account" icon={UserCircle} active={path === "/account"} expanded={sidebarOpen} />
         </div>
       </aside>
     </>
