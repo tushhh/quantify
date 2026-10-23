@@ -46,6 +46,8 @@ CLAUDE.md                # This file
 ### Branches
 - `main` is the only code branch. Pushes to it deploy: Vercel (web) and Heroku (API).
 - `model-cache` and `screener-cache` are data stores, not work branches. `ml_train.yml` (daily) and `screener_cron.yml` (every 20 min) force-push them, and the production `/predict` API reads them. Never merge or delete them.
+- `pick-history` is the append-only record of every published monthly pick list, written by `screener_cron.yml` with normal pushes. Never force-push, rewrite or delete it: it is the picks' track record.
+- Since Oct 2026 the `/predict` picks come from the trend screen (`src/quantify/trend_screen.py`), not the ML ensemble: on a walk-forward backtest the ML picks lost to SPY after costs. The ML model is still trained and used by the ML backtest strategy and the Telegram single-stock `/predict`.
 - A PreToolUse hook enforces both rules in every permission mode. It's wired up in `.claude/settings.json`, with the rules in `.claude/hooks/branch_guard.py`. It blocks pushes or merges into main, force pushes, and pushes to or deletions of the data branches. Don't work around a block: tell the user what you wanted to run.
 
 ---
@@ -229,6 +231,8 @@ Use these instead of improvised checks:
 - `16-eyes`: merge review against this file's rules. Use it before anything goes to main.
 - `model-health`: is the live model fresh, matched to the code's feature schema, and better than chance? Also checks screener output and workflow runs. It runs every weekday in `.github/workflows/model_health.yml`, so check recent runs there first.
 - `prod-smoke`: is the deployed app serving? Hits the live API (`/health`, `/api/predict/best`) and site. Use it first when "the app shows nothing", and after a merge to main. It runs every 2 hours in `.github/workflows/prod_smoke.yml`. The `boot-like-heroku` CI job boots the API with fresh dependencies against a real Postgres, because the SQLite tests can't catch driver or boot failures.
+- `pick-backtest`: would the published picks have beaten SPY after costs? Replays the production trend screen month by month against the agreed profit bar, and fails if a change makes it worse. Run it before changing `quantify/trend_screen.py` or proposing a new model for `/predict`.
+- `track-record`: did the published picks actually make money? Scores every monthly list on the append-only `pick-history` branch against SPY.
 - `backtest-doctor`: sanity-check a backtest result for cost-unit errors, dead strategies, lookahead, survivorship bias and cost drag before trusting it.
 - `grill-me` (only as `/grill-me`): an interview to pin down a plan before building it.
 

@@ -9,9 +9,9 @@ In October 2026 every candidate was replayed walk-forward on 2021-01 .. 2026-10 
 * ML ensemble (ml_return_predictor): top-10 picks lost to SPY after costs, and its list was
   replaced almost entirely every day.
 * Early June-2026 model (1-day target, 100 names): lost to SPY by 3-6 %/yr after costs.
-* This trend screen, 15 picks from the 100 most-traded S&P 500 names, monthly: 26.4 %/yr vs
-  SPY 15.0 %/yr (+11.4 %/yr, +10.4 % at 16 bps/side), beat SPY in 57 % of months.
-  Caveats: Sharpe 0.91 vs SPY 0.92, max drawdown -35.5 % vs SPY -24.5 %, it lagged SPY in
+* This trend screen, 15 picks from the 100 most-traded S&P 500 names, monthly: 26.5 %/yr vs
+  SPY 14.7 %/yr (+11.8 %/yr, +10.9 % at 16 bps/side), beat SPY in 54 % of months.
+  Caveats: Sharpe 0.85 vs SPY 0.91, max drawdown -37 % vs SPY -24.5 %, it lagged SPY in
   2021-2023 and won in 2023-2026, and the universe is today's S&P 500 (survivorship bias).
 
 The definition below must stay identical to the backtested one; tests pin it down. Re-run
@@ -41,18 +41,19 @@ RET_LONG = 252
 MIN_HISTORY = RET_LONG + 1
 
 # Walk-forward results for this exact configuration (6 bps per side), shown to users.
+# Reproduce with scripts/backtest_picks.py (pick-backtest skill), 2026-10-23 run.
 BACKTEST = {
-    "start": "2021-01",
+    "start": "2021-02",
     "end": "2026-10",
-    "cagr_pct": 26.4,
-    "spy_cagr_pct": 15.0,
-    "excess_cagr_pct": 11.4,
-    "excess_cagr_stress_pct": 10.4,  # at 16 bps per side
-    "sharpe": 0.91,
-    "spy_sharpe": 0.92,
-    "max_drawdown_pct": -35.5,
+    "cagr_pct": 26.5,
+    "spy_cagr_pct": 14.7,
+    "excess_cagr_pct": 11.8,
+    "excess_cagr_stress_pct": 10.9,  # at 16 bps per side
+    "sharpe": 0.85,
+    "spy_sharpe": 0.91,
+    "max_drawdown_pct": -37.0,
     "spy_max_drawdown_pct": -24.5,
-    "months_beat_spy_pct": 57.1,
+    "months_beat_spy_pct": 54.0,
     "picks": N_PICKS,
     "liquid_universe": LIQUID_TOP,
 }
