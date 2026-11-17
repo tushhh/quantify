@@ -167,6 +167,13 @@ class YFinanceProvider(DataProvider):
                 "Bulk download failed (%s); falling back to sequential.", exc
             )
             bulk = self._sequential_download(uncached, start, end, timeframe)
+        else:
+            # yfinance's threaded bulk download sometimes drops a symbol (e.g.
+            # "database is locked" in its own cache). Retry those once, one by one.
+            missing = [sym for sym in uncached if sym not in bulk or bulk[sym].empty]
+            if missing:
+                logger.info("Retrying %d symbol(s) the bulk download missed: %s", len(missing), missing)
+                bulk.update(self._sequential_download(missing, start, end, timeframe))
 
         for sym, df in bulk.items():
             if not df.empty:

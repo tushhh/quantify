@@ -153,6 +153,10 @@ class PositionSizer(ABC):
         Default: 0.10 (10 %).
     """
 
+    #: Allow fractional share counts (rounded down to 0.0001 share). Off by default,
+    #: so paper and live trading size whole shares; the backtest engine turns it on.
+    fractional_shares: bool = False
+
     def __init__(self, max_position_pct: float = 0.10) -> None:
         if not 0 < max_position_pct <= 1.0:
             raise ValueError(
@@ -227,6 +231,8 @@ class PositionSizer(ABC):
         max_shares = self._max_dollar_value(portfolio) / price if price > 0 else 0.0
         capped = min(abs(shares), max_shares)
         sign = -1.0 if direction == "short" else 1.0
+        if self.fractional_shares:
+            return sign * math.floor(capped * 10_000) / 10_000
         return sign * math.floor(capped)
 
     def __repr__(self) -> str:

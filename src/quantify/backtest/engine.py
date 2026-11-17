@@ -61,6 +61,9 @@ from quantify.risk.stop_manager import StopManager
 from quantify.strategy.base import Strategy
 from quantify.strategy.signal import Signal
 
+# Smallest entry order worth sending, in dollars.
+_MIN_ORDER_VALUE = 1.0
+
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -249,6 +252,7 @@ class BacktestEngine:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         benchmark_symbol: str = "SPY",
+        fractional_shares: bool = True,
     ) -> None:
         if not strategies:
             raise ValueError("BacktestEngine requires at least one strategy")
@@ -264,6 +268,7 @@ class BacktestEngine:
         self.start_date = start_date
         self.end_date = end_date
         self.benchmark_symbol = benchmark_symbol
+        self.fractional_shares = fractional_shares
 
         # Validate all strategies
         for strat in self.strategies:
@@ -902,8 +907,11 @@ class BacktestEngine:
             # portfolio-wide limit: rescale it to the slice for this call.
             strategy_portfolio_adapter = _PortfolioAdapter(portfolio, allocation=alloc)
             base_cap = getattr(self.position_sizer, "max_position_pct", None)
+            base_fractional = getattr(self.position_sizer, "fractional_shares", None)
             if base_cap is not None:
                 self.position_sizer.max_position_pct = min(1.0, base_cap / alloc)
+            if base_fractional is not None:
+                self.position_sizer.fractional_shares = self.fractional_shares
             try:
                 target_shares = self.position_sizer.calculate_size(
                     sig, strategy_portfolio_adapter, market_data
@@ -911,6 +919,8 @@ class BacktestEngine:
             finally:
                 if base_cap is not None:
                     self.position_sizer.max_position_pct = base_cap
+                if base_fractional is not None:
+                    self.position_sizer.fractional_shares = base_fractional
 
         except Exception as exc:
             log.warning("position_sizer failed for %s: %s", symbol, exc)
@@ -950,22 +960,25 @@ class BacktestEngine:
                 log.warning("Failed to submit reversal close for %s: %s", symbol, exc)
 
         # Submit the new entry order
+        # Fractional shares (to 0.0001) by default, so small accounts can hold
+        # high-priced stocks; whole shares when fractional_shares is off.
         qty = abs(target_shares)
-        if qty < 1:
-            log.debug("Calculated qty=%.2f < 1 for %s — no order placed", qty, symbol)
+        qty = math.floor(qty * 10_000) / 10_000 if self.fractional_shares else math.floor(qty)
+        if qty <= 0 or qty * current_price < _MIN_ORDER_VALUE:
+            log.debug("Order for %s too small (qty=%.4f) — no order placed", symbol, qty)
             return
 
         order = Order(
             symbol=symbol,
             side=desired_side,
             order_type=OrderType.MARKET,
-            quantity=math.floor(qty),
+            quantity=qty,
             strategy_name=sig.strategy_name,
         )
         try:
             broker.submit_order(order)
             log.debug(
-                "Entry order submitted: %s %s qty=%.0f @ ~%.4f",
+                "Entry order submitted: %s %s qty=%.4f @ ~%.4f",
                 desired_side.value, symbol, qty, current_price,
             )
         except Exception as exc:

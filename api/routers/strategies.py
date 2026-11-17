@@ -18,7 +18,7 @@ STRATEGIES: list[StrategyInfo] = [
             "EMA crossover (fast/slow) filtered by ADX strength. "
             "Uses ATR-based trailing stops. Best in trending markets."
         ),
-        default_allocation=0.15,
+        default_allocation=0.30,
         params=[
             ParamSpec(key="vol_target", label="Volatility Target (annual)", type="float", default=0.10, min=0.05, max=0.40, step=0.01, description="Annualised volatility target used to size each position."),
             ParamSpec(key="min_bars", label="Min History (days)", type="int", default=252, min=60, max=504, step=21, description="Minimum trading days of history required before a symbol can be traded."),
@@ -32,7 +32,7 @@ STRATEGIES: list[StrategyInfo] = [
             "Long top-quintile stocks ranked by 12-1 month returns (Jegadeesh & Titman); "
             "shorts the bottom quintile when shorting is allowed. Positions are scaled by inverse volatility."
         ),
-        default_allocation=0.20,
+        default_allocation=0.35,
         params=[
             ParamSpec(key="long_threshold", label="Long Percentile", type="float", default=0.90, min=0.55, max=0.95, step=0.05, description="Go long names ranked above this momentum percentile."),
             ParamSpec(key="short_threshold", label="Short Percentile", type="float", default=0.10, min=0.05, max=0.45, step=0.05, description="Go short names ranked below this momentum percentile (only when shorting is allowed)."),
@@ -48,7 +48,7 @@ STRATEGIES: list[StrategyInfo] = [
             "Engle-Granger cointegration between stock pairs. Enter when z-score diverges, "
             "exit when it reverts. Market-neutral by construction."
         ),
-        default_allocation=0.20,
+        default_allocation=0.25,
         params=[
             ParamSpec(key="entry_zscore", label="Entry Z-Score", type="float", default=2.0, min=1.0, max=4.0, step=0.5, description="Spread z-score divergence that triggers a new pair entry."),
             ParamSpec(key="exit_zscore", label="Exit Z-Score", type="float", default=0.5, min=0.0, max=2.0, step=0.25, description="Spread z-score at which an open pair is closed."),
@@ -64,7 +64,7 @@ STRATEGIES: list[StrategyInfo] = [
             "Long stocks with high composite quality (ROE, ROA, margins) and value (P/E, P/B, EV/EBITDA) scores. "
             "Rebalances monthly."
         ),
-        default_allocation=0.20,
+        default_allocation=0.25,
         params=[
             ParamSpec(key="long_quintile", label="Long Quantile", type="float", default=0.80, min=0.5, max=0.95, step=0.05, description="Go long names above this composite quality/value percentile."),
             ParamSpec(key="short_quintile", label="Short Quantile", type="float", default=0.20, min=0.05, max=0.5, step=0.05, description="Short threshold (only applied when shorting is enabled)."),
@@ -93,7 +93,8 @@ STRATEGIES: list[StrategyInfo] = [
         label="Volatility Regime",
         description=(
             "Uses VIX levels to detect low/high volatility regimes and dynamically "
-            "re-weights the other strategies accordingly."
+            "re-weights the other strategies accordingly. Holds no positions itself, so its "
+            "allocation goes to the strategies that trade."
         ),
         default_allocation=0.10,
         params=[

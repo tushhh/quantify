@@ -129,6 +129,8 @@ class VolatilityRegimeStrategy(Strategy):
     """
 
     name: str = "volatility_regime"
+    # Never trades: the engine only uses it to scale other strategies' signals.
+    is_overlay: bool = True
     rebalance_frequency: str = "daily"
     lookback_days: int = 252
 

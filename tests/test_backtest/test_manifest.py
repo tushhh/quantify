@@ -56,8 +56,9 @@ def test_same_inputs_give_same_run_id(data) -> None:
         {"position_sizer": EqualWeightSizer(max_position_pct=0.5)},
         {"cost_model": CostModel(spread_bps=25.0)},
         {"benchmark_symbol": "QQQ"},
+        {"fractional_shares": False},
     ],
-    ids=["capital", "strategy-param", "position-sizer", "cost-model", "benchmark"],
+    ids=["capital", "strategy-param", "position-sizer", "cost-model", "benchmark", "whole-shares"],
 )
 def test_config_changes_change_run_id(data, engine_kwargs) -> None:
     # Regression: the first manifest ignored capital, sizing and strategy
@@ -121,3 +122,9 @@ def test_builtin_strategies_fingerprint_deterministically(data) -> None:
         return _run_id(data, strategies=[cls() for cls in classes])
 
     assert run_id() == run_id()
+
+
+def test_allow_short_changes_run_id(data) -> None:
+    shorting = _StubStrategy()
+    shorting.allow_short = True
+    assert _run_id(data, strategies=[shorting]) != _run_id(data)

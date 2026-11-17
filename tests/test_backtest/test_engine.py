@@ -414,3 +414,22 @@ class TestStrategyBooks:
         assert len(sizes) == 2
         # Two signals in a 50% slice want 25% each; the portfolio-wide 10% cap binds.
         assert sizes == pytest.approx([10_000.0, 10_000.0], rel=0.03)
+
+
+class TestSmallAccounts:
+    def test_small_account_buys_fractional_shares(self) -> None:
+        # Regression: a $1,000 cloud backtest made 0 trades. With a 10% position cap each
+        # order was worth ~$100, less than one share of most stocks, and the engine only
+        # bought whole shares.
+        data = {f"STK{i}": _make_ohlcv(n_bars=60, base_price=500.0, seed=i) for i in range(2)}
+        holder = _FixedSignalStrategy("holder", "long", "monthly", first_call_only=True)
+        holder.allocation = 1.0
+        result = BacktestEngine(
+            strategies=[holder],
+            initial_capital=1_000.0,
+            position_sizer=EqualWeightSizer(max_position_pct=0.10),
+        ).run(data)
+
+        assert len(result.trades) == 2, result.trades
+        assert all(0 < t["quantity"] < 1 for t in result.trades)
+        assert all(t["quantity"] * t["entry_price"] == pytest.approx(100.0, rel=0.03) for t in result.trades)

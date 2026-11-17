@@ -113,6 +113,11 @@ class Strategy(ABC):
     #: every year, 2022 included.
     allow_short: bool = False
 
+    #: True for strategies that never trade and only adjust other strategies'
+    #: signals (e.g. volatility_regime). Callers give their allocation to the
+    #: strategies that do trade, so it doesn't sit in cash.
+    is_overlay: bool = False
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------

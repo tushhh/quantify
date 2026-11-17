@@ -383,3 +383,14 @@ class TestMaxPositionCap:
         mkt = _market_data(["CHEAP"], {"CHEAP": price}, n_bars=60)
         shares = abs(sizer.calculate_size(_signal("CHEAP", "long"), portfolio, mkt))
         assert shares * price <= portfolio.nav * max_pct + price
+
+
+def test_sizers_use_whole_shares_unless_fractional_is_switched_on() -> None:
+    # Paper trading builds sizers with get_sizer and must keep whole shares.
+    sizer = get_sizer("equal_weight", max_position_pct=0.10)
+    mkt = _market_data(["AAPL"], current_prices={"AAPL": 300.0})
+    portfolio = _Portfolio(nav=10_000.0)
+
+    assert sizer.calculate_size(_signal(), portfolio, mkt) == 3.0
+    sizer.fractional_shares = True
+    assert sizer.calculate_size(_signal(), portfolio, mkt) == pytest.approx(3.3333)

@@ -118,7 +118,7 @@ def _component(obj: Any) -> dict[str, Any] | None:
 def _strategy_component(strategy: Any) -> dict[str, Any]:
     component = _component(strategy) or {"class": None, "params": {}}
     # Base-class settings are often class attributes, which __dict__ omits.
-    for attr in ("name", "lookback_days", "rebalance_frequency", "allocation"):
+    for attr in ("name", "lookback_days", "rebalance_frequency", "allocation", "allow_short"):
         component["params"].setdefault(attr, getattr(strategy, attr, None))
     return component
 
@@ -182,6 +182,7 @@ def build_backtest_manifest(
             "start_date": str(engine.start_date) if engine.start_date else None,
             "end_date": str(engine.end_date) if engine.end_date else None,
             "benchmark_symbol": engine.benchmark_symbol,
+            "fractional_shares": bool(getattr(engine, "fractional_shares", False)),
             "strategies": sorted(
                 (_strategy_component(s) for s in engine.strategies),
                 key=lambda c: str(c["params"].get("name")),

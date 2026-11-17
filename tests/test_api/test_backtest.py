@@ -193,3 +193,32 @@ def test_backtest_endpoint_async(monkeypatch, long_ohlcv_data) -> None:
     assert body["status"] == "ok"
     assert "trend_following" in body["metadata"]["strategies_run"]
     assert body["metadata"]["run_id"].startswith("bt-")
+
+
+def test_overlay_allocation_is_given_to_the_trading_strategies() -> None:
+    # Regression: volatility_regime only scales other strategies' signals and never
+    # trades, so its 10-15% allocation sat in cash in every cloud backtest.
+    allocations = {"trend_following": 0.30, "cross_sectional_momentum": 0.35,
+                   "quality_value": 0.25, "volatility_regime": 0.10}
+    req = BacktestRequest(
+        start_date=date(2022, 1, 3),
+        end_date=date(2023, 12, 29),
+        strategies={
+            name: StrategyConfig(enabled=name in allocations, allocation=allocations.get(name, 0.0))
+            for name in _STRATEGY_NAMES
+        },
+    )
+    built = {s.name: s for s in backtest_router._build_strategy_instances(req)}
+
+    assert built["volatility_regime"].is_overlay is True
+    traders = [s for s in built.values() if not s.is_overlay]
+    assert sum(s.allocation for s in traders) == pytest.approx(1.0)
+    assert built["cross_sectional_momentum"].allocation == pytest.approx(0.35 / 0.90)
+
+
+def test_default_mix_leaves_out_pairs_and_invests_everything() -> None:
+    req = BacktestRequest(start_date=date(2022, 1, 3), end_date=date(2023, 12, 29))
+    built = backtest_router._build_strategy_instances(req)
+    names = {s.name for s in built}
+    assert "pairs_mean_reversion" not in names
+    assert sum(s.allocation for s in built if not s.is_overlay) == pytest.approx(1.0)

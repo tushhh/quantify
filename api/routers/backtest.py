@@ -116,18 +116,21 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
     DEFAULT_ENABLED = {
         "trend_following": True,
         "cross_sectional_momentum": True,
-        "pairs_mean_reversion": True,
+        # Off by default: in the 2026 cloud runs it found no cointegrated pairs on
+        # 82 of 219 days, and it lost money in every window tested (2016-2026).
+        "pairs_mean_reversion": False,
         "quality_value": True,
         # Off by default, as in the web form: alone it lost 40% on 2021-2026 after
         # costs, and the walk-forward tests in trend_screen.py found no skill.
         "ml_return_predictor": False,
         "volatility_regime": True,
     }
+    # Matches web/src/lib/store.ts DEFAULT_STRATEGIES and the catalog in strategies.py.
     DEFAULT_ALLOCATION = {
-        "trend_following": 0.15,
-        "cross_sectional_momentum": 0.20,
-        "pairs_mean_reversion": 0.20,
-        "quality_value": 0.20,
+        "trend_following": 0.30,
+        "cross_sectional_momentum": 0.35,
+        "pairs_mean_reversion": 0.25,
+        "quality_value": 0.25,
         "ml_return_predictor": 0.15,
         "volatility_regime": 0.10,
     }
@@ -222,6 +225,20 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
             detail += "No strategies enabled in request"
         raise HTTPException(status_code=400, detail=detail)
     
+    # Overlays (volatility_regime) never trade, so their allocation would sit in
+    # cash. Hand it to the strategies that do trade, in proportion to their own
+    # allocations; any capital the user left unallocated stays in cash.
+    overlays = [s for s in instances if getattr(s, "is_overlay", False)]
+    traders = [s for s in instances if not getattr(s, "is_overlay", False)]
+    overlay_share = sum(max(float(s.allocation), 0.0) for s in overlays)
+    trader_share = sum(max(float(s.allocation), 0.0) for s in traders)
+    if overlay_share > 0 and trader_share > 0:
+        scale = (trader_share + overlay_share) / trader_share
+        for s in traders:
+            s.allocation = max(float(s.allocation), 0.0) * scale
+        for s in overlays:
+            s.allocation = 0.0
+
     if failed_strategies:
         log.warning(f"Some strategies failed to instantiate: {failed_strategies}. Proceeding with {len(instances)} strategies.")
     
