@@ -118,7 +118,9 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         "cross_sectional_momentum": True,
         "pairs_mean_reversion": True,
         "quality_value": True,
-        "ml_return_predictor": True,
+        # Off by default, as in the web form: alone it lost 40% on 2021-2026 after
+        # costs, and the walk-forward tests in trend_screen.py found no skill.
+        "ml_return_predictor": False,
         "volatility_regime": True,
     }
     DEFAULT_ALLOCATION = {
@@ -148,6 +150,8 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         # Ensure allocation and enabled are not in extra_params
         extra_params.pop("allocation", None)
         extra_params.pop("enabled", None)
+        # Opt back into short selling for this strategy (long-only by default).
+        allow_short = extra_params.pop("allow_short", None)
 
         # For the ML strategy, prefer the pre-trained model from the model-cache
         # branch instead of retraining the LightGBM+XGBoost+CatBoost ensemble on
@@ -199,6 +203,8 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
             log.info(f"Instantiating {name} with allocation {allocation*100:.0f}% and params: {extra_params}")
             instance = cls(**extra_params)
             setattr(instance, "allocation", allocation)
+            if allow_short is not None:
+                instance.allow_short = bool(allow_short)
             instances.append(instance)
             log.info(f"Successfully instantiated {name}")
         except Exception as exc:

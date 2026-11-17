@@ -107,6 +107,11 @@ class Strategy(ABC):
     #: Optional portfolio allocation weight (0.0–1.0) supplied by callers.
     allocation: float = 0.0
 
+    #: Whether the backtest may open short positions for this strategy. When False
+    #: (the default) a ``"short"`` signal is executed as ``"close"``: sell and hold
+    #: cash. Shorting single stocks lost money in every year of 2021-2026 here.
+    allow_short: bool = False
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------
