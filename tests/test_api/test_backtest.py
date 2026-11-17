@@ -94,6 +94,24 @@ def test_strategies_are_long_only_unless_params_allow_short() -> None:
 
     assert build({}).allow_short is False
     assert build({"allow_short": True}).allow_short is True
+    assert build({"allow_short": "false"}).allow_short is False
+
+
+def test_quality_value_enable_short_toggle_allows_shorts_in_the_engine() -> None:
+    req = BacktestRequest(
+        start_date=date(2022, 1, 3),
+        end_date=date(2023, 12, 29),
+        strategies={
+            name: StrategyConfig(
+                enabled=name == "quality_value",
+                allocation=1.0,
+                params={"enable_short": True} if name == "quality_value" else {},
+            )
+            for name in _STRATEGY_NAMES
+        },
+    )
+    (strategy,) = backtest_router._build_strategy_instances(req)
+    assert strategy.allow_short is True
 
 def _fake_fetch_data(frame):
     """Stand-in for _fetch_data: AAPL and SPY have data, any other ticker is skipped."""

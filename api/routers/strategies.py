@@ -22,19 +22,21 @@ STRATEGIES: list[StrategyInfo] = [
         params=[
             ParamSpec(key="vol_target", label="Volatility Target (annual)", type="float", default=0.10, min=0.05, max=0.40, step=0.01, description="Annualised volatility target used to size each position."),
             ParamSpec(key="min_bars", label="Min History (days)", type="int", default=252, min=60, max=504, step=21, description="Minimum trading days of history required before a symbol can be traded."),
+            ParamSpec(key="allow_short", label="Allow shorts", type="bool", default=False, description="Short names with a bearish signal. Off: sell them and hold cash."),
         ],
     ),
     StrategyInfo(
         name="cross_sectional_momentum",
         label="Cross-Sectional Momentum",
         description=(
-            "Long top-quintile / short bottom-quintile stocks ranked by 12-1 month returns "
-            "(Jegadeesh & Titman). Positions are scaled by inverse volatility."
+            "Long top-quintile stocks ranked by 12-1 month returns (Jegadeesh & Titman); "
+            "shorts the bottom quintile when shorting is allowed. Positions are scaled by inverse volatility."
         ),
         default_allocation=0.20,
         params=[
             ParamSpec(key="long_threshold", label="Long Percentile", type="float", default=0.90, min=0.55, max=0.95, step=0.05, description="Go long names ranked above this momentum percentile."),
-            ParamSpec(key="short_threshold", label="Short Percentile", type="float", default=0.10, min=0.05, max=0.45, step=0.05, description="Go short names ranked below this momentum percentile."),
+            ParamSpec(key="short_threshold", label="Short Percentile", type="float", default=0.10, min=0.05, max=0.45, step=0.05, description="Go short names ranked below this momentum percentile (only when shorting is allowed)."),
+            ParamSpec(key="allow_short", label="Allow shorts", type="bool", default=False, description="Short names with a bearish signal. Off: sell them and hold cash."),
             ParamSpec(key="rebalance_days", label="Rebalance (days)", type="int", default=21, min=5, max=63, step=1, description="Trading days between portfolio rebalances."),
             ParamSpec(key="crash_filter", label="SPY Crash Filter", type="bool", default=True, description="Suppress new longs while the market (SPY) is in a drawdown."),
         ],
@@ -80,7 +82,8 @@ STRATEGIES: list[StrategyInfo] = [
         default_allocation=0.15,
         params=[
             ParamSpec(key="long_decile", label="Long Decile", type="float", default=0.90, min=0.5, max=0.95, step=0.05, description="Go long predictions ranked above this decile."),
-            ParamSpec(key="short_decile", label="Short Decile", type="float", default=0.10, min=0.05, max=0.5, step=0.05, description="Go short predictions ranked below this decile."),
+            ParamSpec(key="short_decile", label="Short Decile", type="float", default=0.10, min=0.05, max=0.5, step=0.05, description="Go short predictions ranked below this decile (only when shorting is allowed)."),
+            ParamSpec(key="allow_short", label="Allow shorts", type="bool", default=False, description="Short names with a bearish signal. Off: sell them and hold cash."),
             ParamSpec(key="rebalance_days", label="Rebalance (days)", type="int", default=5, min=1, max=21, step=1, description="Trading days between portfolio rebalances."),
             ParamSpec(key="retrain_interval_days", label="Retrain Interval (days)", type="int", default=21, min=5, max=63, step=1, description="Trading days between model retrains on a rolling window."),
         ],

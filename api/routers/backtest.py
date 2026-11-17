@@ -151,7 +151,10 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
         extra_params.pop("allocation", None)
         extra_params.pop("enabled", None)
         # Opt back into short selling for this strategy (long-only by default).
+        # quality_value's own "Enable Shorts" toggle means the same thing.
         allow_short = extra_params.pop("allow_short", None)
+        if extra_params.get("enable_short") is True:
+            allow_short = True
 
         # For the ML strategy, prefer the pre-trained model from the model-cache
         # branch instead of retraining the LightGBM+XGBoost+CatBoost ensemble on
@@ -204,7 +207,7 @@ def _build_strategy_instances(req: BacktestRequest) -> list:
             instance = cls(**extra_params)
             setattr(instance, "allocation", allocation)
             if allow_short is not None:
-                instance.allow_short = bool(allow_short)
+                instance.allow_short = allow_short is True or str(allow_short).lower() == "true"
             instances.append(instance)
             log.info(f"Successfully instantiated {name}")
         except Exception as exc:
