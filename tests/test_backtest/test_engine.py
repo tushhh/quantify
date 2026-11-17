@@ -389,6 +389,8 @@ class TestStrategyBooks:
         long_only = _FixedSignalStrategy("bear", "short", "daily")
         result = BacktestEngine(strategies=[long_only], initial_capital=100_000.0).run(data)
         assert not [t for t in result.trades if t["side"] == "short"]
+        # Converted before risk filtering, so the risk layer sees an exit, not a new entry.
+        assert {s["direction"] for s in result.signals_log} == {"close"}
 
         shorter = _FixedSignalStrategy("bear", "short", "daily")
         shorter.allow_short = True

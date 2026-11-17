@@ -109,7 +109,8 @@ class Strategy(ABC):
 
     #: Whether the backtest may open short positions for this strategy. When False
     #: (the default) a ``"short"`` signal is executed as ``"close"``: sell and hold
-    #: cash. Shorting single stocks lost money in every year of 2021-2026 here.
+    #: cash. In 2021-2026 backtests the trend and momentum shorts lost money in
+    #: every year, 2022 included.
     allow_short: bool = False
 
     # ------------------------------------------------------------------

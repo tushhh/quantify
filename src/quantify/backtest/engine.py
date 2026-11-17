@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
@@ -443,11 +443,16 @@ class BacktestEngine:
                         )
                         continue
                     signals = strat.generate_signals(window_data)
-                    # Stamp timestamp if not already set
-                    stamped: list[Signal] = []
-                    for sig in signals:
-                        stamped.append(sig)
-                    strategy_signals.extend(stamped)
+                    # Long-only unless the strategy opts in: a bearish view means sell
+                    # and hold cash. Converted here, before risk filtering, so the risk
+                    # layer treats it as an exit (always allowed), not a new short entry.
+                    if not getattr(strat, "allow_short", False):
+                        signals = [
+                            replace(sig, direction="close", strength=0.0)
+                            if sig.direction == "short" else sig
+                            for sig in signals
+                        ]
+                    strategy_signals.extend(signals)
                     log.debug(
                         "%s on %s: generated %d signal(s)",
                         strat.name, current_date, len(signals),
@@ -845,9 +850,6 @@ class BacktestEngine:
 
         strategy = next((s for s in self.strategies if s.name == sig.strategy_name), None)
         direction = sig.direction
-        # Long-only unless the strategy opts in: a bearish view means sell and sit in cash.
-        if direction == "short" and not getattr(strategy, "allow_short", False):
-            direction = "close"
 
         # ---- Close signal: exit this strategy's own position ----
         if direction == "close":
