@@ -68,6 +68,51 @@ def test_build_strategy_instances_sets_allocation() -> None:
     assert strategies[0].allocation == pytest.approx(0.35)
 
 
+
+def test_default_mix_leaves_out_the_ml_strategy() -> None:
+    req = BacktestRequest(start_date=date(2022, 1, 3), end_date=date(2023, 12, 29))
+    names = {s.name for s in backtest_router._build_strategy_instances(req)}
+    assert "ml_return_predictor" not in names
+    assert "trend_following" in names
+
+
+def test_strategies_are_long_only_unless_params_allow_short() -> None:
+    def build(params):
+        req = BacktestRequest(
+            start_date=date(2022, 1, 3),
+            end_date=date(2023, 12, 29),
+            strategies={
+                "trend_following": StrategyConfig(enabled=True, allocation=1.0, params=params),
+                **{
+                    name: StrategyConfig(enabled=False)
+                    for name in _STRATEGY_NAMES
+                    if name != "trend_following"
+                },
+            },
+        )
+        return backtest_router._build_strategy_instances(req)[0]
+
+    assert build({}).allow_short is False
+    assert build({"allow_short": True}).allow_short is True
+    assert build({"allow_short": "false"}).allow_short is False
+
+
+def test_quality_value_enable_short_toggle_allows_shorts_in_the_engine() -> None:
+    req = BacktestRequest(
+        start_date=date(2022, 1, 3),
+        end_date=date(2023, 12, 29),
+        strategies={
+            name: StrategyConfig(
+                enabled=name == "quality_value",
+                allocation=1.0,
+                params={"enable_short": True} if name == "quality_value" else {},
+            )
+            for name in _STRATEGY_NAMES
+        },
+    )
+    (strategy,) = backtest_router._build_strategy_instances(req)
+    assert strategy.allow_short is True
+
 def _fake_fetch_data(frame):
     """Stand-in for _fetch_data: AAPL and SPY have data, any other ticker is skipped."""
 

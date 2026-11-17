@@ -315,3 +315,102 @@ class TestMultipleStrategies:
         strategy_names = {s["strategy"] for s in result.signals_log}
         assert "always_buy" in strategy_names
         assert "alternate" in strategy_names
+
+
+class _FixedSignalStrategy(Strategy):
+    """Emits one fixed direction for every symbol; optionally only on its first call."""
+
+    lookback_days = 10
+
+    def __init__(self, name: str, direction: str, frequency: str, first_call_only: bool = False) -> None:
+        self.name = name
+        self.direction = direction
+        self.rebalance_frequency = frequency
+        self.first_call_only = first_call_only
+        self._calls = 0
+
+    def get_required_features(self) -> list[str]:
+        return []
+
+    def generate_signals(self, data: dict[str, pd.DataFrame]) -> list[Signal]:
+        self._calls += 1
+        if self.first_call_only and self._calls > 1:
+            return []
+        signals = []
+        for symbol, df in data.items():
+            if df.empty:
+                continue
+            ts = df.index[-1].to_pydatetime().replace(tzinfo=timezone.utc)
+            signals.append(
+                Signal(
+                    strategy_name=self.name,
+                    symbol=symbol,
+                    direction=self.direction,  # type: ignore[arg-type]
+                    strength=0.0 if self.direction == "close" else 1.0,
+                    timestamp=ts,
+                )
+            )
+        return signals
+
+    def validate(self) -> None:
+        pass
+
+    def on_start(self) -> None:
+        pass
+
+    def on_stop(self) -> None:
+        pass
+
+    def on_fill(self, fill) -> None:
+        pass
+
+
+class TestStrategyBooks:
+    def test_one_strategys_close_does_not_exit_another_strategys_position(self) -> None:
+        # Regression: trend_following's daily "close" signals sold the stocks that the monthly
+        # strategies had just bought (one shared position per symbol), so the default
+        # backtest churned 6,800 trades at a 3-day hold and lost 26% on 2021-2026.
+        holder = _FixedSignalStrategy("holder", "long", "monthly", first_call_only=True)
+        closer = _FixedSignalStrategy("closer", "close", "daily")
+        holder.allocation = closer.allocation = 0.5
+        data = _minimal_data(n_symbols=2, n_bars=80)
+        result = BacktestEngine(
+            strategies=[holder, closer], initial_capital=100_000.0, cost_model=CostModel()
+        ).run(data)
+
+        held = [t for t in result.trades if t["strategy_name"] == "holder"]
+        assert len(held) == 2, result.trades
+        assert all(t["exit_date"] == result.metadata["end"] for t in held), held
+        assert not [t for t in result.trades if t["strategy_name"] == "closer"]
+
+    def test_short_signal_goes_to_cash_unless_the_strategy_allows_shorts(self) -> None:
+        data = _minimal_data(n_symbols=2, n_bars=60)
+
+        long_only = _FixedSignalStrategy("bear", "short", "daily")
+        result = BacktestEngine(strategies=[long_only], initial_capital=100_000.0).run(data)
+        assert not [t for t in result.trades if t["side"] == "short"]
+        # Converted before risk filtering, so the risk layer sees an exit, not a new entry.
+        assert {s["direction"] for s in result.signals_log} == {"close"}
+
+        shorter = _FixedSignalStrategy("bear", "short", "daily")
+        shorter.allow_short = True
+        result = BacktestEngine(strategies=[shorter], initial_capital=100_000.0).run(data)
+        assert [t for t in result.trades if t["side"] == "short"]
+
+    def test_position_size_depends_only_on_the_strategys_own_signals_and_whole_portfolio_cap(self) -> None:
+        # Regression: equal weight was split across every strategy's signals for the day and
+        # the 10% max-position cap was applied to each strategy's slice instead of the whole
+        # portfolio, so the default backtest kept ~80% of its capital in cash.
+        a = _FixedSignalStrategy("a", "long", "monthly", first_call_only=True)
+        b = _FixedSignalStrategy("b", "long", "monthly", first_call_only=True)
+        a.allocation = b.allocation = 0.5
+        result = BacktestEngine(
+            strategies=[a, b],
+            initial_capital=100_000.0,
+            position_sizer=EqualWeightSizer(max_position_pct=0.10),
+        ).run(_minimal_data(n_symbols=2, n_bars=60))
+
+        sizes = [t["quantity"] * t["entry_price"] for t in result.trades if t["strategy_name"] == "a"]
+        assert len(sizes) == 2
+        # Two signals in a 50% slice want 25% each; the portfolio-wide 10% cap binds.
+        assert sizes == pytest.approx([10_000.0, 10_000.0], rel=0.03)

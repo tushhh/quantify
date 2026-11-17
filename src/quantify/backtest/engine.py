@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
@@ -207,7 +207,10 @@ class BacktestEngine:
     ----------
     strategies:
         One or more :class:`~quantify.strategy.base.Strategy` instances.
-        They run simultaneously and share a single portfolio.
+        They run simultaneously and share one cash account, but each trades
+        its own book: a signal only changes the positions of the strategy that
+        sent it. ``short`` signals mean "go to cash" unless the strategy sets
+        ``allow_short = True``.
     initial_capital:
         Starting cash balance in USD (default: 100,000).
     cost_model:
@@ -355,7 +358,11 @@ class BacktestEngine:
         # Accumulators
         equity_by_date: dict[date, float] = {}
         signals_log: list[dict] = []
-        open_trades: dict[str, dict] = {}  # symbol -> open trade record
+        # Each strategy trades its own book: (strategy, symbol) -> signed quantity.
+        # The broker and portfolio still net everything per symbol, but one
+        # strategy's close/short signal may only change its own holding.
+        self._books: dict[tuple[str, str], float] = {}
+        open_trades: dict[tuple[str, str], dict] = {}  # (strategy, symbol) -> open trade
         closed_trades: list[dict] = []
 
         for current_date in trading_dates:
@@ -410,6 +417,7 @@ class BacktestEngine:
 
             # Record fills for trade tracking
             for fill in bar_fills:
+                self._apply_fill_to_book(fill)
                 self._update_open_trades(
                     fill, open_trades, closed_trades, current_date
                 )
@@ -435,11 +443,16 @@ class BacktestEngine:
                         )
                         continue
                     signals = strat.generate_signals(window_data)
-                    # Stamp timestamp if not already set
-                    stamped: list[Signal] = []
-                    for sig in signals:
-                        stamped.append(sig)
-                    strategy_signals.extend(stamped)
+                    # Long-only unless the strategy opts in: a bearish view means sell
+                    # and hold cash. Converted here, before risk filtering, so the risk
+                    # layer treats it as an exit (always allowed), not a new short entry.
+                    if not getattr(strat, "allow_short", False):
+                        signals = [
+                            replace(sig, direction="close", strength=0.0)
+                            if sig.direction == "short" else sig
+                            for sig in signals
+                        ]
+                    strategy_signals.extend(signals)
                     log.debug(
                         "%s on %s: generated %d signal(s)",
                         strat.name, current_date, len(signals),
@@ -501,8 +514,17 @@ class BacktestEngine:
 
             # ---- 6. Size and submit orders ----
             if all_signals:
-                entry_signals = [s for s in all_signals if s.direction in ("long", "short")]
-                n_entry = len(entry_signals)
+                # Equal weight is split within each strategy's own entries, not
+                # across every strategy's signals for the day.
+                allows_short = {s.name: getattr(s, "allow_short", False) for s in self.strategies}
+                n_entry_by_strategy: dict[str, int] = {}
+                for s in all_signals:
+                    if s.direction == "long" or (
+                        s.direction == "short" and allows_short.get(s.strategy_name, False)
+                    ):
+                        n_entry_by_strategy[s.strategy_name] = (
+                            n_entry_by_strategy.get(s.strategy_name, 0) + 1
+                        )
 
                 price_frames: dict[str, pd.Series] = {}
                 for sym, df in data.items():
@@ -524,7 +546,7 @@ class BacktestEngine:
                             portfolio_adapter,
                             market_data,
                             current_ts,
-                            n_entry,
+                            n_entry_by_strategy.get(sig.strategy_name, 1),
                         )
                     except Exception as exc:
                         log.warning(
@@ -549,8 +571,8 @@ class BacktestEngine:
         for symbol, df in data.items():
             if len(df) > 0:
                 last_prices[symbol] = float(df["close"].iloc[-1])
-        for symbol, trade in list(open_trades.items()):
-            price = last_prices.get(symbol, trade.get("entry_price", 0.0))
+        for trade in list(open_trades.values()):
+            price = last_prices.get(trade["symbol"], trade.get("entry_price", 0.0))
             trade["exit_date"] = trading_dates[-1] if trading_dates else None
             trade["exit_price"] = price
             qty = trade.get("quantity", 0.0)
@@ -826,34 +848,42 @@ class BacktestEngine:
             log.debug("No current price for %s — cannot process signal", symbol)
             return
 
-        current_position = portfolio.get_position_quantity(symbol)
+        strategy = next((s for s in self.strategies if s.name == sig.strategy_name), None)
+        direction = sig.direction
 
-        # ---- Close signal: exit full position ----
-        if sig.direction == "close":
-            if abs(current_position) < 1e-9:
-                log.debug("Close signal for %s but no open position", symbol)
-                return
-            side = OrderSide.SELL if current_position > 0 else OrderSide.BUY
-            qty = abs(current_position)
-            order = Order(
-                symbol=symbol,
-                side=side,
-                order_type=OrderType.MARKET,
-                quantity=qty,
-                strategy_name=sig.strategy_name,
-            )
-            try:
-                broker.submit_order(order)
-                # Remove stops for closed position
-                if self.stop_manager is not None:
-                    self.stop_manager.remove_stops(symbol)
-                log.debug("Close order submitted: %s qty=%.0f", symbol, qty)
-            except Exception as exc:
-                log.warning("Failed to submit close order for %s: %s", symbol, exc)
+        # ---- Close signal: exit this strategy's own position ----
+        if direction == "close":
+            if strategy is None:
+                # Not from a strategy (e.g. a stop): flatten every book in the symbol.
+                owners = [name for (name, sym) in self._books if sym == symbol]
+            else:
+                owners = [sig.strategy_name]
+            for owner in owners:
+                qty_held = self._books.get((owner, symbol), 0.0)
+                if abs(qty_held) < 1e-9:
+                    continue
+                order = Order(
+                    symbol=symbol,
+                    side=OrderSide.SELL if qty_held > 0 else OrderSide.BUY,
+                    order_type=OrderType.MARKET,
+                    quantity=abs(qty_held),
+                    strategy_name=owner,
+                )
+                try:
+                    broker.submit_order(order)
+                    log.debug("Close order submitted: %s %s qty=%.0f", owner, symbol, abs(qty_held))
+                except Exception as exc:
+                    log.warning("Failed to submit close order for %s: %s", symbol, exc)
+            if self.stop_manager is not None and not any(
+                sym == symbol and name not in owners for (name, sym) in self._books
+            ):
+                self.stop_manager.remove_stops(symbol)
             return
 
+        current_position = self._books.get((sig.strategy_name, symbol), 0.0)
+
         # ---- Entry/direction signal ----
-        desired_side = OrderSide.BUY if sig.direction == "long" else OrderSide.SELL
+        desired_side = OrderSide.BUY if direction == "long" else OrderSide.SELL
 
         # Compute target position size via the sizer
         try:
@@ -864,15 +894,23 @@ class BacktestEngine:
                 self.position_sizer.n_positions = max(n_entry_signals, 1)
 
             # Resolve strategy allocation weight
-            strategy = next((s for s in self.strategies if s.name == sig.strategy_name), None)
             alloc = getattr(strategy, "allocation", 1.0) if strategy is not None else 1.0
             if alloc <= 0.0:
                 alloc = 1.0
 
+            # The sizer sees this strategy's slice of NAV, but max_position_pct is a
+            # portfolio-wide limit: rescale it to the slice for this call.
             strategy_portfolio_adapter = _PortfolioAdapter(portfolio, allocation=alloc)
-            target_shares = self.position_sizer.calculate_size(
-                sig, strategy_portfolio_adapter, market_data
-            )
+            base_cap = getattr(self.position_sizer, "max_position_pct", None)
+            if base_cap is not None:
+                self.position_sizer.max_position_pct = min(1.0, base_cap / alloc)
+            try:
+                target_shares = self.position_sizer.calculate_size(
+                    sig, strategy_portfolio_adapter, market_data
+                )
+            finally:
+                if base_cap is not None:
+                    self.position_sizer.max_position_pct = base_cap
 
         except Exception as exc:
             log.warning("position_sizer failed for %s: %s", symbol, exc)
@@ -933,6 +971,16 @@ class BacktestEngine:
         except Exception as exc:
             log.warning("Failed to submit entry order for %s: %s", symbol, exc)
 
+    def _apply_fill_to_book(self, fill) -> None:
+        """Move a fill into the book of the strategy whose order it was."""
+        key = (fill.strategy_name, fill.symbol)
+        signed = fill.quantity if fill.side == OrderSide.BUY else -fill.quantity
+        qty = self._books.get(key, 0.0) + signed
+        if abs(qty) < 1e-9:
+            self._books.pop(key, None)
+        else:
+            self._books[key] = qty
+
     def _update_open_trades(
         self,
         fill,
@@ -942,13 +990,14 @@ class BacktestEngine:
     ) -> None:
         """Track open/closed round-trip trades from fills."""
         symbol = fill.symbol
+        key = (fill.strategy_name, symbol)
         qty = fill.quantity
         price = fill.price
 
         if fill.side == OrderSide.BUY:
-            if symbol not in open_trades:
+            if key not in open_trades:
                 # Opening a long position
-                open_trades[symbol] = {
+                open_trades[key] = {
                     "symbol": symbol,
                     "strategy_name": fill.strategy_name,
                     "side": "long",
@@ -964,7 +1013,7 @@ class BacktestEngine:
                 }
             else:
                 # Closing a short position
-                trade = open_trades.pop(symbol)
+                trade = open_trades.pop(key)
                 trade["exit_date"] = current_date
                 trade["exit_price"] = price
                 trade["pnl"] = trade["quantity"] * (trade["entry_price"] - price) - fill.commission - trade.get("commission", 0)
@@ -974,9 +1023,9 @@ class BacktestEngine:
                 closed_trades.append(trade)
 
         else:  # SELL
-            if symbol not in open_trades:
+            if key not in open_trades:
                 # Opening a short position
-                open_trades[symbol] = {
+                open_trades[key] = {
                     "symbol": symbol,
                     "strategy_name": fill.strategy_name,
                     "side": "short",
@@ -992,7 +1041,7 @@ class BacktestEngine:
                 }
             else:
                 # Closing a long position
-                trade = open_trades.pop(symbol)
+                trade = open_trades.pop(key)
                 trade["exit_date"] = current_date
                 trade["exit_price"] = price
                 trade["pnl"] = trade["quantity"] * (price - trade["entry_price"]) - fill.commission - trade.get("commission", 0)

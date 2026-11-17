@@ -149,6 +149,8 @@ class PairsMeanReversionStrategy(Strategy):
 
     name: str = "pairs_mean_reversion"
     rebalance_frequency: str = "daily"
+    # Market-neutral by design: each trade is a long leg plus a short leg.
+    allow_short: bool = True
     lookback_days: int = 310
 
     def __init__(
