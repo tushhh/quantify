@@ -1,0 +1,22 @@
+FAIL  B survivorship (point-in-time members): 16.1%/yr vs SPY 14.8% (excess +1.3), Sharpe 0.81 vs 0.85, worst drop -30.8% vs -33.7%
+PASS  C 2007-2016 incl. 2008: 7.7%/yr vs SPY 6.7% (excess +1.0), worst drop -45.5% vs SPY -55.2% (0.83x)
+PASS  D double costs: excess +0.3%/yr (15.0% vs 14.8%)
+PASS  E one-day delay: excess +4.6%/yr (19.4% vs 14.8%)
+PASS  F settings (every variant): u80 +2.1, u120 +1.7, alloc5050 +1.1, earlier +1.7, later +0.7
+FAIL  G without the top 5 stocks: 9.9%/yr vs SPY 14.8% (removed MU, NVDA, AVGO, AMD, NFLX: $97,841)
+FAIL  H luck (block bootstrap): beats SPY in 61.8% of 10,000 resamples
+INFO  I your 5% limit: chance of a 5%+ drop within a year 99%; median worst drop in a year -14.7%, in 5 years -27.2%; 1-in-20 worst in a year -31.0%
+
+full bar on B:
+  FAIL Beats SPY by >= 3 %/yr after costs (+1.3)
+  FAIL Sharpe above SPY's (0.81 vs 0.85)
+  FAIL Information ratio >= 0.5 (0.15)
+  FAIL Beats SPY in >= 55% of months (44%)
+  FAIL Positive in both halves (-2.2 / +4.8)
+  PASS Positive in the last 12 months (+22.6)
+  PASS Drawdown <= 1.25x SPY's (-30.8% vs -33.7%)
+  PASS Positive alpha after beta (+2.3%/yr)
+
+by year (strategy / SPY): 2007 +21/+5, 2008 -33/-37, 2009 +21/+26, 2010 +11/+15, 2011 -1/+2, 2012 +11/+14, 2013 +36/+32, 2014 +8/+13, 2015 +4/+1, 2016 +15/+12, 2017 +27/+21, 2018 -3/-5, 2019 +23/+31, 2020 +13/+18, 2021 +19/+29, 2022 -4/-19, 2023 +11/+26, 2024 +36/+25, 2025 +9/+18, 2026 +32/+11
+
+VERDICT: DO NOT BUILD

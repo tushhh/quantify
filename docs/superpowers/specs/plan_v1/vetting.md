@@ -22,3 +22,24 @@ results are seen. Each check is run once. A failed check is reported as failed, 
 
 **Decision rule.** If B, C or H fails, recommend **not** building the plan on `PLAN_V1`. If only D, E, F
 or G fail, report each one as a specific weakness and let the owner decide.
+
+## Results (run 2026-11-18, pass marks unchanged)
+
+Full output: `vetting_results.txt`. Universes: `vet_selections.json`. The point-in-time membership
+comes from Wikipedia revision 1314254751, with renames BK→BNY, MMC→MRSH and FI→FISV. Yahoo has no
+prices for most delisted members (2006: 320 of 516 priced), so survivorship bias is reduced, not
+removed. Results are still somewhat optimistic.
+
+| Check | Result |
+|---|---|
+| A lookahead | PASS |
+| B survivorship | **FAIL**: +16.1 %/yr vs SPY 14.8 %, Sharpe 0.81 vs 0.85 |
+| C 2007-2016 | PASS: +1.0 %/yr excess, worst drop −45.5 % vs −55.2 % |
+| D double costs | PASS: +0.3 %/yr |
+| E one-day delay | PASS: +4.6 %/yr |
+| F settings | PASS: +0.7 to +2.1 %/yr in all five |
+| G without the top 5 | **FAIL**: 9.9 %/yr vs 14.8 % without MU, NVDA, AVGO, AMD, NFLX |
+| H luck | **FAIL**: beats SPY in 61.8 % of resamples (needed 90 %) |
+| I 5 % limit | 99 % chance of a 5 %+ drop in a year; median worst yearly drop −14.7 % |
+
+Verdict under the pre-registered rule: **do not build the plan on PLAN_V1** (B and H failed).
