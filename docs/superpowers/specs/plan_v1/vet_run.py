@@ -25,6 +25,7 @@ PERIODS = {
 }
 periods = PERIODS.get(variant, PERIODS["base"])
 alloc = {"trend_following": 0.5, "cross_sectional_momentum": 0.5} if variant == "alloc5050" else \
+        {"trend_following": 1.0} if variant == "trend_only" else \
         {"trend_following": 0.4615, "cross_sectional_momentum": 0.5385}
 
 class DelayedEngine(BacktestEngine):
