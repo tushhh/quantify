@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import { api, errorMessage } from "@/lib/api";
 import type { ParamSpec, StrategyInfo } from "@/lib/api";
+import { StrategyTestBadge, StrategyTestNote } from "@/components/strategy-test-badge";
 
 const formatDefault = (p: ParamSpec) =>
   p.type === "bool" ? (p.default ? "On" : "Off") : String(p.default);
@@ -26,7 +27,10 @@ function StrategyRow({ info, open, onToggle }: { info: StrategyInfo; open: boole
         className="w-full grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_9rem_6rem_auto] items-center gap-x-6 gap-y-1 px-4 py-3 text-left hover:bg-[var(--color-surface)]"
       >
         <span className="min-w-0">
-          <span className="block text-sm font-medium text-[var(--color-text-primary)]">{info.label}</span>
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-[var(--color-text-primary)]">{info.label}</span>
+            <StrategyTestBadge result={info.test_result} />
+          </span>
           <span className={clsx("block text-xs text-[var(--color-text-secondary)] mt-0.5", !open && "line-clamp-1")}>{info.description}</span>
         </span>
         <span className="hidden sm:block text-right text-xs text-[var(--color-text-secondary)]">
@@ -40,6 +44,7 @@ function StrategyRow({ info, open, onToggle }: { info: StrategyInfo; open: boole
 
       {open && (
         <div id={panelId} className="px-4 pb-4">
+          {info.test_result && <div className="mb-3"><StrategyTestNote result={info.test_result} /></div>}
           {info.params.length ? (
             <table className="w-full text-left text-xs">
               <thead className="text-[var(--color-text-secondary)]">
@@ -101,7 +106,7 @@ export default function StrategiesPage() {
     <div className="max-w-5xl pb-12">
       <PageHeader
         title="Strategies"
-        description="The six strategies the backtester can combine, each with its default share of capital. Open one to see the settings it uses."
+        description="The six strategies the backtester can combine, with how each did when tested against simply holding SPY. Open one to see its test result and settings."
       >
         {strategies.length > 0 && (
           <button

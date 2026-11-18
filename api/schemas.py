@@ -126,12 +126,21 @@ class ParamSpec(BaseModel):
     description: str = ""
 
 
+class StrategyTestResult(BaseModel):
+    """How the strategy did when tested, so the app never presents it as better than it is."""
+    verdict: str    # "did_not_beat_spy" | "lost_money" | "not_trustworthy" | "not_testable"
+    label: str      # short tag, e.g. "Didn't beat SPY"
+    summary: str    # one or two plain sentences with the numbers
+    source: str     # where the test and its full results live in the repo
+
+
 class StrategyInfo(BaseModel):
     name: str
     label: str
     description: str
     default_allocation: float
     params: List[ParamSpec]
+    test_result: Optional[StrategyTestResult] = None
 
 
 # ---------------------------------------------------------------------------

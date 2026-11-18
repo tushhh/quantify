@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from api.schemas import ParamSpec, StrategyInfo
+from api.schemas import ParamSpec, StrategyInfo, StrategyTestResult
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -104,6 +104,69 @@ STRATEGIES: list[StrategyInfo] = [
         ],
     ),
 ]
+
+
+# How each strategy did when tested. Evidence: docs/strategy-test-results.md.
+# The app must never present a strategy as better than its test showed.
+_SOURCE = "docs/strategy-test-results.md"
+TEST_RESULTS: dict[str, StrategyTestResult] = {
+    "trend_following": StrategyTestResult(
+        verdict="not_trustworthy",
+        label="Matched SPY, no edge",
+        summary=(
+            "On stocks that were really in the S&P 500 at the time (2017-2026), it made 15.0% a year "
+            "vs SPY's 14.8%. Without its 5 best stocks it made 10.8%, and it beat SPY in only 53% of "
+            "luck tests. The small edge could be luck."
+        ),
+        source=_SOURCE,
+    ),
+    "cross_sectional_momentum": StrategyTestResult(
+        verdict="did_not_beat_spy",
+        label="Didn't beat SPY",
+        summary=(
+            "Even on today's 20 biggest stocks, a setup that flatters it, it made 88.7% over "
+            "2021-2026 vs SPY's 121.2%. Paired with trend following it failed the luck and "
+            "concentration checks."
+        ),
+        source=_SOURCE,
+    ),
+    "pairs_mean_reversion": StrategyTestResult(
+        verdict="lost_money",
+        label="Lost money",
+        summary="It lost 2.3% over 2021-2026 on today's 20 biggest stocks, while SPY made 121.2%.",
+        source=_SOURCE,
+    ),
+    "quality_value": StrategyTestResult(
+        verdict="not_testable",
+        label="Can't be tested fairly",
+        summary=(
+            "It reads today's company fundamentals for every past date, so a backtest sees the "
+            "future. Its backtest returns can't be trusted."
+        ),
+        source=_SOURCE,
+    ),
+    "ml_return_predictor": StrategyTestResult(
+        verdict="lost_money",
+        label="Lost money",
+        summary=(
+            "It lost 7.9% over 2021-2026 on today's 20 biggest stocks, while SPY made 121.2%. Its "
+            "monthly picks also trailed SPY after costs in a walk-forward test."
+        ),
+        source=_SOURCE,
+    ),
+    "volatility_regime": StrategyTestResult(
+        verdict="not_testable",
+        label="Can't be tested fairly",
+        summary=(
+            "It reads today's VIX for every past date, so a backtest sees the future. Its "
+            "backtest returns can't be trusted."
+        ),
+        source=_SOURCE,
+    ),
+}
+
+for _s in STRATEGIES:
+    _s.test_result = TEST_RESULTS.get(_s.name)
 
 
 @router.get("", response_model=list[StrategyInfo])

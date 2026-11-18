@@ -294,12 +294,20 @@ export type ParamSpec = {
   description: string;
 };
 
+export type StrategyTestResult = {
+  verdict: "did_not_beat_spy" | "lost_money" | "not_trustworthy" | "not_testable";
+  label: string;
+  summary: string;
+  source: string;
+};
+
 export type StrategyInfo = {
   name: string;
   label: string;
   description: string;
   default_allocation: number;
   params: ParamSpec[];
+  test_result?: StrategyTestResult | null;
 };
 
 export type RiskPreset = {

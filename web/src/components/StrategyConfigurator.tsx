@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import type { StrategyInfo } from "@/lib/api";
+import { StrategyTestBadge, StrategyTestNote } from "@/components/strategy-test-badge";
 import { Slider } from "@/components/ui";
 
 type Props = { strategies: StrategyInfo[] };
@@ -75,7 +76,10 @@ export function StrategyConfigurator({ strategies }: Props) {
 
               {/* Name */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--color-text-inverse)] truncate">{info.label}</p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-sm font-medium text-[var(--color-text-inverse)] truncate">{info.label}</p>
+                  <StrategyTestBadge result={info.test_result} />
+                </div>
                 <p className="text-[10px] text-[var(--color-text-muted)] line-clamp-1">{info.description}</p>
               </div>
 
@@ -97,6 +101,7 @@ export function StrategyConfigurator({ strategies }: Props) {
             {/* Expanded params */}
             {isOpen && cfg.enabled && (
               <div className="px-4 pb-4 pt-1 flex flex-col gap-3 border-t border-[var(--color-border)]/30">
+                <StrategyTestNote result={info.test_result} />
                 {/* Allocation slider */}
                 <Slider
                   label="Allocation"
