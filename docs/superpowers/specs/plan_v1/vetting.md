@@ -43,3 +43,15 @@ removed. Results are still somewhat optimistic.
 | I 5 % limit | 99 % chance of a 5 %+ drop in a year; median worst yearly drop −14.7 % |
 
 Verdict under the pre-registered rule: **do not build the plan on PLAN_V1** (B and H failed).
+
+## Addendum, 2026-11-18: trend following alone (pre-registered before running)
+
+Variant `trend_only`: B's setup (point-in-time universes chosen at end-2016 and end-2021, periods
+2017-2021 and 2022-2026, default costs) with **only** `trend_following`, allocation 1.0. It is judged on
+the same pass marks as `PLAN_V1`:
+
+- **B:** excess CAGR > 0 and Sharpe ≥ SPY's;
+- **G:** excess CAGR > 0 without its top-5 P&L symbols;
+- **H:** beats SPY in ≥ 90 % of 10,000 block-bootstrap resamples.
+
+The full profit bar and I are reported for information. One run, no tuning.
