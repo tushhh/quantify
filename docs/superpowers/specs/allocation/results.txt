@@ -1,0 +1,43 @@
+costs 0.20% per side | data to 2026-11-13
+
+=== GTAA5: unseen 2008-01-02..2026-11-13 | full period from 2007-03-02: CAGR 4.1%, worst drop -15.3%, Sharpe 0.54 | 55 trades/yr
+   PASS  worst drop ≥ −20%: -15.3%
+   FAIL  CAGR ≥ SPY − 2: 3.8% vs SPY 11.1%
+   FAIL  Sharpe ≥ SPY: 0.51 vs 0.63
+   FAIL  underwater ≤ 24 months: 37 months
+   FAIL  worst 5-yr CAGR > 0: -0.5% (full period)
+   FAIL  bootstrap: drop ≤25% in 86%, CAGR ok in 7%
+   by year: 2007 +8/+6, 2008 -5/-37, 2009 +12/+26, 2010 +3/+15, 2011 -1/+2, 2012 -1/+16, 2013 +7/+32, 2014 +6/+13, 2015 -5/+1, 2016 +4/+12, 2017 +8/+22, 2018 -3/-5, 2019 +6/+31, 2020 +5/+18, 2021 +21/+29, 2022 -5/-18, 2023 +1/+26, 2024 +5/+25, 2025 +8/+18, 2026 +9/+11
+=== GEM: unseen 2015-01-02..2026-11-13 | full period from 2004-10-04: CAGR 8.1%, worst drop -33.7%, Sharpe 0.58 | 3 trades/yr
+   FAIL  worst drop ≥ −20%: -33.7%
+   FAIL  CAGR ≥ SPY − 2: 6.4% vs SPY 13.4%
+   FAIL  Sharpe ≥ SPY: 0.47 vs 0.81
+   FAIL  underwater ≤ 24 months: 29 months
+   FAIL  worst 5-yr CAGR > 0: -3.6% (full period)
+   FAIL  bootstrap: drop ≤25% in 20%, CAGR ok in 2%
+   by year: 2004 +13/+7, 2005 +13/+5, 2006 +26/+16, 2007 +10/+5, 2008 -1/-37, 2009 +7/+26, 2010 +5/+15, 2011 -2/+2, 2012 +7/+16, 2013 +15/+32, 2014 +13/+13, 2015 -8/+1, 2016 +5/+12, 2017 +19/+22, 2018 -8/-5, 2019 +17/+31, 2020 -3/+18, 2021 +29/+29, 2022 -18/-18, 2023 +7/+26, 2024 +25/+25, 2025 +16/+18, 2026 +6/+11
+=== VAA-G4: unseen 2017-08-01..2026-11-13 | full period from 2004-10-04: CAGR 6.8%, worst drop -26.9%, Sharpe 0.55 | 14 trades/yr
+   FAIL  worst drop ≥ −20%: -26.9%
+   FAIL  CAGR ≥ SPY − 2: 1.4% vs SPY 14.6%
+   FAIL  Sharpe ≥ SPY: 0.18 vs 0.82
+   FAIL  underwater ≤ 24 months: 64 months
+   FAIL  worst 5-yr CAGR > 0: -4.1% (full period)
+   FAIL  bootstrap: drop ≤25% in 52%, CAGR ok in 3%
+   by year: 2004 +16/+7, 2005 +21/+5, 2006 +33/+16, 2007 +25/+5, 2008 +12/-37, 2009 +24/+26, 2010 -3/+15, 2011 +3/+2, 2012 +18/+16, 2013 +7/+32, 2014 -5/+13, 2015 -12/+1, 2016 +2/+12, 2017 +9/+22, 2018 +6/-5, 2019 +2/+31, 2020 +10/+18, 2021 +1/+29, 2022 -15/-18, 2023 +3/+26, 2024 -4/+25, 2025 +7/+18, 2026 +3/+11
+=== 60/40: unseen 2008-01-02..2026-11-13 | full period from 2003-08-04: CAGR 8.3%, worst drop -32.2%, Sharpe 0.82 | 24 trades/yr
+   FAIL  worst drop ≥ −20%: -31.4%
+   FAIL  CAGR ≥ SPY − 2: 8.1% vs SPY 11.1%
+   PASS  Sharpe ≥ SPY: 0.76 vs 0.63
+   FAIL  underwater ≤ 24 months: 28 months
+   FAIL  worst 5-yr CAGR > 0: -2.5% (full period)
+   FAIL  bootstrap: drop ≤25% in 57%, CAGR ok in 32%
+   by year: 2003 +11/+14, 2004 +8/+11, 2005 +4/+5, 2006 +10/+16, 2007 +7/+5, 2008 -18/-37, 2009 +13/+26, 2010 +13/+15, 2011 +8/+2, 2012 +11/+16, 2013 +16/+32, 2014 +12/+13, 2015 +2/+1, 2016 +8/+12, 2017 +14/+22, 2018 -2/-5, 2019 +22/+31, 2020 +17/+18, 2021 +15/+29, 2022 -17/-18, 2023 +17/+26, 2024 +14/+25, 2025 +14/+18, 2026 +6/+11
+=== SPY: unseen 2008-01-02..2026-11-13 | full period from 2007-03-02: CAGR 10.9%, worst drop -55.2%, Sharpe 0.63 | 0 trades/yr
+   FAIL  worst drop ≥ −20%: -51.9%
+   PASS  CAGR ≥ SPY − 2: 11.1% vs SPY 11.1%
+   PASS  Sharpe ≥ SPY: 0.63 vs 0.63
+   FAIL  underwater ≤ 24 months: 40 months
+   FAIL  worst 5-yr CAGR > 0: -1.6% (full period)
+   by year: 2007 +6/+6, 2008 -37/-37, 2009 +26/+26, 2010 +15/+15, 2011 +2/+2, 2012 +16/+16, 2013 +32/+32, 2014 +13/+13, 2015 +1/+1, 2016 +12/+12, 2017 +22/+22, 2018 -5/-5, 2019 +31/+31, 2020 +18/+18, 2021 +29/+29, 2022 -18/-18, 2023 +26/+26, 2024 +25/+25, 2025 +18/+18, 2026 +11/+11
+
+WINNER: none passed every row

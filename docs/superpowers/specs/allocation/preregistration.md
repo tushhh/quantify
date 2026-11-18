@@ -56,3 +56,19 @@ enough to become permanent. The owner chose the safest bar that still aims for s
   double costs, and the number of trades a year.
 - **Winner:** among strategies that pass all six rows, the one with the highest unseen-period CAGR. If
   none pass, report that plainly, with the closest one and the rows it failed. Don't loosen the bar.
+
+## Results (run 2026-11-18, bar unchanged): none passed
+
+Full output: `results.txt`. Unseen-period numbers, after 0.20 %/side costs:
+
+| Strategy | CAGR vs SPY | Worst drop | Longest under water | Rows passed |
+|---|---|---|---|---|
+| Faber GTAA-5 (2008-2026) | 3.8 % vs 11.1 % | −15.3 % | 37 months | 1 of 6 |
+| Antonacci GEM (2015-2026) | 6.4 % vs 13.4 % | −33.7 % | 29 months | 0 of 6 |
+| Keller VAA-G4 (2017-2026) | 1.4 % vs 14.6 % | −26.9 % | 64 months | 0 of 6 |
+| 60/40 (2008-2026) | 8.1 % vs 11.1 % | −31.4 % | 28 months | 1 of 6 (Sharpe) |
+| SPY (2008-2026) | 11.1 % | −51.9 % | 40 months | baseline |
+
+- All three published timing strategies did far worse after publication than in their papers.
+- None delivered SPY-like growth with drops of 20 % or less.
+- The plain 60/40 mix had the best return per unit of risk.
