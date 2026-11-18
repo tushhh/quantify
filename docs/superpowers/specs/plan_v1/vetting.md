@@ -55,3 +55,22 @@ the same pass marks as `PLAN_V1`:
 - **H:** beats SPY in ≥ 90 % of 10,000 block-bootstrap resamples.
 
 The full profit bar and I are reported for information. One run, no tuning.
+
+### Result (run 2026-11-18, pass marks unchanged): fails G and H
+
+| Check | Result |
+|---|---|
+| B survivorship | PASS, barely: 15.0 %/yr vs SPY 14.8 % (+0.2), Sharpe 0.86 vs 0.85, worst drop −30.2 % vs −33.7 % |
+| G without the top 5 | **FAIL**: 10.8 %/yr vs 14.8 % without NVDA, MU, MSFT, TMO, DHR |
+| H luck | **FAIL**: beats SPY in 52.8 % of resamples (needed 90 %), close to a coin flip |
+| I (info) | median worst drop in a year −12.0 %; 1 year in 20, −30.1 % |
+
+- Full profit bar: 3 of 7 rows passed (Sharpe, last 12 months, drawdown).
+- Failed rows: +3 %/yr, information ratio 0.02, 51 % of months, and 2017-2021 at −2.6 %/yr vs SPY.
+- Trades: 513 in 2017-2021 and 543 in 2022-2026.
+- By year, strategy vs SPY: 2017 +24/+21, 2018 −2/−5, 2019 +21/+31, 2020 +11/+18, 2021 +26/+29,
+  2022 −10/−19, 2023 +15/+26, 2024 +35/+25, 2025 +11/+18, 2026 +25/+11.
+
+Reading: without hindsight, trend following alone matched SPY rather than beating it. It lost less in
+falling years (2018, 2022) and lagged in strong ones (2019, 2020, 2023, 2025). The 0.2 %/yr edge is
+within luck, and five stocks carried it.
